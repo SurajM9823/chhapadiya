@@ -1,0 +1,65 @@
+{% extends "panel/base.html" %}
+{% block title %} — Inquiries{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_inquiries %}text-white bg-gray-600{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-4">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">Contact Page</p>
+        <h1 class="text-xl font-semibold text-gray-800">Contact Inquiries</h1>
+    </div>
+    <span class="text-xs text-gray-500">{{ inquiries.count }} total</span>
+</div>
+
+{% if inquiries %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Phone</th>
+                <th class="px-4 py-3 text-left">Email</th>
+                <th class="px-4 py-3 text-left">Type</th>
+                <th class="px-4 py-3 text-left">Message</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for inq in inquiries %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{{ inq.created_at|date:"d M Y" }}<br>{{ inq.created_at|time:"H:i" }}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">
+                    {{ inq.full_name }}
+                    {% if inq.company %}<br><span class="text-xs text-gray-400">{{ inq.company }}</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600 text-xs">
+                    <a href="tel:{{ inq.phone }}" class="hover:text-emerald-700">{{ inq.phone }}</a>
+                </td>
+                <td class="px-4 py-3 text-gray-600 text-xs">
+                    {% if inq.email %}<a href="mailto:{{ inq.email }}" class="hover:text-emerald-700">{{ inq.email }}</a>{% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    {% if inq.inquiry_type %}
+                    <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">{{ inq.get_inquiry_type_display }}</span>
+                    {% else %}<span class="text-gray-300 text-xs">—</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">{{ inq.message|truncatechars:100 }}</td>
+                <td class="px-4 py-3">
+                    <form method="post" action="{% url 'panel_inquiry_delete' inq.pk %}" onsubmit="return confirm('Delete this inquiry?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-10 text-center text-gray-400">No inquiries yet.</div>
+{% endif %}
+
+{% endblock %}

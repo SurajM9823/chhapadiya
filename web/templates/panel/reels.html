@@ -1,0 +1,97 @@
+{% extends "panel/base.html" %}
+{% block title %} — Reels{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_reels %}text-white bg-gray-600{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">Content Management</p>
+        <h1 class="text-xl font-semibold text-gray-800">Reels</h1>
+    </div>
+    <a href="{% url 'panel_reel_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Reel</a>
+</div>
+
+{% if reels %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Thumbnail</th>
+                <th class="px-4 py-3 text-left">Title</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for reel in reels %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    <div class="relative w-24 h-14">
+                        <img src="{{ reel.thumbnail.url }}" class="w-full h-full object-cover rounded" alt="{{ reel.title }}">
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="bg-black/40 rounded-full p-1">
+                                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ reel.title }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ reel.order }}</td>
+                <td class="px-4 py-3">
+                    {% if reel.is_active %}
+                    <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                    {% else %}
+                    <span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-medium">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex gap-3">
+                        <a href="{% url 'panel_reel_edit' reel.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                        <form method="post" action="{% url 'panel_reel_delete' reel.pk %}" onsubmit="return confirm('Delete this reel?')" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-500 hover:underline text-xs">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-6 flex justify-between items-center">
+    <div class="text-sm text-gray-600">
+        Page <span class="font-medium">{{ reels.number }}</span> of <span class="font-medium">{{ reels.paginator.num_pages }}</span>
+        ({{ reels.paginator.count }} total reels)
+    </div>
+    <div class="flex gap-2">
+        {% if reels.has_previous %}
+        <a href="?page=1" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">First</a>
+        <a href="?page={{ reels.previous_page_number }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Previous</a>
+        {% endif %}
+        
+        {% for num in reels.paginator.page_range %}
+            {% if reels.number == num %}
+            <span class="px-3 py-1 bg-gray-900 text-white rounded text-sm">{{ num }}</span>
+            {% elif num > reels.number|add:'-3' and num < reels.number|add:'3' %}
+            <a href="?page={{ num }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if reels.has_next %}
+        <a href="?page={{ reels.next_page_number }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Next</a>
+        <a href="?page={{ reels.paginator.num_pages }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Last</a>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">
+    No reels yet. <a href="{% url 'panel_reel_add' %}" class="text-blue-600 hover:underline ml-1">Add one</a>.
+</div>
+{% endif %}
+{% endblock %}

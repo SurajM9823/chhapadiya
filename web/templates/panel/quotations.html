@@ -1,0 +1,152 @@
+{% extends "panel/base.html" %}
+{% block title %} — Quotation Requests{% endblock %}
+{% block nav_customer_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_customer_open %}{% endblock %}
+{% block nav_customer_arrow %}rotate-180{% endblock %}
+{% block nav_quotes %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">Customers</p>
+        <h1 class="text-xl font-semibold text-gray-800">Quotation Requests</h1>
+    </div>
+    <span class="text-xs text-gray-400">{{ quotations.count }} total</span>
+</div>
+
+{% if quotations %}
+<div class="space-y-4">
+    {% for q in quotations %}
+    <div class="bg-white rounded-xl shadow p-5">
+        <div class="flex flex-col lg:flex-row lg:items-start gap-5">
+
+            <!-- Left: Quotation Info -->
+            <div class="flex-1 space-y-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold text-gray-800">{{ q.user_name }}</span>
+                    <span class="text-gray-400 text-xs">{{ q.user_email }}</span>
+                    {% if q.phone %}<span class="text-gray-400 text-xs">· {{ q.phone }}</span>{% endif %}
+                    <span class="text-gray-300 text-xs ml-auto">{{ q.created_at|date:"d M Y H:i" }}</span>
+                </div>
+
+                <!-- Items in quotation -->
+                <div class="space-y-1 bg-gray-50 rounded p-3">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Items ({{ q.items.count }})</p>
+                    {% for item in q.items.all %}
+                    <div class="flex items-center gap-2 text-xs">
+                        {% with item.product.primary_image as img %}
+                        {% if img %}<img src="{{ img.image.url }}" class="w-8 h-8 object-cover rounded border">{% endif %}
+                        {% endwith %}
+                        <div class="flex-1">
+                            <p class="font-medium text-emerald-700">{{ item.product.name }}</p>
+                            <p class="text-gray-400">SKU: {{ item.product.sku }} · Qty: {{ item.quantity }} · MRP: {{ item.product.mrp }}</p>
+                            {% if item.product.tier_prices.all %}
+                            <div class="flex gap-1 mt-0.5 flex-wrap">
+                                {% for tp in item.product.tier_prices.all %}
+                                <span class="bg-blue-50 text-blue-600 text-[9px] px-1 py-0.5 rounded">{{ tp.tier.name }}: {{ tp.price }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if q.message %}
+                <p class="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded italic">\"{{ q.message }}\"</p>
+                {% endif %}
+
+                <!-- Linked Customer -->
+                {% if q.linked_customer %}
+                <div class="flex items-center gap-2 mt-2 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <div>
+                        <p class="text-xs font-semibold text-emerald-700">{{ q.linked_customer.name }}</p>
+                        <p class="text-[10px] text-emerald-600">
+                            Customer linked
+                            {% if q.linked_customer.tier %}· <span class="font-semibold">{{ q.linked_customer.tier.name }}</span> tier{% endif %}
+                        </p>
+                    </div>
+                    <a href="{% url 'panel_customer_edit' q.linked_customer.pk %}" class="ml-auto text-[10px] text-blue-600 hover:underline">Edit</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex flex-col gap-3 min-w-[220px]">
+
+                <!-- Status badge -->
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium w-fit
+                    {% if q.status == 'pending' %}bg-yellow-100 text-yellow-700
+                    {% elif q.status == 'reviewed' %}bg-blue-100 text-blue-700
+                    {% elif q.status == 'responded' %}bg-green-100 text-green-700
+                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                    {{ q.get_status_display }}
+                </span>
+
+                <!-- Update status + note -->
+                <form method="post" action="{% url 'panel_quote_update' q.pk %}" class="space-y-2">
+                    {% csrf_token %}
+                    <select name="status" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400">
+                        <option value="pending" {% if q.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="reviewed" {% if q.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                        <option value="responded" {% if q.status == 'responded' %}selected{% endif %}>Responded</option>
+                        <option value="closed" {% if q.status == 'closed' %}selected{% endif %}>Closed</option>
+                    </select>
+                    <input name="admin_note" type="text" value="{{ q.admin_note }}" placeholder="Admin note..."
+                        class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400">
+                    <button type="submit" class="w-full bg-gray-900 text-white text-xs py-1.5 rounded hover:bg-gray-700">Update Status</button>
+                </form>
+
+                <!-- Create / Assign Customer -->
+                <div class="border-t pt-3">
+                    <button onclick="toggleCustomerForm('cf-{{ q.pk }}')"
+                        class="w-full flex items-center justify-center gap-1 border border-emerald-500 text-emerald-600 text-xs py-1.5 rounded hover:bg-emerald-50 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        {% if q.linked_customer %}Update Tier{% else %}+ Create Customer{% endif %}
+                    </button>
+                    <div id="cf-{{ q.pk }}" class="hidden mt-2">
+                        <form method="post" action="{% url 'panel_quote_create_customer' q.pk %}" class="space-y-2 bg-gray-50 rounded p-3">
+                            {% csrf_token %}
+                            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wide">
+                                {% if q.linked_customer %}Update tier for {{ q.linked_customer.name }}{% else %}Create customer from this quotation{% endif %}
+                            </p>
+                            <div>
+                                <label class="block text-[10px] text-gray-500 mb-1">Assign Tier <span class="text-gray-400">(optional)</span></label>
+                                <select name="tier" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400">
+                                    <option value="">— Normal Customer (no tier) —</option>
+                                    {% for tier in tiers %}
+                                    <option value="{{ tier.pk }}"
+                                        {% if q.linked_customer and q.linked_customer.tier_id == tier.pk %}selected{% endif %}>
+                                        {{ tier.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white text-xs py-1.5 rounded hover:bg-emerald-700">
+                                {% if q.linked_customer %}Update Tier{% else %}Create & Link Customer{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Delete -->
+                <form method="post" action="{% url 'panel_quote_delete' q.pk %}" onsubmit="return confirm('Delete this quotation?')">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full border border-red-200 text-red-400 text-xs py-1.5 rounded hover:bg-red-50">Delete Quotation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No quotation requests yet.</div>
+{% endif %}
+
+<script>
+function toggleCustomerForm(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "panel/base.html" %}
+{% block title %} — Tiers{% endblock %}
+{% block nav_customer_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_customer_open %}{% endblock %}
+{% block nav_customer_arrow %}rotate-180{% endblock %}
+{% block nav_tiers %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div><p class="text-xs text-gray-500 mb-1">Customers</p><h1 class="text-xl font-semibold text-gray-800">Customer Tiers</h1></div>
+    <a href="{% url 'panel_tier_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Tier</a>
+</div>
+{% if tiers %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Description</th>
+                <th class="px-4 py-3 text-left">Customers</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for tier in tiers %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ tier.name }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ tier.description|truncatechars:60 }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ tier.customers.count }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ tier.order }}</td>
+                <td class="px-4 py-3">
+                    {% if tier.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_tier_edit' tier.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_tier_delete' tier.pk %}" onsubmit="return confirm('Delete tier?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No tiers yet. <a href="{% url 'panel_tier_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+{% endblock %}

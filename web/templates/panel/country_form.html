@@ -1,0 +1,26 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ action }} Country{% endblock %}
+{% block nav_product_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_product_open %}{% endblock %}
+{% block nav_product_arrow %}rotate-180{% endblock %}
+{% block nav_countries %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-6"><p class="text-xs text-gray-500 mb-1">Products › Countries</p><h1 class="text-xl font-semibold text-gray-800">{{ action }} Country</h1></div>
+<div class="max-w-sm bg-white rounded-xl shadow p-8">
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Country Name</label>
+            <input name="name" type="text" value="{{ country.name|default:'' }}" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" placeholder="e.g. China">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">ISO Code <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input name="code" type="text" value="{{ country.code|default:'' }}" maxlength="5" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" placeholder="e.g. CN">
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700">Save</button>
+            <a href="{% url 'panel_countries' %}" class="px-5 py-2 rounded border text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

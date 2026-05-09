@@ -1,0 +1,235 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}My Cart{% endblock %}
+{% block content %}
+<section class="py-12 bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 md:px-8">
+        <h1 class="text-2xl font-semibold text-gray-800 mb-8">My Cart</h1>
+
+        {% for msg in messages %}
+        <div class="mb-5 px-4 py-3 rounded-lg text-sm {% if msg.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}">
+            {{ msg }}
+        </div>
+        {% endfor %}
+
+        {% if items %}
+        <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                    <tr>
+                        <th class="px-4 py-3 text-left">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" class="w-4 h-4 cursor-pointer">
+                        </th>
+                        <th class="px-4 py-3 text-left">Product</th>
+                        <th class="px-4 py-3 text-left">Price</th>
+                        <th class="px-4 py-3 text-left">Qty</th>
+                        <th class="px-4 py-3 text-left">Subtotal</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y" id="cartBody">
+                    {% for item in items %}
+                    <tr class="hover:bg-gray-50" id="row-{{ item.pk }}">
+                        <td class="px-4 py-3">
+                            <input type="checkbox" class="cartCheckbox w-4 h-4 cursor-pointer" data-item-id="{{ item.pk }}" data-product-id="{{ item.product.pk }}" data-qty="{{ item.quantity }}">
+                        </td>
+                        <td class="px-4 py-3 flex items-center gap-3">
+                            {% with img=item.product.primary_image %}
+                            {% if img %}
+                            <img src="{{ img.image.url }}" class="w-12 h-12 object-contain rounded border border-gray-100">
+                            {% else %}
+                            <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                <span class="material-symbols-outlined text-gray-300 text-xl">image_not_supported</span>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+                            <div>
+                                <p class="font-medium text-gray-800 line-clamp-2">{{ item.product.name }}</p>
+                                {% if item.product.brand %}<p class="text-xs text-gray-400">{{ item.product.brand }}</p>{% endif %}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-gray-700" data-price="{{ item.product.mrp }}">Rs. {{ item.product.mrp }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-1">
+                                <button onclick="changeQty({{ item.pk }}, -1)" class="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors text-base leading-none">−</button>
+                                <input type="number" id="qty-{{ item.pk }}" value="{{ item.quantity }}" min="1" max="99"
+                                    onchange="updateQty({{ item.pk }}, {{ item.product.mrp }})"
+                                    class="w-12 border border-gray-200 rounded px-1 py-1 text-sm text-center focus:outline-none focus:border-emerald-500">
+                                <button onclick="changeQty({{ item.pk }}, 1)" class="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors text-base leading-none">+</button>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 font-semibold text-gray-800" id="sub-{{ item.pk }}">Rs. {{ item.subtotal }}</td>
+                        <td class="px-4 py-3">
+                            <form method="post" action="{% url 'cart_remove' item.pk %}">
+                                {% csrf_token %}
+                                <button class="text-red-400 hover:text-red-600 transition-colors">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-end">
+            <div class="bg-white rounded-xl shadow p-6 w-full max-w-xs space-y-3">
+                <div class="flex justify-between text-sm text-gray-600">
+                    <span>Items (<span id="totalItems">{{ cart.total_items }}</span>)</span>
+                    <span id="totalPrice">Rs. {{ cart.total_price }}</span>
+                </div>
+                <div class="border-t border-gray-100 pt-3 flex justify-between font-semibold text-gray-800">
+                    <span>Total</span>
+                    <span id="totalPriceFinal">Rs. {{ cart.total_price }}</span>
+                </div>
+                <div class="space-y-2">
+                    <button onclick="proceedCheckout()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed" id="checkoutBtn" disabled>
+                        Proceed to Checkout
+                    </button>
+                    <button onclick="requestQuotation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed" id="quotationBtn" disabled>
+                        Request Quotation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="bg-white rounded-xl shadow p-16 text-center">
+            <span class="material-symbols-outlined text-6xl text-gray-200 mb-4 block">shopping_cart</span>
+            <p class="text-gray-400 mb-6">Your cart is empty.</p>
+            <a href="{% url 'products' %}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">Browse Products</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
+
+function changeQty(itemId, delta) {
+    const input = document.getElementById('qty-' + itemId);
+    const newVal = Math.max(1, parseInt(input.value) + delta);
+    input.value = newVal;
+    const price = parseFloat(document.querySelector('#row-' + itemId + ' [data-price]').dataset.price);
+    updateQty(itemId, price);
+}
+
+async function updateQty(itemId, price) {
+    const input = document.getElementById('qty-' + itemId);
+    const qty = Math.max(1, parseInt(input.value) || 1);
+    input.value = qty;
+
+    // update subtotal cell immediately
+    const sub = document.getElementById('sub-' + itemId);
+    sub.textContent = 'Rs. ' + (price * qty).toFixed(2);
+
+    // recalc total
+    recalcTotal();
+
+    // persist to server
+    const data = new FormData();
+    data.append('quantity', qty);
+    data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    await fetch('/cart/update/' + itemId + '/', { method: 'POST', body: data });
+}
+
+function recalcTotal() {
+    let total = 0;
+    let items = 0;
+    document.querySelectorAll('[id^="sub-"]').forEach(cell => {
+        const val = parseFloat(cell.textContent.replace('Rs. ', '')) || 0;
+        total += val;
+    });
+    document.querySelectorAll('[id^="qty-"]').forEach(input => {
+        items += parseInt(input.value) || 0;
+    });
+    document.getElementById('totalItems').textContent = items;
+    document.getElementById('totalPrice').textContent = 'Rs. ' + total.toFixed(2);
+    document.getElementById('totalPriceFinal').textContent = 'Rs. ' + total.toFixed(2);
+    updateButtonStates();
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.cartCheckbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateButtonStates();
+}
+
+function updateButtonStates() {
+    const hasSelected = document.querySelectorAll('.cartCheckbox:checked').length > 0;
+    document.getElementById('checkoutBtn').disabled = !hasSelected;
+    document.getElementById('quotationBtn').disabled = !hasSelected;
+}
+
+function getSelectedItems() {
+    const selected = [];
+    document.querySelectorAll('.cartCheckbox:checked').forEach(cb => {
+        selected.push({
+            product_id: parseInt(cb.dataset.productId),
+            quantity: parseInt(cb.dataset.qty)
+        });
+    });
+    return selected;
+}
+
+function proceedCheckout() {
+    const selected = getSelectedItems();
+    if (selected.length === 0) {
+        alert('Please select at least one product');
+        return;
+    }
+    // Store selected items in sessionStorage and proceed to checkout
+    sessionStorage.setItem('selectedCartItems', JSON.stringify(selected));
+    window.location.href = '{% url "checkout" %}';
+}
+
+function requestQuotation() {
+    const selected = getSelectedItems();
+    if (selected.length === 0) {
+        alert('Please select at least one product');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    formData.append('items', JSON.stringify(selected));
+    
+    fetch('/quote/request/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Quotation request submitted successfully!', 'success');
+            setTimeout(() => window.location.href = '/', 1500);
+        } else {
+            showToast(data.message || 'Error submitting quotation', 'error');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showToast('Error submitting quotation', 'error');
+    });
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm ${
+        type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+    } z-50`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+document.querySelectorAll('.cartCheckbox').forEach(cb => {
+    cb.addEventListener('change', updateButtonStates);
+});
+</script>
+{% endblock %}

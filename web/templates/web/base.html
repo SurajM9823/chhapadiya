@@ -1,0 +1,1179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>{% block title %}Clan Wowo | Industrial Solutions{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'images/fevicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/fevicon.png' %}">
+    <meta name="description" content="{% block meta_description %}Clan Wowo — Industrial machinery, bakery equipment, dairy machinery, food processing machines, hotel & kitchen equipment, and refrigeration solutions.{% endblock %}">
+    <meta name="keywords" content="bakery machinery, dairy machinery, food processing, hotel kitchen equipment, refrigeration, industrial machinery">
+    <meta property="og:title" content="{% block og_title %}Clan Wowo | Industrial Solutions{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Professional machinery supply and technical support for bakery, dairy, food processing, hotel & kitchen, and refrigeration industries.{% endblock %}">
+    <meta property="og:image" content="{% static 'images/fevicon.png' %}">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-fixed": "#dfe3e9",
+                        "on-tertiary-container": "#a2a6ac",
+                        "on-background": "#121c2a",
+                        "surface-tint": "#3f6653",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#22272b",
+                        "on-primary-fixed": "#002114",
+                        "surface-dim": "#d0dbed",
+                        "outline": "#717973",
+                        "on-secondary-container": "#316e52",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#0e5138",
+                        "on-primary-fixed-variant": "#274e3d",
+                        "surface-container-highest": "#d9e3f6",
+                        "secondary-container": "#aeeecb",
+                        "surface-container": "#e6eeff",
+                        "on-primary-container": "#86af99",
+                        "surface": "#f8f9ff",
+                        "primary": "#012d1d",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#2c694e",
+                        "primary-fixed-dim": "#a5d0b9",
+                        "tertiary-fixed-dim": "#c3c7cd",
+                        "tertiary-container": "#373c41",
+                        "background": "#f8f9ff",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#121c2a",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#002114",
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-fixed-variant": "#43474c",
+                        "inverse-primary": "#a5d0b9",
+                        "surface-container-low": "#eff4ff",
+                        "on-tertiary-fixed": "#171c20",
+                        "outline-variant": "#c1c8c2",
+                        "surface-container-high": "#dee9fc",
+                        "on-error": "#ffffff",
+                        "primary-container": "#1b4332",
+                        "primary-fixed": "#c1ecd4",
+                        "on-surface-variant": "#414844",
+                        "secondary-fixed": "#b1f0ce",
+                        "secondary-fixed-dim": "#95d4b3",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#d9e3f6",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#eaf1ff",
+                        "inverse-surface": "#27313f"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.125rem",
+                        lg: "0.25rem",
+                        xl: "0.5rem",
+                        full: "0.75rem"
+                    },
+                    spacing: {
+                        "container-max": "1280px",
+                        "stack-lg": "2rem",
+                        "stack-md": "1rem",
+                        "margin-page": "2rem",
+                        "stack-sm": "0.5rem",
+                        "gutter": "1.5rem"
+                    },
+                    fontFamily: {
+                        "body-base": ["Inter"],
+                        "button-text": ["Work Sans"],
+                        "label-bold": ["Inter"],
+                        "headline-md": ["Work Sans"],
+                        "display-lg": ["Work Sans"]
+                    },
+                    fontSize: {
+                        "body-base": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "button-text": ["16px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "label-bold": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Mega Menu Transitions */
+        #shopMegaMenu {
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+            transform-origin: top center;
+        }
+        
+        /* Smooth hover transitions */
+        .mega-menu-link {
+            transition: color 0.2s ease-in-out;
+        }
+        
+         /* Ensure mega menu appears above everything */
+         #shopMegaMenu:not(.hidden) {
+            display: flex !important;
+        }
+        
+        /* Hide scrollbar for mobile shop menu */
+        #mobileShopMenu {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-surface font-body-base text-on-surface">
+    {% block navbar %}
+    <!-- TopNavBar -->
+    <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 fixed top-0 w-full z-50">
+        <nav class="flex justify-between items-center max-w-7xl mx-auto px-4 md:px-8 h-20 w-full relative">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleMobileSidebar()" class="md:hidden p-1 text-emerald-900 focus:outline-none">
+                    <span class="material-symbols-outlined text-3xl">menu</span>
+                </button>
+                <a href="{% url 'index' %}" class="flex items-center gap-2">
+                    <img src="{% static 'images/logo.jpg' %}" alt="Chhapadiya Traders Logo" class="h-10 md:h-12 w-auto object-contain rounded-sm" />
+                </a>
+            </div>
+            <div class="hidden md:flex items-center space-x-8 flex-1 max-w-lg">
+                <a class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase pb-1 {% if request.resolver_match.url_name == 'index' %}text-emerald-700 border-b-2 border-emerald-700{% else %}text-gray-600 hover:text-emerald-700{% endif %} transition-colors duration-200" href="{% url 'index' %}">Home</a>
+                <!-- Shop with Mega Menu -->
+                <div class="relative" onmouseenter="openShopMegaMenu()" onmouseleave="scheduleCloseShopMegaMenu()">
+                    <a href="#" class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase flex items-center gap-1 pb-1 text-gray-600 hover:text-emerald-700 transition-colors duration-200" onclick="toggleShopMegaMenu(event)">
+                        Shop
+                        <span class="material-symbols-outlined text-xs">expand_more</span>
+                    </a>
+                     <!-- Mega Menu Dropdown - Full Width -->
+                     <div id="shopMegaMenu" class="hidden fixed top-20 left-0 w-screen pt-4 z-40 bg-white border-b border-gray-200 shadow-2xl" onmouseenter="cancelCloseShopMegaMenu()" onmouseleave="scheduleCloseShopMegaMenu()">
+                        <div class="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+                            <div class="grid grid-cols-5 gap-x-8 gap-y-2">
+                                {% for category in categories %}
+                                <div>
+                                    <h3 class="font-['Work_Sans'] font-semibold text-gray-900 mb-3 text-xs uppercase tracking-wider">{{ category.name }}</h3>
+                                    <ul class="space-y-2">
+                                        {% for subcategory in category.subcategories.all %}
+                                        <li><a href="{% url 'products' %}?subcategory={{ subcategory.id }}" class="text-xs text-gray-600 hover:text-emerald-700 transition-colors">{{ subcategory.name }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <a class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase pb-1 {% if request.resolver_match.url_name == 'products' %}text-emerald-700 border-b-2 border-emerald-700{% else %}text-gray-600 hover:text-emerald-700{% endif %} transition-colors duration-200" href="{% url 'products' %}">Products</a>
+                <a class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase pb-1 {% if request.resolver_match.url_name == 'services' %}text-emerald-700 border-b-2 border-emerald-700{% else %}text-gray-600 hover:text-emerald-700{% endif %} transition-colors duration-200" href="{% url 'services' %}">Services</a>
+                <!-- Origins with Dropdown -->
+                <div class="relative" onmouseenter="openOriginsMegaMenu()" onmouseleave="scheduleOriginsMegaMenu()">
+                    <a href="{% url 'products' %}" class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase flex items-center gap-1 pb-1 text-gray-600 hover:text-emerald-700 transition-colors duration-200" onclick="toggleOriginsMegaMenu(event)">
+                        Origin
+                        <span class="material-symbols-outlined text-xs">expand_more</span>
+                    </a>
+                    <div id="originsMegaMenu" class="hidden fixed top-20 left-0 w-screen pt-4 z-40 bg-white border-b border-gray-200 shadow-2xl" onmouseenter="cancelOriginsMegaMenu()" onmouseleave="scheduleOriginsMegaMenu()">
+                        <div class="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+                            <div class="grid grid-cols-5 gap-x-8 gap-y-2" id="originsMegaMenuContent">
+                                <!-- Origins will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <a class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase pb-1 {% if request.resolver_match.url_name == 'about' %}text-emerald-700 border-b-2 border-emerald-700{% else %}text-gray-600 hover:text-emerald-700{% endif %} transition-colors duration-200" href="{% url 'about' %}">About</a>
+                <a class="font-['Work_Sans'] text-sm font-medium tracking-tight uppercase pb-1 {% if request.resolver_match.url_name == 'contact' %}text-emerald-700 border-b-2 border-emerald-700{% else %}text-gray-600 hover:text-emerald-700{% endif %} transition-colors duration-200" href="{% url 'contact' %}">Contact</a>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="openSearchModal()" class="scale-100 active:scale-95 transition-transform"><span class="material-symbols-outlined text-emerald-900 dark:text-emerald-400 text-2xl md:text-3xl">search</span></button>
+                <button onclick="handleCartClick()" class="relative scale-100 active:scale-95 transition-transform focus:outline-none">
+                    <span class="material-symbols-outlined text-emerald-900 text-2xl md:text-3xl">shopping_cart</span>
+                    {% if request.user.is_authenticated %}
+                    {% with request.user.cart as uc %}
+                    {% if uc and uc.total_items > 0 %}
+                    <span class="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{{ uc.total_items }}</span>
+                    {% endif %}{% endwith %}{% endif %}
+                </button>
+                <div class="relative">
+                    <button onclick="toggleUserDropdown()" class="scale-100 active:scale-95 transition-transform focus:outline-none"><span class="material-symbols-outlined text-emerald-900 dark:text-emerald-400 text-2xl md:text-3xl">account_circle</span></button>
+                    <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg py-2 z-50">
+                        {% if request.user.is_authenticated %}
+                        <div class="px-4 py-2 border-b border-gray-100">
+                            <p class="text-xs font-semibold text-gray-800 truncate">{{ request.user.email }}</p>
+                        </div>
+                        <button onclick="handleWishlistClick()" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">My Wishlist</button>
+                        <a href="{% url 'cart' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">My Cart</a>
+                        <a href="{% url 'my_orders' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">My Orders</a>
+                        <a href="{% url 'my_quotes' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">My Quotes</a>
+                        <hr class="my-1 border-gray-100">
+                        <a href="{% url 'customer_logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Logout</a>
+                        {% else %}
+                        <button onclick="openAuthModal('login')" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">Sign In</button>
+                        <button onclick="openAuthModal('register')" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">Create Account</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <!-- Mobile Sidebar Overlay -->
+    <div id="mobileSidebarOverlay" class="fixed inset-0 bg-black/50 z-[60] hidden transition-opacity" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Sidebar (main panel) -->
+    <div id="mobileSidebar" class="fixed top-0 left-0 w-72 h-full bg-white z-[70] transform -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col overflow-hidden">
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+            <img src="{% static 'images/logo.jpg' %}" alt="Logo" class="h-8 w-auto object-contain">
+            <button onclick="toggleMobileSidebar()" class="p-1 text-gray-500 hover:text-gray-800">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- Main nav panel -->
+        <div id="sidebarMainPanel" class="flex flex-col py-2 overflow-y-auto flex-1 transition-transform duration-300">
+            <a href="{% url 'index' %}" class="flex items-center gap-3 px-5 py-3.5 text-emerald-700 font-semibold bg-emerald-50 border-l-4 border-emerald-600 text-sm">Home</a>
+            <button onclick="openShopSubpanel()" class="flex items-center justify-between px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm font-medium w-full text-left">
+                <span>Shop</span>
+                <span class="material-symbols-outlined text-base text-gray-400">chevron_right</span>
+            </button>
+            <a href="{% url 'products' %}" class="flex items-center gap-3 px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm">Products</a>
+            <a href="{% url 'services' %}" class="flex items-center gap-3 px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm">Services</a>
+            <button onclick="openBrandsSubpanel()" class="flex items-center justify-between px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm font-medium w-full text-left">
+                <span>Origin</span>
+                <span class="material-symbols-outlined text-base text-gray-400">chevron_right</span>
+            </button>
+            <a href="{% url 'about' %}" class="flex items-center gap-3 px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm">About</a>
+            <a href="{% url 'contact' %}" class="flex items-center gap-3 px-5 py-3.5 text-gray-700 hover:bg-gray-50 hover:text-emerald-700 text-sm">Contact</a>
+        </div>
+
+        <!-- Shop subpanel (slides in from right inside sidebar) -->
+        <div id="sidebarShopPanel" class="absolute inset-0 bg-white transform translate-x-full transition-transform duration-300 flex flex-col">
+            <!-- Subpanel header -->
+            <div class="p-4 border-b border-gray-100 flex items-center gap-3 flex-shrink-0">
+                <button onclick="closeShopSubpanel()" class="p-1 text-gray-500 hover:text-emerald-700">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <span class="font-['Work_Sans'] font-semibold text-gray-800">Shop</span>
+            </div>
+            <!-- Subpanel content -->
+            <div class="overflow-y-auto flex-1 py-2">
+                <a href="{% url 'products' %}" class="flex items-center px-5 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 border-b border-gray-100">View All Products</a>
+
+                {% for category in categories %}
+                <div>
+                    <button onclick="toggleMobileCatMenu('cat-{{ forloop.counter }}')" class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 border-b border-gray-100">
+                        <span>{{ category.name }}</span>
+                        <span id="cat-{{ forloop.counter }}-icon" class="material-symbols-outlined text-base text-gray-400 transition-transform duration-200">expand_more</span>
+                    </button>
+                    <div id="cat-{{ forloop.counter }}" class="hidden bg-gray-50">
+                        {% for subcategory in category.subcategories.all %}
+                        <a href="{% url 'products' %}?subcategory={{ subcategory.id }}" class="flex items-center gap-2 px-8 py-2.5 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">
+                            <span class="w-1 h-1 rounded-full bg-gray-400 flex-shrink-0"></span>{{ subcategory.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Origins subpanel -->
+        <div id="sidebarBrandsPanel" class="absolute inset-0 bg-white transform translate-x-full transition-transform duration-300 flex flex-col">
+            <div class="p-4 border-b border-gray-100 flex items-center gap-3 flex-shrink-0">
+                <button onclick="closeBrandsSubpanel()" class="p-1 text-gray-500 hover:text-emerald-700">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <span class="font-['Work_Sans'] font-semibold text-gray-800">Origin</span>
+            </div>
+            <div class="overflow-y-auto flex-1 py-2" id="sidebarOriginsContent">
+                <!-- Origins will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    <main class="pt-20">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block footer %}
+    <!-- Footer -->
+    <footer class="bg-primary text-white border-t border-emerald-700 pt-12 pb-8">
+        <div class="max-w-7xl mx-auto px-4 md:px-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+                <!-- Brand & Contact Info -->
+                <div class="flex flex-col items-center sm:items-start gap-3 sm:col-span-2 lg:col-span-1 text-center sm:text-left">
+                    <img src="{% static 'images/logo.jpg' %}" alt="Logo" class="h-10 w-auto object-contain mb-1">
+                    {% if settings.email %}<a href="mailto:{{ settings.email }}" class="flex items-center gap-2 text-sm text-emerald-100 hover:text-secondary-fixed transition-colors"><span class="material-symbols-outlined text-base">mail</span><span>{{ settings.email }}</span></a>{% endif %}
+                    {% if settings.phone %}<a href="tel:{{ settings.phone }}" class="flex items-center gap-2 text-sm text-emerald-100 hover:text-secondary-fixed transition-colors"><span class="material-symbols-outlined text-base">call</span>{{ settings.phone }}</a>{% endif %}
+                    {% if settings.address %}<div class="flex items-start gap-2 text-sm text-emerald-100"><span class="material-symbols-outlined text-base flex-shrink-0">location_on</span><span>{{ settings.address }}</span></div>{% endif %}
+                    <div class="flex gap-3 mt-2">
+                        {% if settings.facebook %}<a href="{{ settings.facebook }}" target="_blank" class="w-8 h-8 rounded-full bg-emerald-700 border border-emerald-600 flex items-center justify-center hover:bg-secondary-fixed hover:border-secondary-fixed transition-colors text-white"><i class="fa-brands fa-facebook-f text-xs"></i></a>{% endif %}
+                        {% if settings.twitter %}<a href="{{ settings.twitter }}" target="_blank" class="w-8 h-8 rounded-full bg-emerald-700 border border-emerald-600 flex items-center justify-center hover:bg-secondary-fixed hover:border-secondary-fixed transition-colors text-white"><i class="fa-brands fa-twitter text-xs"></i></a>{% endif %}
+                        {% if settings.instagram %}<a href="{{ settings.instagram }}" target="_blank" class="w-8 h-8 rounded-full bg-emerald-700 border border-emerald-600 flex items-center justify-center hover:bg-secondary-fixed hover:border-secondary-fixed transition-colors text-white"><i class="fa-brands fa-instagram text-xs"></i></a>{% endif %}
+                        {% if settings.linkedin %}<a href="{{ settings.linkedin }}" target="_blank" class="w-8 h-8 rounded-full bg-emerald-700 border border-emerald-600 flex items-center justify-center hover:bg-secondary-fixed hover:border-secondary-fixed transition-colors text-white"><i class="fa-brands fa-linkedin-in text-xs"></i></a>{% endif %}
+                    </div>
+                </div>
+
+                <!-- Quick Links & Customer Service in same row on mobile -->
+                <div class="grid grid-cols-2 gap-6 sm:col-span-2 lg:col-span-2">
+                    <!-- Quick Links -->
+                    <div class="flex flex-col gap-2">
+                        <h4 class="text-white font-semibold text-sm uppercase tracking-wider mb-2">Quick Links</h4>
+                        <a href="{% url 'products' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">All Products</a>
+                        <a href="{% url 'contact' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">Contact</a>
+                        <a href="{% url 'about' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">About Us</a>
+                    </div>
+                    <!-- Customer Service -->
+                    <div class="flex flex-col gap-2">
+                        <h4 class="text-white font-semibold text-sm uppercase tracking-wider mb-2">Customer Service</h4>
+                        <a href="{% url 'b2b_request' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">B2B Request</a>
+                        <a href="{% url 'privacy_policy' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">Privacy Policy</a>
+                        <a href="{% url 'terms_conditions' %}" class="text-sm text-emerald-100 hover:text-secondary-fixed transition-colors">Terms & Conditions</a>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="flex flex-col gap-2 sm:col-span-2 lg:col-span-1">
+                    <h4 class="text-white font-semibold text-sm uppercase tracking-wider mb-2">Our Location</h4>
+                    <div class="w-full h-28 bg-emerald-900 rounded-sm overflow-hidden border border-emerald-700">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3532.822830843477!2d85.3188547!3d27.6918809!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39eb19b26e0df391%3A0xc48afebfca84b55c!2sKathmandu%2010000%2C%20Nepal!5e0!3m2!1sen!2sus!4v1715000000000!5m2!1sen!2sus" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-emerald-700 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-emerald-200 text-center">
+                <p>&copy; 2024 Chhapadiya Traders. All rights reserved.</p>
+                <p>Built with quality &amp; care.</p>
+            </div>
+        </div>
+    </footer>
+    {% endblock %}
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-sm flex items-start justify-center pt-24 px-4" onclick="closeSearchModalOutside(event)">
+        <div class="bg-white w-full max-w-xl rounded-lg shadow-2xl overflow-hidden">
+            <div class="flex items-center px-4 py-3 border-b border-gray-100">
+                <span class="material-symbols-outlined text-gray-400 mr-3">search</span>
+                <input type="text" id="navbarSearchInput" placeholder="Search products..." autofocus
+                    class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-400"
+                    oninput="handleNavbarSearch()"
+                    onkeydown="handleSearchKey(event)">
+                <button onclick="closeSearchModal()" class="ml-3 text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div id="searchResults" class="max-h-96 overflow-y-auto"></div>
+            <div id="searchModalHint" class="px-4 py-3 text-xs text-gray-400">Type to search products — press Enter to see all results</div>
+        </div>
+    </div>
+
+    <!-- Reel Loading Overlay -->
+    <div id="reelLoadingOverlay" style="display:none" class="fixed inset-0 z-[150] bg-black/95 flex items-center justify-center backdrop-blur-sm">
+        <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin w-12 h-12 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            <span class="text-white text-sm">Loading video...</span>
+        </div>
+    </div>
+
+    <!-- Reel Modal -->
+    <div id="reelModal" style="display:none" class="fixed inset-0 z-[100] bg-black/95 items-center justify-center backdrop-blur-sm" onclick="closeReelModal()">
+        <button class="absolute top-6 right-6 text-white p-2 z-10 hover:bg-white/10 rounded-full transition-colors" onclick="event.stopPropagation(); closeReelModal()">
+            <span class="material-symbols-outlined text-3xl">close</span>
+        </button>
+        <div class="relative w-full max-w-sm mx-4" onclick="event.stopPropagation()">
+            <video id="reelModalVideo" controls playsinline preload="auto" class="w-full rounded-lg max-h-[85vh]"></video>
+        </div>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-[100]">
+        {% if settings.tiktok %}
+        <a href="{{ settings.tiktok }}" target="_blank" class="w-8 h-8 bg-black text-white rounded-full flex justify-center items-center shadow-lg hover:bg-gray-900 transition-transform hover:scale-110">
+            <i class="fa-brands fa-tiktok text-sm"></i>
+        </a>
+        {% endif %}
+        {% if settings.facebook %}
+        <a href="{{ settings.facebook }}" target="_blank" class="w-8 h-8 bg-[#1877F2] text-white rounded-full flex justify-center items-center shadow-lg hover:bg-blue-700 transition-transform hover:scale-110">
+            <i class="fa-brands fa-facebook-f text-sm"></i>
+        </a>
+        {% endif %}
+        {% if settings.whatsapp %}
+        <a href="https://wa.me/{{ settings.whatsapp }}" target="_blank" class="w-8 h-8 bg-[#25D366] text-white rounded-full flex justify-center items-center shadow-lg hover:bg-green-600 transition-transform hover:scale-110">
+            <i class="fa-brands fa-whatsapp text-base"></i>
+        </a>
+        {% endif %}
+    </div>
+
+    <script>
+        function showReelLoader() {
+            document.getElementById('reelLoadingOverlay').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        function openReelModal(reelId, url) {
+            const modal = document.getElementById('reelModal');
+            const overlay = document.getElementById('reelLoadingOverlay');
+            const video = document.getElementById('reelModalVideo');
+            video.src = url;
+            video.load();
+            modal.style.display = 'flex';
+            video.oncanplay = function() {
+                overlay.style.display = 'none';
+                video.play();
+                video.oncanplay = null;
+            };
+        }
+        function closeReelModal() {
+            const video = document.getElementById('reelModalVideo');
+            const overlay = document.getElementById('reelLoadingOverlay');
+            video.oncanplay = null;
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            overlay.style.display = 'none';
+            document.getElementById('reelModal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        let currentHeroSlide = 0;
+        const heroCarousel = document.getElementById('hero-carousel');
+        const totalHeroSlides = heroCarousel ? heroCarousel.children.length || 1 : 1;
+
+        function updateHeroSlide() {
+            if (!heroCarousel) return;
+            heroCarousel.style.transform = `translateX(-${currentHeroSlide * 100}%)`;
+        }
+
+        function nextHeroSlide() {
+            if (!heroCarousel) return;
+            currentHeroSlide = (currentHeroSlide + 1) % totalHeroSlides;
+            updateHeroSlide();
+        }
+
+        function prevHeroSlide() {
+            if (!heroCarousel) return;
+            currentHeroSlide = (currentHeroSlide - 1 + totalHeroSlides) % totalHeroSlides;
+            updateHeroSlide();
+        }
+
+        if (heroCarousel) setInterval(nextHeroSlide, 4000);
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const overlay = document.getElementById('mobileSidebarOverlay');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Shop Mega Menu - Desktop & Mobile
+        let shopMenuCloseTimer = null;
+
+        function openShopMegaMenu() {
+            cancelCloseShopMegaMenu();
+            const menu = document.getElementById('shopMegaMenu');
+            if (menu) {
+                menu.classList.remove('hidden');
+                menu.style.display = 'flex';
+            }
+        }
+
+        function closeShopMegaMenu() {
+            const menu = document.getElementById('shopMegaMenu');
+            if (menu) {
+                menu.classList.add('hidden');
+                menu.style.display = '';
+            }
+        }
+
+        function scheduleCloseShopMegaMenu() {
+            shopMenuCloseTimer = setTimeout(closeShopMegaMenu, 120);
+        }
+
+        function cancelCloseShopMegaMenu() {
+            if (shopMenuCloseTimer) {
+                clearTimeout(shopMenuCloseTimer);
+                shopMenuCloseTimer = null;
+            }
+        }
+
+        function toggleShopMegaMenu(event) {
+            event.preventDefault();
+            const menu = document.getElementById('shopMegaMenu');
+            if (menu.classList.contains('hidden')) {
+                openShopMegaMenu();
+            } else {
+                closeShopMegaMenu();
+            }
+        }
+
+        function toggleMobileShopMenu() {}
+
+        function openShopSubpanel() {
+            document.getElementById('sidebarShopPanel').classList.remove('translate-x-full');
+        }
+
+        function closeShopSubpanel() {
+            document.getElementById('sidebarShopPanel').classList.add('translate-x-full');
+        }
+
+        function openBrandsSubpanel() {
+            document.getElementById('sidebarBrandsPanel').classList.remove('translate-x-full');
+        }
+
+        function closeBrandsSubpanel() {
+            document.getElementById('sidebarBrandsPanel').classList.add('translate-x-full');
+        }
+
+        // Origins desktop dropdown
+        let originsMenuCloseTimer = null;
+
+        function openOriginsMegaMenu() {
+            cancelOriginsMegaMenu();
+            document.getElementById('originsMegaMenu').classList.remove('hidden');
+        }
+
+        function closeOriginsMegaMenu() {
+            document.getElementById('originsMegaMenu').classList.add('hidden');
+        }
+
+        function scheduleOriginsMegaMenu() {
+            originsMenuCloseTimer = setTimeout(closeOriginsMegaMenu, 120);
+        }
+
+        function cancelOriginsMegaMenu() {
+            if (originsMenuCloseTimer) { clearTimeout(originsMenuCloseTimer); originsMenuCloseTimer = null; }
+        }
+
+        function toggleOriginsMegaMenu(event) {
+            const menu = document.getElementById('originsMegaMenu');
+            menu.classList.contains('hidden') ? openOriginsMegaMenu() : closeOriginsMegaMenu();
+        }
+
+        async function populateOriginsMenu() {
+            try {
+                const res = await fetch('/api/origins/');
+                const data = await res.json();
+                const desktopContent = document.getElementById('originsMegaMenuContent');
+                const sidebarContent = document.getElementById('sidebarOriginsContent');
+                
+                if (desktopContent) {
+                    desktopContent.innerHTML = data.origins.map(origin => `
+                        <div>
+                            <h3 class="font-['Work_Sans'] font-semibold text-gray-900 mb-3 text-xs uppercase tracking-wider">${origin.name}</h3>
+                            <ul class="space-y-2">
+                                ${origin.categories.map(cat => `
+                                    <li><a href="{% url 'products' %}?origin=${origin.id}&category=${cat.id}" class="text-xs text-gray-600 hover:text-emerald-700 transition-colors">${cat.name}</a></li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('');
+                }
+                
+                if (sidebarContent) {
+                    sidebarContent.innerHTML = data.origins.map(origin => `
+                        <div>
+                            <a href="{% url 'products' %}?origin=${origin.id}" class="flex items-center px-5 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 border-b border-gray-100">${origin.name}</a>
+                            <div class="bg-gray-50">
+                                ${origin.categories.map(cat => `
+                                    <a href="{% url 'products' %}?origin=${origin.id}&category=${cat.id}" class="flex items-center gap-2 px-8 py-2.5 text-sm text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">
+                                        <span class="w-1 h-1 rounded-full bg-gray-400 flex-shrink-0"></span>${cat.name}
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) {
+                console.log('Could not load origins menu');
+            }
+        }
+        
+        populateOriginsMenu();
+
+        function toggleMobileCatMenu(id) {
+            const menu = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden', !isHidden);
+            icon.style.transform = isHidden ? 'rotate(180deg)' : '';
+        }
+
+        // Close all dropdowns when clicking outside
+        window.addEventListener('click', function(e) {
+            // Close user dropdown
+            if (!e.target.closest('.relative')) {
+                const dropdown = document.getElementById('userDropdown');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    dropdown.classList.add('hidden');
+                }
+            }
+            
+            // Close shop mega menu if clicked outside
+            const shopMenu = document.getElementById('shopMegaMenu');
+            if (shopMenu && !shopMenu.classList.contains('hidden') && !e.target.closest('div[onmouseenter="openShopMegaMenu()"]') && !e.target.closest('#shopMegaMenu')) {
+                closeShopMegaMenu();
+            }
+            // Close origins menu if clicked outside
+            const originsMenu = document.getElementById('originsMegaMenu');
+            if (originsMenu && !originsMenu.classList.contains('hidden') && !e.target.closest('div[onmouseenter="openOriginsMegaMenu()"]') && !e.target.closest('#originsMegaMenu')) {
+                closeOriginsMegaMenu();
+            }
+        });
+
+        // Close shop menu on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeShopMegaMenu();
+                closeShopSubpanel();
+            }
+        });
+
+        // Search Modal
+        function openSearchModal() {
+            const modal = document.getElementById('searchModal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('navbarSearchInput').focus(), 50);
+        }
+
+        function closeSearchModal() {
+            document.getElementById('searchModal').classList.add('hidden');
+            document.body.style.overflow = '';
+            document.getElementById('navbarSearchInput').value = '';
+        }
+
+        function closeSearchModalOutside(e) {
+            if (e.target === document.getElementById('searchModal')) closeSearchModal();
+        }
+
+        function handleNavbarSearch() {
+            const query = document.getElementById('navbarSearchInput').value.trim();
+            const resultsDiv = document.getElementById('searchResults');
+            const hintDiv = document.getElementById('searchModalHint');
+            
+            if (!query) {
+                resultsDiv.innerHTML = '';
+                hintDiv.style.display = 'block';
+                return;
+            }
+            
+            hintDiv.style.display = 'none';
+            resultsDiv.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400">Searching...</div>';
+            
+            fetch('/products/search/?q=' + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.results || data.results.length === 0) {
+                        resultsDiv.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400">No products found</div>';
+                        return;
+                    }
+                    
+                    resultsDiv.innerHTML = data.results.map(product => `
+                        <a href="/product/${product.slug}/" class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            ${product.image ? `<img src="${product.image}" alt="${product.text}" class="w-10 h-10 object-cover rounded">` : '<span class="material-symbols-outlined text-gray-400">shopping_bag</span>'}
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-800 truncate">${product.text}</p>
+                                <p class="text-xs text-gray-500">Rs. ${product.mrp}</p>
+                            </div>
+                            <span class="material-symbols-outlined text-gray-300 text-lg">arrow_forward</span>
+                        </a>
+                    `).join('');
+                })
+                .catch(err => {
+                    resultsDiv.innerHTML = '<div class="px-4 py-3 text-xs text-red-500">Error loading results</div>';
+                });
+        }
+
+        function handleSearchKey(e) {
+            if (e.key === 'Enter') {
+                const term = document.getElementById('navbarSearchInput').value.trim();
+                if (!term) return;
+                closeSearchModal();
+                window.location.href = '/products/?search=' + encodeURIComponent(term);
+            }
+            if (e.key === 'Escape') closeSearchModal();
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeSearchModal();
+                closeShopMegaMenu();
+                closeBrandsMegaMenu();
+                closeShopSubpanel();
+                closeBrandsSubpanel();
+            }
+        });
+    </script>
+
+    <!-- Auth Modal -->
+    <div id="authModal" style="display:none" class="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm items-center justify-center px-4" onclick="closeAuthModal()">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-100">
+                <button id="tabLogin" onclick="switchTab('login')" class="flex-1 py-3.5 text-sm font-semibold text-emerald-700 border-b-2 border-emerald-600">Sign In</button>
+                <button id="tabRegister" onclick="switchTab('register')" class="flex-1 py-3.5 text-sm font-semibold text-gray-400 border-b-2 border-transparent">Create Account</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <!-- Google -->
+                <button onclick="initiateGoogleLogin()" class="flex items-center justify-center gap-3 w-full border border-gray-200 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </button>
+                <div class="flex items-center gap-3"><div class="flex-1 h-px bg-gray-200"></div><span class="text-xs text-gray-400">or</span><div class="flex-1 h-px bg-gray-200"></div></div>
+                <div id="authError" class="hidden text-xs text-red-600 bg-red-50 px-3 py-2 rounded"></div>
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-3" onsubmit="submitAuth(event,'login')" autocomplete="on">
+                    <input name="email" type="email" placeholder="Email address" required autocomplete="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <input name="password" type="password" placeholder="Password" required autocomplete="current-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Sign In</button>
+                </form>
+                <!-- Register Form -->
+                <form id="registerForm" class="space-y-3 hidden" onsubmit="submitAuth(event,'register')" autocomplete="on">
+                    <input name="email" type="email" placeholder="Email address" required autocomplete="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <input name="phone" type="tel" placeholder="Phone number (optional)" autocomplete="tel" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <input name="password" type="password" placeholder="Password (min 8 chars)" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <input name="password2" type="password" placeholder="Confirm password" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function openAuthModal(tab) {
+        switchTab(tab || 'login');
+        document.getElementById('authModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeAuthModal() {
+        document.getElementById('authModal').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    function switchTab(tab) {
+        document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+        document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+        document.getElementById('tabLogin').className = 'flex-1 py-3.5 text-sm font-semibold ' + (tab === 'login' ? 'text-emerald-700 border-b-2 border-emerald-600' : 'text-gray-400 border-b-2 border-transparent');
+        document.getElementById('tabRegister').className = 'flex-1 py-3.5 text-sm font-semibold ' + (tab === 'register' ? 'text-emerald-700 border-b-2 border-emerald-600' : 'text-gray-400 border-b-2 border-transparent');
+        document.getElementById('authError').classList.add('hidden');
+    }
+    function getCookie(name) {
+        const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : null;
+    }
+    function initiateGoogleLogin() {
+        const clientId = '860984795493-ne2cit7jqhu76dkq6qeo8119khdn5b5j.apps.googleusercontent.com';
+        const redirectUri = 'http://localhost:8000/accounts/google/login/callback/';
+        const scope = 'openid email profile';
+        const responseType = 'code';
+        const accessType = 'offline';
+        
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&access_type=${accessType}`;
+        
+        window.location.href = authUrl;
+    }
+    function handleCartClick() {
+        {% if user.is_authenticated %}
+        window.location.href = '{% url "cart" %}';
+        {% else %}
+        openAuthModal('login');
+        {% endif %}
+    }
+    function handleWishlistClick() {
+        {% if user.is_authenticated %}
+        window.location.href = '{% url "wishlist" %}';
+        {% else %}
+        openAuthModal('login');
+        {% endif %}
+    }
+    async function submitAuth(e, type) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>';
+        const data = new FormData(form);
+        data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        const url = type === 'login' ? '/auth/login/' : '/auth/register/';
+        try {
+            const res = await fetch(url, { method: 'POST', body: data });
+            const json = await res.json();
+            btn.disabled = false;
+            btn.textContent = originalText;
+            if (json.ok) {
+                document.getElementById('authModal').style.display = 'none';
+                document.body.style.overflow = '';
+                if (window._pendingBuyUrl) {
+                    const u = window._pendingBuyUrl; window._pendingBuyUrl = null;
+                    window.location.href = u;
+                } else if (window._pendingQuote) {
+                    const p = window._pendingQuote; window._pendingQuote = null;
+                    sessionStorage.setItem('openQuote', JSON.stringify(p));
+                    window.location.reload();
+                } else if (window._pendingFav) {
+                    window._pendingFav = null;
+                    window.location.reload();
+                } else {
+                    showCartToast();
+                    window.location.reload();
+                }
+            } else {
+                const err = document.getElementById('authError');
+                err.textContent = json.error;
+                err.classList.remove('hidden');
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            document.getElementById('authError').textContent = 'An error occurred. Please try again.';
+            document.getElementById('authError').classList.remove('hidden');
+        }
+    }
+    async function addToCart(productId) {
+        const data = new FormData();
+        data.append('product_id', productId);
+        data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        try {
+            const res = await fetch('/cart/add/', { method: 'POST', body: data });
+            if (!res.ok) {
+                if (res.status === 403) {
+                    openAuthModal('login');
+                }
+                return;
+            }
+            const json = await res.json();
+            if (json.require_login) {
+                openAuthModal('login');
+            } else if (json.ok) {
+                document.querySelectorAll('.cart-badge').forEach(el => el.textContent = json.total_items);
+                showCartToast();
+            }
+        } catch(e) {
+            openAuthModal('login');
+        }
+    }
+    async function toggleFavourite(btn, productId) {
+        const data = new FormData();
+        data.append('product_id', productId);
+        data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        const res = await fetch('/favourites/toggle/', { method: 'POST', body: data });
+        const json = await res.json();
+        if (json.require_login) {
+            window._pendingFav = productId;
+            openAuthModal('login');
+        } else if (json.ok) {
+            // Detail page button (has material-symbols-outlined + text span)
+            const msIcon = btn.querySelector('.material-symbols-outlined');
+            const label = btn.querySelector('span:not(.material-symbols-outlined)');
+            const faIcon = btn.querySelector('i');
+            if (json.action === 'added') {
+                if (msIcon) { msIcon.style.fontVariationSettings = "'FILL' 1"; }
+                if (faIcon) { faIcon.classList.remove('fa-regular'); faIcon.classList.add('fa-solid'); }
+                if (label) label.textContent = 'Wishlisted';
+                btn.classList.add('border-red-400', 'text-red-500', 'bg-red-50');
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'border-gray-200', 'text-gray-600');
+                showFavToast('Added to wishlist ♥');
+            } else {
+                if (msIcon) { msIcon.style.fontVariationSettings = "'FILL' 0"; }
+                if (faIcon) { faIcon.classList.remove('fa-solid'); faIcon.classList.add('fa-regular'); }
+                if (label) label.textContent = 'Wishlist';
+                btn.classList.remove('border-red-400', 'text-red-500', 'bg-red-50');
+                btn.classList.add('border-gray-200', 'text-gray-600');
+                if (!msIcon) { btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700'); }
+                showFavToast('Removed from wishlist');
+            }
+        }
+    }
+    function showFavToast(msg) {
+        const t = document.getElementById('favToast');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 2000);
+    }
+    function showCartToast() {
+        const t = document.getElementById('cartToast');
+        if (!t) return;
+        t.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 2000);
+    }
+    // After login, update wishlist button UI if fav was auto-added server-side
+    const _pf = sessionStorage.getItem('pendingFavAdded');
+    if (_pf) {
+        sessionStorage.removeItem('pendingFavAdded');
+        const favBtn = document.getElementById('wishlistBtn');
+        if (favBtn) {
+            const msIcon = favBtn.querySelector('.material-symbols-outlined');
+            const lbl = favBtn.querySelector('span:not(.material-symbols-outlined)');
+            if (msIcon) msIcon.style.fontVariationSettings = "'FILL' 1";
+            if (lbl) lbl.textContent = 'Wishlisted';
+            favBtn.classList.add('border-red-400', 'text-red-500', 'bg-red-50');
+            favBtn.classList.remove('border-gray-200', 'text-gray-600');
+        }
+        setTimeout(() => showFavToast('Added to wishlist \u2665'), 300);
+    }
+    </script>
+
+    <!-- Cart Toast -->
+    <div id="cartToast" class="fixed bottom-24 right-6 z-[200] bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg shadow-lg transition-all duration-300 translate-y-20 opacity-0">Item added to cart ✓</div>
+    <!-- Fav Toast -->
+    <div id="favToast" class="fixed bottom-36 right-6 z-[200] bg-red-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg transition-all duration-300 translate-y-20 opacity-0"></div>
+
+    <!-- Compare Sheet Footer -->
+    <div id="compareSheet" class="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t border-gray-200 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-32">
+        <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-emerald-600 text-2xl">compare</span>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Compare Products</p>
+                    <p id="compareCount" class="text-xs text-gray-500">0 products selected</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div id="compareItems" class="flex gap-2 mr-4"></div>
+                <button onclick="compareProducts()" id="compareBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Compare
+                </button>
+                <button onclick="clearCompare()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                    Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+
+    <!-- Quote Request Modal -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <style>
+    .select2-container--default .select2-selection--single { height: 36px; border: 1px solid #e5e7eb; border-radius: 0.5rem; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 34px; font-size: 0.875rem; color: #374151; padding-left: 12px; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 34px; }
+    .select2-container--default.select2-container--focus .select2-selection--single { border-color: #10b981; outline: none; }
+    .select2-dropdown { border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+    .select2-results__option--highlighted { background-color: #ecfdf5 !important; color: #065f46 !important; }
+    </style>
+    <div id="quoteModal" style="display:none" class="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm items-center justify-center px-4" onclick="closeQuoteModal()">
+        <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 class="font-semibold text-gray-800 text-sm">Request a Quote</h3>
+                <button onclick="closeQuoteModal()" class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined text-xl">close</span></button>
+            </div>
+            <div class="px-6 py-4 max-h-[80vh] overflow-y-auto">
+                <div id="quoteError" class="hidden text-xs text-red-600 bg-red-50 px-3 py-2 rounded mb-3"></div>
+                <form id="quoteForm" class="space-y-4" onsubmit="submitQuote(event)">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Your Name</label>
+                            <input name="user_name" type="text" required placeholder="Full name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                            <input name="phone" type="tel" placeholder="+977-98XXXXXXXX" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-2">Products &amp; Quantities</label>
+                        <div id="quoteItemsList" class="space-y-2"></div>
+                        <button type="button" onclick="addQuoteItem()" class="mt-2 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                            <span class="material-symbols-outlined text-sm">add_circle</span> Add another product
+                        </button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Message <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <textarea name="message" rows="2" placeholder="Specific requirements, delivery timeline, etc." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Submit Quote Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+    let _quoteItemCount = 0;
+    function addQuoteItem(presetId, presetName) {
+        const idx = _quoteItemCount++;
+        const row = document.createElement('div');
+        row.className = 'quote-item-row';
+        row.style.cssText = 'display:grid;grid-template-columns:1fr 68px 28px;gap:6px;align-items:center';
+        row.dataset.idx = idx;
+        row.innerHTML = `
+            <div style="min-width:0">
+                <select id="quoteSelect_${idx}" class="w-full quote-product-select" style="width:100%">
+                    ${presetId ? `<option value="${presetId}" selected>${presetName}</option>` : ''}
+                </select>
+            </div>
+            <input type="number" min="1" value="1" placeholder="Qty" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-emerald-500 quote-qty-input">
+            <button type="button" onclick="removeQuoteItem(this)" class="text-gray-300 hover:text-red-400">
+                <span class="material-symbols-outlined text-lg">remove_circle</span>
+            </button>`;
+        document.getElementById('quoteItemsList').appendChild(row);
+        $(`#quoteSelect_${idx}`).select2({
+            placeholder: 'Search product...',
+            allowClear: true,
+            minimumInputLength: 0,
+            ajax: {
+                url: '/products/search/',
+                dataType: 'json',
+                delay: 200,
+                data: params => ({ q: params.term || '' }),
+                processResults: data => ({ results: data.results.map(r => ({ id: r.id, text: r.text + ' (Rs.' + r.mrp + ')' })) }),
+                cache: true
+            },
+            dropdownParent: $('#quoteModal')
+        });
+        if (presetId) $(`#quoteSelect_${idx}`).trigger('change');
+    }
+    function removeQuoteItem(btn) {
+        const row = btn.closest('.quote-item-row');
+        const idx = row.dataset.idx;
+        $(`#quoteSelect_${idx}`).select2('destroy');
+        row.remove();
+        if (document.querySelectorAll('.quote-item-row').length === 0) addQuoteItem();
+    }
+    function handleBuyNow(url) {
+        {% if user.is_authenticated %}
+        window.location.href = url;
+        {% else %}
+        window._pendingBuyUrl = url;
+        openAuthModal('login');
+        {% endif %}
+    }
+    function openQuoteModal(productId, productName) {
+        {% if user.is_authenticated %}
+        document.getElementById('quoteError').classList.add('hidden');
+        document.getElementById('quoteForm').reset();
+        const nameField = document.querySelector('#quoteForm [name="user_name"]');
+        const phoneField = document.querySelector('#quoteForm [name="phone"]');
+        if (nameField) nameField.value = '{{ request.user.get_full_name|default:request.user.email }}';
+        if (phoneField) phoneField.value = '{{ request.user.phone|default:"" }}';
+        document.querySelectorAll('.quote-item-row').forEach(r => {
+            const idx = r.dataset.idx;
+            try { $(`#quoteSelect_${idx}`).select2('destroy'); } catch(e) {}
+            r.remove();
+        });
+        _quoteItemCount = 0;
+        addQuoteItem(productId || null, productName || null);
+        document.getElementById('quoteModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        {% else %}
+        window._pendingQuote = {id: productId, name: productName};
+        openAuthModal('login');
+        {% endif %}
+    }
+    function closeQuoteModal() {
+        document.getElementById('quoteModal').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    async function submitQuote(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = form.querySelector('button[type="submit"]');
+        const orig = btn.textContent;
+        const items = [];
+        document.querySelectorAll('.quote-item-row').forEach(row => {
+            const idx = row.dataset.idx;
+            const productId = $(`#quoteSelect_${idx}`).val();
+            const qty = row.querySelector('.quote-qty-input').value || 1;
+            if (productId) items.push({ product_id: productId, quantity: parseInt(qty) });
+        });
+        if (items.length === 0) {
+            const err = document.getElementById('quoteError');
+            err.textContent = 'Please select at least one product.';
+            err.classList.remove('hidden');
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>';
+        const data = new FormData(form);
+        data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        data.append('items', JSON.stringify(items));
+        const res = await fetch('/quote/request/', {method: 'POST', body: data});
+        const json = await res.json();
+        btn.disabled = false; btn.textContent = orig;
+        if (json.success) {
+            closeQuoteModal();
+            const t = document.getElementById('cartToast');
+            if (t) { t.textContent = 'Quote request submitted ✓'; t.classList.remove('translate-y-20','opacity-0'); setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),2500); }
+        } else {
+            const err = document.getElementById('quoteError');
+            err.textContent = json.message || 'Something went wrong.';
+            err.classList.remove('hidden');
+        }
+    }
+    let _compareList = JSON.parse(localStorage.getItem('compareList') || '[]');
+    function addToCompare(slug, name) {
+        if (_compareList.find(p => p.slug === slug)) {
+            _compareList = _compareList.filter(p => p.slug !== slug);
+            showFavToast('Removed from compare');
+        } else {
+            if (_compareList.length >= 2) _compareList.shift();
+            _compareList.push({slug, name});
+            showFavToast(_compareList.length < 2 ? 'Added — pick one more to compare' : 'Ready to compare!');
+        }
+        localStorage.setItem('compareList', JSON.stringify(_compareList));
+        updateCompareSheet();
+    }
+    function updateCompareSheet() {
+        const sheet = document.getElementById('compareSheet');
+        const count = document.getElementById('compareCount');
+        const items = document.getElementById('compareItems');
+        const btn = document.getElementById('compareBtn');
+        
+        count.textContent = `${_compareList.length} product${_compareList.length !== 1 ? 's' : ''} selected`;
+        items.innerHTML = _compareList.map(p => `
+            <div class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-lg">
+                <span class="text-xs text-gray-700 truncate max-w-xs">${p.name}</span>
+                <button onclick="removeFromCompare('${p.slug}')" class="text-gray-400 hover:text-red-500">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            </div>
+        `).join('');
+        
+        btn.disabled = _compareList.length < 2;
+        if (_compareList.length > 0) {
+            sheet.classList.remove('translate-y-full');
+        } else {
+            sheet.classList.add('translate-y-full');
+        }
+    }
+    function removeFromCompare(slug) {
+        _compareList = _compareList.filter(p => p.slug !== slug);
+        localStorage.setItem('compareList', JSON.stringify(_compareList));
+        updateCompareSheet();
+    }
+    function compareProducts() {
+        if (_compareList.length < 2) return;
+        const slugs = _compareList.map(p => p.slug).join('-vs-');
+        window.location.href = `/compare/${slugs}/`;
+    }
+    function clearCompare() {
+        _compareList = [];
+        localStorage.setItem('compareList', JSON.stringify(_compareList));
+        updateCompareSheet();
+        showFavToast('Compare list cleared');
+    }
+    updateCompareSheet();
+    </script>
+
+

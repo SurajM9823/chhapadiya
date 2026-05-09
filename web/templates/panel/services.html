@@ -1,0 +1,113 @@
+{% extends "panel/base.html" %}
+{% block title %} — Services{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_services %}text-white bg-gray-600{% endblock %}
+{% block content %}
+
+<!-- Services -->
+<div class="flex justify-between items-center mb-4">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">Services Page</p>
+        <h1 class="text-xl font-semibold text-gray-800">Services (What We Supply)</h1>
+    </div>
+    <a href="{% url 'panel_service_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Service</a>
+</div>
+
+{% if services %}
+<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Icon / Image</th>
+                <th class="px-4 py-3 text-left">Title</th>
+                <th class="px-4 py-3 text-left">Description</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for s in services %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    {% if s.image %}
+                    <img src="{{ s.image.url }}" class="w-10 h-10 object-cover rounded">
+                    {% elif s.icon %}
+                    <span class="material-symbols-outlined text-emerald-600 text-2xl">{{ s.icon }}</span>
+                    {% else %}
+                    <span class="text-gray-300 text-xs">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ s.title }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">{{ s.description|truncatechars:80 }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ s.order }}</td>
+                <td class="px-4 py-3">
+                    {% if s.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_service_edit' s.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_service_delete' s.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400 mb-10">No services yet. <a href="{% url 'panel_service_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+<!-- Why Choose Us -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-semibold text-gray-800">Why Choose Us</h2>
+    <a href="{% url 'panel_why_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Item</a>
+</div>
+
+{% if why_items %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Icon</th>
+                <th class="px-4 py-3 text-left">Title</th>
+                <th class="px-4 py-3 text-left">Description</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for w in why_items %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    {% if w.icon %}<span class="material-symbols-outlined text-emerald-600 text-xl">{{ w.icon }}</span>
+                    {% else %}<span class="text-gray-300 text-xs">—</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ w.title }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">{{ w.description|truncatechars:80 }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ w.order }}</td>
+                <td class="px-4 py-3">
+                    {% if w.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_why_edit' w.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_why_delete' w.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400">No items yet. <a href="{% url 'panel_why_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+{% endblock %}

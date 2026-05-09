@@ -1,0 +1,45 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ action }} Trusted Client{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_about %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <p class="text-xs text-gray-500 mb-1"><a href="{% url 'panel_about' %}" class="hover:underline">About</a> › {{ action }} Trusted Client</p>
+    <h1 class="text-xl font-semibold text-gray-800">{{ action }} Trusted Client</h1>
+</div>
+<div class="max-w-lg bg-white rounded-xl shadow p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <input name="name" type="text" value="{{ obj.name|default:'' }}" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Logo <span class="text-gray-400 font-normal">(optional)</span></label>
+            {% if obj.logo %}<img src="{{ obj.logo.url }}" class="w-16 h-16 object-contain rounded mb-2">{% endif %}
+            <input name="logo" type="file" accept="image/*" class="w-full border rounded px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Material Icon <span class="text-gray-400 font-normal">(fallback if no logo)</span></label>
+            <input name="icon" type="text" value="{{ obj.icon|default:'' }}" placeholder="precision_manufacturing"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <input name="order" type="number" value="{{ obj.order|default:'0' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div class="flex items-center gap-2">
+            <input name="is_active" type="checkbox" id="is_active" {% if obj.is_active or not obj %}checked{% endif %}>
+            <label for="is_active" class="text-sm font-medium text-gray-700">Active</label>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700">Save</button>
+            <a href="{% url 'panel_about' %}" class="px-5 py-2 rounded border text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

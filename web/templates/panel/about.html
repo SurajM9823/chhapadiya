@@ -1,0 +1,193 @@
+{% extends "panel/base.html" %}
+{% block title %} — About Page{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_about %}text-white bg-gray-600{% endblock %}
+{% block content %}
+
+<!-- Stats -->
+<div class="flex justify-between items-center mb-4">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">About Page</p>
+        <h1 class="text-xl font-semibold text-gray-800">Vision Stats</h1>
+    </div>
+    <a href="{% url 'panel_stat_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Stat</a>
+</div>
+{% if stats %}
+<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Value</th>
+                <th class="px-4 py-3 text-left">Label</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for s in stats %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-bold text-gray-800">{{ s.value }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ s.label }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ s.order }}</td>
+                <td class="px-4 py-3">
+                    {% if s.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_stat_edit' s.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_stat_delete' s.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No stats yet. <a href="{% url 'panel_stat_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+<!-- Trusted Clients -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-semibold text-gray-800">Trusted by Industry Leaders</h2>
+    <a href="{% url 'panel_trusted_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Client</a>
+</div>
+{% if trusted_clients %}
+<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Logo / Icon</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for c in trusted_clients %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    {% if c.logo %}<img src="{{ c.logo.url }}" class="w-10 h-10 object-contain rounded">
+                    {% elif c.icon %}<span class="material-symbols-outlined text-emerald-600 text-2xl">{{ c.icon }}</span>
+                    {% else %}<span class="text-gray-300 text-xs">—</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ c.name }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ c.order }}</td>
+                <td class="px-4 py-3">
+                    {% if c.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_trusted_edit' c.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_trusted_delete' c.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No clients yet. <a href="{% url 'panel_trusted_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+<!-- Testimonials -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-semibold text-gray-800">Voices of Our Clients</h2>
+    <a href="{% url 'panel_testimonial_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Testimonial</a>
+</div>
+{% if testimonials %}
+<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Author</th>
+                <th class="px-4 py-3 text-left">Role</th>
+                <th class="px-4 py-3 text-left">Quote</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for t in testimonials %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ t.author_name }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ t.author_role }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">{{ t.quote|truncatechars:80 }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ t.order }}</td>
+                <td class="px-4 py-3">
+                    {% if t.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_testimonial_edit' t.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_testimonial_delete' t.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No testimonials yet. <a href="{% url 'panel_testimonial_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+<!-- Team Members -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-semibold text-gray-800">Meet Our Specialists</h2>
+    <a href="{% url 'panel_team_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Member</a>
+</div>
+{% if team %}
+<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Photo</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Role</th>
+                <th class="px-4 py-3 text-left">Phone</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for m in team %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    {% if m.photo %}<img src="{{ m.photo.url }}" class="w-10 h-10 object-cover rounded-full">
+                    {% else %}<span class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">{{ m.name|slice:":2"|upper }}</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ m.name }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ m.role }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ m.phone|default:"—" }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ m.order }}</td>
+                <td class="px-4 py-3">
+                    {% if m.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_team_edit' m.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_team_delete' m.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No team members yet. <a href="{% url 'panel_team_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ action }} Service{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_services %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <p class="text-xs text-gray-500 mb-1"><a href="{% url 'panel_services' %}" class="hover:underline">Services</a> › {{ action }}</p>
+    <h1 class="text-xl font-semibold text-gray-800">{{ action }} Service</h1>
+</div>
+<div class="max-w-lg bg-white rounded-xl shadow p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <input name="title" type="text" value="{{ service.title|default:'' }}" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+            <textarea name="description" rows="4" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">{{ service.description|default:'' }}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Material Icon Name <span class="text-gray-400 font-normal">(e.g. bakery_dining, restaurant, factory)</span>
+            </label>
+            <input name="icon" type="text" value="{{ service.icon|default:'' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="bakery_dining">
+            <p class="text-xs text-gray-400 mt-1">
+                Browse icons at <a href="https://fonts.google.com/icons" target="_blank" class="text-blue-500 hover:underline">fonts.google.com/icons</a>
+            </p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Image <span class="text-gray-400 font-normal">(optional — overrides icon if set{% if service %}, leave blank to keep current{% endif %})</span>
+            </label>
+            {% if service.image %}
+            <img src="{{ service.image.url }}" class="w-16 h-16 object-cover rounded mb-2">
+            {% endif %}
+            <input name="image" type="file" accept="image/*"
+                class="w-full border rounded px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <input name="order" type="number" value="{{ service.order|default:'0' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div class="flex items-center gap-2">
+            <input name="is_active" type="checkbox" id="is_active" {% if service.is_active or not service %}checked{% endif %}>
+            <label for="is_active" class="text-sm font-medium text-gray-700">Active</label>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700">Save</button>
+            <a href="{% url 'panel_services' %}" class="px-5 py-2 rounded border text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

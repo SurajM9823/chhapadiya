@@ -1,0 +1,260 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}About Us | Chhapadiya Traders{% endblock %}
+
+{% block extra_head %}
+<style>
+    .hero-gradient {
+        background: linear-gradient(to bottom, rgba(1, 45, 29, 0.7), rgba(1, 45, 29, 0.9));
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="relative h-[300px] flex items-center overflow-hidden">
+    <img src="{% static 'images/chhadipya.jpg' %}" alt="Chhapadiya Traders" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 hero-gradient backdrop-blur-[2px]"></div>
+    <div class="relative max-w-7xl mx-auto px-4 md:px-8 w-full">
+        <div class="max-w-2xl border-l-4 border-secondary-fixed pl-8">
+            <span class="font-label-bold text-label-bold text-secondary-fixed-dim uppercase tracking-[0.2em] block mb-4">Established Excellence</span>
+            <h1 class="font-['Work_Sans'] text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">Our Story: Trust &amp; Quality</h1>
+            <p class="text-on-primary-container text-lg leading-relaxed max-w-xl">
+                Chhapadiya Traders stands as a pillar of trading integrity, delivering quality products across industrial, kitchen, electronics, automotive, and office categories — serving businesses and individuals across the region.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Mission & Vision -->
+<section class="py-20 bg-surface-bright">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="grid md:grid-cols-2 gap-16 items-start">
+            <div class="space-y-6">
+                <div class="inline-flex items-center gap-2 text-primary">
+                    <span class="material-symbols-outlined text-3xl">rocket_launch</span>
+                    <h2 class="font-['Work_Sans'] text-2xl font-bold uppercase tracking-tight">Our Mission</h2>
+                </div>
+                <p class="text-on-surface-variant text-lg leading-relaxed">
+                    To deliver high-quality products at competitive prices while building lasting relationships through reliability, transparency, and exceptional service. We strive to be the most trusted trading partner for businesses of all sizes.
+                </p>
+                <div class="p-8 bg-surface-container-low border border-outline-variant">
+                    <p class="italic text-primary font-medium">"Reliability isn't just a metric; it's our promise to every partner we serve."</p>
+                </div>
+            </div>
+            <div class="space-y-6">
+                <div class="inline-flex items-center gap-2 text-primary">
+                    <span class="material-symbols-outlined text-3xl">visibility</span>
+                    <h2 class="font-['Work_Sans'] text-2xl font-bold uppercase tracking-tight">Our Vision</h2>
+                </div>
+                <p class="text-on-surface-variant text-lg leading-relaxed">
+                    To become the region's most comprehensive and trusted multi-category trading company — expanding our reach globally while maintaining the personal touch and quality standards that define us.
+                </p>
+                <div class="grid grid-cols-2 gap-4 mt-8">
+                    {% for stat in stats %}
+                    <div class="border-t-2 border-primary pt-4">
+                        <div class="font-['Work_Sans'] text-4xl font-bold text-primary">{{ stat.value }}</div>
+                        <div class="font-label-bold text-xs uppercase tracking-wider text-outline">{{ stat.label }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Client Logo Cloud -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="pt-12 border-t border-outline-variant">
+            <p class="font-label-bold text-center text-outline mb-12 uppercase tracking-widest text-xs">Trusted by Industry Leaders</p>
+            <div class="flex flex-wrap justify-center items-center gap-12 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                {% for client in trusted_clients %}
+                <div class="flex items-center gap-2">
+                    {% if client.logo %}
+                    <img src="{{ client.logo.url }}" alt="{{ client.name }}" class="h-8 object-contain">
+                    {% else %}
+                    <span class="material-symbols-outlined text-3xl">{{ client.icon }}</span>
+                    {% endif %}
+                    <span class="font-bold">{{ client.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Eliminating Friction in Modern Procurement -->
+<section class="py-24 bg-white">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+                <span class="font-label-bold text-outline uppercase tracking-widest text-xs block mb-4">Our Approach</span>
+                <h2 class="font-['Work_Sans'] text-4xl font-bold text-primary mb-6 leading-tight">Eliminating Friction in Modern Procurement</h2>
+                <p class="text-on-surface-variant leading-relaxed mb-8">
+                    We've rebuilt the trading experience from the ground up — removing the inefficiencies, hidden costs, and communication gaps that plague traditional supply chains. Our streamlined process means you get what you need, when you need it, at the price you agreed on.
+                </p>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span class="material-symbols-outlined text-white text-base">check</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-primary text-sm">Transparent Pricing</p>
+                            <p class="text-on-surface-variant text-sm">No hidden fees. What you see is what you pay — always.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span class="material-symbols-outlined text-white text-base">check</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-primary text-sm">Single Point of Contact</p>
+                            <p class="text-on-surface-variant text-sm">One dedicated account manager handles everything from quote to delivery.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span class="material-symbols-outlined text-white text-base">check</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-primary text-sm">Real-Time Order Tracking</p>
+                            <p class="text-on-surface-variant text-sm">Know exactly where your order is at every stage of fulfillment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white border border-outline-variant p-6 hover:shadow-md transition-shadow">
+                    <div class="font-['Work_Sans'] text-4xl font-bold text-primary mb-1">98%</div>
+                    <div class="font-label-bold text-xs uppercase tracking-wider text-outline">On-Time Delivery Rate</div>
+                </div>
+                <div class="bg-primary text-white p-6">
+                    <div class="font-['Work_Sans'] text-4xl font-bold mb-1">24h</div>
+                    <div class="font-label-bold text-xs uppercase tracking-wider text-on-primary-container">Quote Turnaround</div>
+                </div>
+                <div class="bg-primary text-white p-6">
+                    <div class="font-['Work_Sans'] text-4xl font-bold mb-1">500+</div>
+                    <div class="font-label-bold text-xs uppercase tracking-wider text-on-primary-container">Active Clients</div>
+                </div>
+                <div class="bg-white border border-outline-variant p-6 hover:shadow-md transition-shadow">
+                    <div class="font-['Work_Sans'] text-4xl font-bold text-primary mb-1">4.9★</div>
+                    <div class="font-label-bold text-xs uppercase tracking-wider text-outline">Average Rating</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Brand Values -->
+<section class="py-20 bg-primary text-white overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 relative overflow-hidden">
+        <div class="absolute -right-20 -top-20 opacity-10">
+            <span class="material-symbols-outlined text-[300px]">verified</span>
+        </div>
+        <div class="grid md:grid-cols-3 gap-12">
+            <div class="space-y-6">
+                <h2 class="font-['Work_Sans'] text-4xl font-bold border-l-4 border-secondary-fixed pl-6">The Chhapadiya Identity</h2>
+                <p class="text-on-primary-container text-lg">Our DNA is built on three unbreakable pillars that define how we conduct business and treat our partners.</p>
+            </div>
+            <div class="md:col-span-2 grid md:grid-cols-3 gap-8">
+                <div class="p-6 border border-white/10 bg-white/5 backdrop-blur-sm">
+                    <h4 class="font-label-bold text-secondary-fixed mb-4 uppercase tracking-wider">Integrity</h4>
+                    <p class="text-sm text-on-primary-container leading-relaxed">Radical transparency in pricing, lead times, and product specifications. We honor our word as our bond.</p>
+                </div>
+                <div class="p-6 border border-white/10 bg-white/5 backdrop-blur-sm">
+                    <h4 class="font-label-bold text-secondary-fixed mb-4 uppercase tracking-wider">Quality</h4>
+                    <p class="text-sm text-on-primary-container leading-relaxed">Constantly sourcing the best products from verified global manufacturers to maintain our quality standards.</p>
+                </div>
+                <div class="p-6 border border-white/10 bg-white/5 backdrop-blur-sm">
+                    <h4 class="font-label-bold text-secondary-fixed mb-4 uppercase tracking-wider">Expertise</h4>
+                    <p class="text-sm text-on-primary-container leading-relaxed">Not just sellers, but trusted advisors with deep product knowledge and decades of trading experience.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="py-20 bg-surface-container-low">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="flex justify-between items-end mb-14">
+            <div>
+                <span class="font-label-bold text-primary block mb-2 uppercase tracking-widest text-xs">Feedback</span>
+                <h2 class="font-['Work_Sans'] text-3xl md:text-4xl font-bold text-primary">Voices of Our Clients</h2>
+            </div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-8 mt-6">
+            {% for testimonial in testimonials %}
+            <div class="bg-white p-8 border border-outline-variant relative hover:shadow-md transition-shadow">
+                <span class="material-symbols-outlined text-4xl text-secondary-container absolute -top-4 left-4">format_quote</span>
+                <p class="text-on-surface-variant mb-8 italic text-sm leading-relaxed text-justify">"{{ testimonial.quote }}"</p>
+                <div class="flex items-center gap-4">
+                    {% if testimonial.photo %}
+                    <img src="{{ testimonial.photo.url }}" alt="{{ testimonial.author_name }}" class="w-12 h-12 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-12 h-12 bg-surface-container rounded-full flex items-center justify-center font-bold text-primary text-sm">{{ testimonial.initials }}</div>
+                    {% endif %}
+                    <div>
+                        <p class="font-label-bold text-sm">{{ testimonial.author_name }}</p>
+                        <p class="text-xs text-outline">{{ testimonial.author_role }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Founder & Team -->
+<section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <!-- Founder -->
+        <div class="grid md:grid-cols-2 gap-16 items-center mb-24">
+            <div class="relative px-4 py-4">
+                <div class="absolute inset-0 border-2 border-secondary-fixed translate-x-3 translate-y-3"></div>
+                <img src="{% static 'images/chhadipya.jpg' %}" alt="Founder" class="relative w-full aspect-square object-cover">
+            </div>
+            <div class="space-y-6">
+                <span class="font-label-bold text-primary uppercase tracking-widest text-xs block">Our Founder</span>
+                <h2 class="font-['Work_Sans'] text-3xl md:text-4xl font-bold text-primary">Ramesh Chhapadiya</h2>
+                <p class="text-on-surface-variant text-lg leading-relaxed">
+                    With over 20 years of experience in the trading industry, Ramesh founded Chhapadiya Traders with a simple belief — every business deserves access to quality products at fair prices. His hands-on approach and deep industry knowledge have shaped the company's culture of integrity and excellence.
+                </p>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-primary">school</span>
+                        <span class="text-sm font-medium text-gray-700">B.Com in Business Management, Tribhuvan University</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-primary">award_star</span>
+                        <span class="text-sm font-medium text-gray-700">Best Trader Award, Nepal Commerce Federation 2019</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team -->
+        <div>
+            <h3 class="font-['Work_Sans'] text-3xl font-bold text-primary mb-12 text-center">Meet Our Specialists</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                {% for member in default_team %}
+                <div class="group text-center">
+                    <div class="overflow-hidden mb-4 bg-surface-container aspect-square flex items-center justify-center">
+                        <span class="material-symbols-outlined text-6xl text-on-primary-container grayscale group-hover:grayscale-0 transition-all duration-300">person</span>
+                    </div>
+                    <h4 class="font-label-bold text-primary text-sm">{{ member.name }}</h4>
+                    <p class="text-xs text-outline uppercase tracking-wider mt-1">{{ member.role }}</p>
+                    <a href="tel:{{ member.phone }}" class="flex items-center justify-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 mt-2">
+                        <span class="material-symbols-outlined text-sm">call</span>{{ member.phone }}
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

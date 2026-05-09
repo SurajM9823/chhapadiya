@@ -1,0 +1,442 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Products | Clan Wowo | Industrial Solutions{% endblock %}
+
+{% block content %}
+<!-- Mobile Filter Drawer Overlay -->
+<div id="filterOverlay" class="fixed inset-0 bg-black/50 z-[80] hidden lg:hidden" onclick="closeFilterDrawer()"></div>
+
+<!-- Mobile Filter Drawer (bottom sheet) -->
+<div id="filterDrawer" class="fixed bottom-0 left-0 right-0 z-[90] bg-white rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 lg:hidden" style="max-height:85vh;overflow-y:auto;">
+    <div class="sticky top-0 bg-white px-4 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl">
+        <div class="w-10 h-1 bg-gray-300 rounded-full absolute top-2 left-1/2 -translate-x-1/2"></div>
+        <h3 class="font-['Work_Sans'] text-base font-semibold text-gray-800 mt-2">Filters</h3>
+        <button onclick="closeFilterDrawer()" class="text-gray-400 hover:text-gray-600 mt-2">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+    <div class="px-4 py-4">
+        <div class="mb-5">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">Category</h4>
+            <div class="grid grid-cols-2 gap-2" id="mobileCategories"></div>
+        </div>
+        <div class="mb-5">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">Sub Category</h4>
+            <div class="grid grid-cols-2 gap-2" id="mobileSubCategories"></div>
+        </div>
+        <div class="mb-5">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">Price Range</h4>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="all" checked class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">All Prices</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="0-50" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Under Rs.50</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="50-200" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.50 - Rs.200</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="200-500" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.200 - Rs.500</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="500+" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Over Rs.500</span></label>
+            </div>
+        </div>
+        <div class="mb-5">
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="featuredFilter" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"><span class="text-sm text-gray-600">Featured Only</span></label>
+        </div>
+        <div class="flex gap-3 pb-2">
+            <button onclick="applyFilters();closeFilterDrawer()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2.5 rounded transition-colors">Apply Filters</button>
+            <button onclick="resetFilters();closeFilterDrawer()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2.5 rounded transition-colors">Reset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Products Page -->
+<section class="py-8 bg-surface">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Filters Sidebar (desktop only) -->
+            <aside class="hidden lg:block lg:w-64 flex-shrink-0">
+                <div class="bg-white border border-gray-200 rounded-sm p-4 sticky top-24">
+                    <h3 class="font-['Work_Sans'] text-lg font-medium text-gray-800 mb-4">Filters</h3>
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Category</h4>
+                        <div class="space-y-2" id="desktopCategories"></div>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Sub Category</h4>
+                        <div class="space-y-2" id="desktopSubCategories"></div>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Price Range</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="all" checked class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">All Prices</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="0-50" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Under Rs.50</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="50-200" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.50 - Rs.200</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="200-500" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.200 - Rs.500</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="500+" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Over Rs.500</span></label>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Featured</h4>
+                        <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="checkbox" id="featuredFilter" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"><span class="text-sm text-gray-600">Featured Only</span></label>
+                    </div>
+                    <button onclick="applyFilters()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 rounded transition-colors">Apply Filters</button>
+                    <button onclick="resetFilters()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 rounded mt-2 transition-colors">Reset Filters</button>
+                </div>
+            </aside>
+
+            <!-- Products Grid -->
+            <div class="flex-1">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                    <div>
+                        <h2 class="font-['Work_Sans'] text-2xl font-medium text-gray-800">All Products</h2>
+                        <p class="text-sm text-gray-500 mt-1" id="productCount">Loading...</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button onclick="openFilterDrawer()" class="lg:hidden flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 bg-white hover:border-emerald-500 hover:text-emerald-600 transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">tune</span> Filters
+                        </button>
+                        <div class="relative flex-1 sm:w-56">
+                            <input type="text" id="searchInput" placeholder="Search products..." oninput="handleSearch()" class="w-full pl-8 pr-8 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm">
+                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><span class="material-symbols-outlined text-[18px]">search</span></span>
+                            <span id="searchClearBtn" onclick="clearSearch()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"><span class="material-symbols-outlined text-[18px]">close</span></span>
+                        </div>
+                        <select id="sortSelect" onchange="sortProducts()" class="text-sm border border-gray-300 rounded py-1.5 px-3 bg-white focus:outline-none focus:border-emerald-500">
+                            <option value="default">Sort: Default</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                            <option value="name">Name: A to Z</option>
+                            <option value="newest">Newest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="productsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    <!-- Skeleton loaders -->
+                    <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                        <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                        <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                        <div class="space-y-2">
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                        <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                        <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                        <div class="space-y-2">
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                        <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                        <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                        <div class="space-y-2">
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                        <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                        <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                        <div class="space-y-2">
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                            <div class="h-8 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="noResults" class="hidden text-center py-16">
+                    <div class="text-gray-400 mb-4">
+                        <span class="material-symbols-outlined text-6xl">search_off</span>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-600 mb-2">No products found</h3>
+                    <p class="text-sm text-gray-500 mb-4">Try adjusting your filters or search terms</p>
+                    <button onclick="resetFilters()" class="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Clear all filters</button>
+                </div>
+
+                <div id="loadingIndicator" class="hidden text-center py-8">
+                    <div class="inline-block">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const initialSearchTerm = "{{ search_query|escapejs }}";
+const productsData = {{ products_json|safe }};
+let wishlistedProducts = new Set();
+const PAGE_SIZE = 24;
+let currentPage = 1;
+let isLoading = false;
+let filteredProducts = [];
+
+const categoriesData = [
+    {% for cat in filter_categories %}
+    {
+        id: {{ cat.id }},
+        name: "{{ cat.name|escapejs }}",
+        subcategories: [
+            {% for sub in cat.subcategories.all %}
+            { id: {{ sub.id }}, name: "{{ sub.name|escapejs }}" }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+async function fetchWishlistedProducts() {
+    try {
+        const res = await fetch('/api/wishlist/');
+        if (res.ok) {
+            const data = await res.json();
+            wishlistedProducts = new Set(data.wishlisted_ids || []);
+        }
+    } catch(e) {
+        console.log('Could not fetch wishlist');
+    }
+}
+
+function createProductCard(product) {
+    const isWishlisted = wishlistedProducts.has(product.id);
+    return `
+    <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
+        <div class="absolute top-2 right-2 z-10 flex flex-row gap-1.5">
+            <div class="relative group/fav">
+                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/fav:opacity-100 transition-opacity pointer-events-none">Favourite</span>
+                <button onclick="toggleFavourite(this, '${product.id}')" class="w-8 h-8 ${isWishlisted ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} rounded-full flex items-center justify-center text-white transition-all"><i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart text-sm"></i></button>
+            </div>
+            <div class="relative group/cmp">
+                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/cmp:opacity-100 transition-opacity pointer-events-none">Compare</span>
+                <button onclick="addToCompare('${product.slug}', '${product.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white transition-all"><span class="material-symbols-outlined text-sm">compare</span></button>
+            </div>
+        </div>
+        <a href="/product/${product.slug}/" class="block aspect-square mb-3 bg-white overflow-hidden p-2">
+            <img src="${product.image}" loading="lazy" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt="${product.name}">
+        </a>
+        <span class="text-[10px] font-semibold text-emerald-600 uppercase mb-1">${product.category_name}</span>
+        <a href="/product/${product.slug}/" class="block font-medium text-xs md:text-sm text-gray-800 line-clamp-2 mb-2 hover:text-emerald-600 transition-colors">${product.name}</a>
+        ${product.brand ? `<p class="text-xs text-gray-400 mb-2">${product.brand}</p>` : ''}
+        <span class="text-sm md:text-base font-bold text-gray-900 mb-3">Rs. ${product.mrp.toFixed(2)}</span>
+        <div class="flex flex-col gap-2 mt-auto">
+            <div class="flex gap-2">
+                <button onclick="addToCart('${product.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[14px]">shopping_cart</span> Add to Cart
+                </button>
+                <button onclick="handleBuyNow('/buy/${product.slug}/')" class="flex-1 bg-gray-900 hover:bg-gray-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[14px]">payments</span> Buy
+                </button>
+            </div>
+            <button onclick="openQuoteModal('${product.id}', '${product.name.replace(/'/g, "\\'")}')" class="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                <span class="material-symbols-outlined text-[14px]">request_quote</span> Request Quote
+            </button>
+        </div>
+    </div>
+    `;
+}
+
+function renderCategoryFilters() {
+    const categories = categoriesData;
+    const desktopCats = document.getElementById('desktopCategories');
+    const mobileCats = document.getElementById('mobileCategories');
+    
+    const html = categories.map(cat => `
+        <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors">
+            <input type="checkbox" name="category" value="${cat.id}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" onchange="applyFilters()">
+            <span class="text-sm text-gray-600">${cat.name}</span>
+        </label>
+    `).join('');
+    
+    desktopCats.innerHTML = html;
+    mobileCats.innerHTML = html;
+}
+
+function renderSubCategoryFilters() {
+    const categories = categoriesData;
+    const desktopSubs = document.getElementById('desktopSubCategories');
+    const mobileSubs = document.getElementById('mobileSubCategories');
+    
+    let allSubs = [];
+    categories.forEach(cat => {
+        if (cat.subcategories) {
+            allSubs = allSubs.concat(cat.subcategories.map(sub => ({...sub, cat_id: cat.id})));
+        }
+    });
+    
+    const html = allSubs.map(sub => `
+        <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors">
+            <input type="checkbox" name="subcategory" value="${sub.id}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" onchange="applyFilters()">
+            <span class="text-sm text-gray-600">${sub.name}</span>
+        </label>
+    `).join('');
+    
+    if (allSubs.length === 0) {
+        desktopSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
+        mobileSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
+    } else {
+        desktopSubs.innerHTML = html;
+        mobileSubs.innerHTML = html;
+    }
+}
+
+function getFilteredProducts() {
+    const categoryFilters = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => parseInt(cb.value));
+    const subCategoryFilters = Array.from(document.querySelectorAll('input[name="subcategory"]:checked')).map(cb => parseInt(cb.value));
+    const priceFilter = document.querySelector('input[name="price"]:checked')?.value || 'all';
+    const featuredOnly = document.getElementById('featuredFilter')?.checked || false;
+    const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
+
+    return productsData.filter(product => {
+        if (categoryFilters.length > 0 && !categoryFilters.includes(product.category_id)) return false;
+        if (subCategoryFilters.length > 0 && product.sub_category_id && !subCategoryFilters.includes(product.sub_category_id)) return false;
+        if (priceFilter !== 'all') {
+            if (priceFilter === '0-50' && product.mrp > 50) return false;
+            if (priceFilter === '50-200' && (product.mrp < 50 || product.mrp > 200)) return false;
+            if (priceFilter === '200-500' && (product.mrp < 200 || product.mrp > 500)) return false;
+            if (priceFilter === '500+' && product.mrp < 500) return false;
+        }
+        if (featuredOnly && !product.is_featured) return false;
+        if (searchTerm) {
+            const searchable = `${product.name} ${product.category_name} ${product.brand}`.toLowerCase();
+            if (!searchable.includes(searchTerm)) return false;
+        }
+        return true;
+    });
+}
+
+function renderProducts(productsToRender) {
+    const grid = document.getElementById('productsGrid');
+    const noResults = document.getElementById('noResults');
+    const productCount = document.getElementById('productCount');
+
+    if (productsToRender.length === 0) {
+        grid.innerHTML = '';
+        noResults.classList.remove('hidden');
+        productCount.textContent = 'No products found';
+        return;
+    }
+
+    noResults.classList.add('hidden');
+    productCount.textContent = `Showing ${Math.min(PAGE_SIZE, productsToRender.length)} of ${productsToRender.length} products`;
+
+    const firstPage = productsToRender.slice(0, PAGE_SIZE);
+    grid.innerHTML = firstPage.map(product => createProductCard(product)).join('');
+    currentPage = 1;
+}
+
+function loadMoreProducts() {
+    if (isLoading) return;
+    const nextPage = currentPage + 1;
+    const start = currentPage * PAGE_SIZE;
+    const end = nextPage * PAGE_SIZE;
+    const batch = filteredProducts.slice(start, end);
+    if (batch.length === 0) return;
+
+    isLoading = true;
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        const grid = document.getElementById('productsGrid');
+        grid.insertAdjacentHTML('beforeend', batch.map(product => createProductCard(product)).join(''));
+        currentPage = nextPage;
+        const shown = Math.min((nextPage) * PAGE_SIZE, filteredProducts.length);
+        document.getElementById('productCount').textContent = `Showing ${shown} of ${filteredProducts.length} products`;
+        document.getElementById('loadingIndicator').classList.add('hidden');
+        isLoading = false;
+    });
+}
+
+function handleSearch() {
+    const input = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('searchClearBtn');
+    clearBtn.classList.toggle('hidden', !input.value.trim());
+    applyFilters();
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchClearBtn').classList.add('hidden');
+    applyFilters();
+}
+
+function sortProducts() {
+    const sortValue = document.getElementById('sortSelect').value;
+    filteredProducts = getFilteredProducts();
+
+    filteredProducts.sort((a, b) => {
+        switch(sortValue) {
+            case 'price-low': return a.mrp - b.mrp;
+            case 'price-high': return b.mrp - a.mrp;
+            case 'name': return a.name.localeCompare(b.name);
+            case 'newest': return b.id - a.id;
+            default: return a.id - b.id;
+        }
+    });
+
+    renderProducts(filteredProducts);
+}
+
+function applyFilters() {
+    filteredProducts = getFilteredProducts();
+    renderProducts(filteredProducts);
+}
+
+function resetFilters() {
+    document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('input[name="subcategory"]').forEach(cb => cb.checked = false);
+    document.querySelector('input[name="price"][value="all"]').checked = true;
+    document.getElementById('featuredFilter').checked = false;
+    document.getElementById('sortSelect').value = 'default';
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchClearBtn').classList.add('hidden');
+    filteredProducts = productsData;
+    renderProducts(productsData);
+}
+
+function openFilterDrawer() {
+    document.getElementById('filterDrawer').classList.remove('translate-y-full');
+    document.getElementById('filterOverlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeFilterDrawer() {
+    document.getElementById('filterDrawer').classList.add('translate-y-full');
+    document.getElementById('filterOverlay').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchWishlistedProducts();
+    renderCategoryFilters();
+    renderSubCategoryFilters();
+    if (initialSearchTerm) {
+        document.getElementById('searchInput').value = initialSearchTerm;
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCategory = urlParams.get('category');
+    const urlSubcategory = urlParams.get('subcategory');
+    if (urlCategory) {
+        const cb = document.querySelector(`input[name="category"][value="${urlCategory}"]`);
+        if (cb) cb.checked = true;
+    }
+    if (urlSubcategory) {
+        const cb = document.querySelector(`input[name="subcategory"][value="${urlSubcategory}"]`);
+        if (cb) cb.checked = true;
+    }
+    applyFilters();
+
+    const sentinel = document.getElementById('loadingIndicator');
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) loadMoreProducts();
+    }, { rootMargin: '200px' });
+    observer.observe(sentinel);
+});
+</script>
+{% endblock %}

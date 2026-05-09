@@ -1,0 +1,290 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Checkout{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+{% block content %}
+<section class="py-8 bg-gray-50 min-h-screen">
+    <div class="max-w-5xl mx-auto px-4 md:px-8">
+        <h1 class="text-xl font-semibold text-gray-800 mb-5">Checkout</h1>
+        <form method="post" action="{% url 'place_order' %}" id="checkoutForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="source" value="{{ source }}">
+            <input type="hidden" name="lat" id="latInput">
+            <input type="hidden" name="lng" id="lngInput">
+            <input type="hidden" name="selected_items" id="selectedItemsInput">
+            {% if source == 'buy_now' %}
+            <input type="hidden" name="product_id" value="{{ buy_product.pk }}">
+            <input type="hidden" name="qty" value="{{ buy_qty }}">
+            {% endif %}
+
+            <div class="grid lg:grid-cols-3 gap-5">
+                <!-- Left -->
+                <div class="lg:col-span-2 space-y-4">
+
+                    <!-- Delivery Option — compact row -->
+                    <div class="bg-white rounded-xl shadow p-4">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Delivery Option</p>
+                        <div class="flex gap-3">
+                            <label class="flex-1 cursor-pointer">
+                                <input type="radio" name="delivery_type" value="delivery" class="peer sr-only" checked onchange="updateDelivery(this)">
+                                <div class="flex items-center gap-2 border-2 border-gray-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 rounded-lg px-3 py-2.5 transition-all">
+                                    <span class="material-symbols-outlined text-emerald-600 text-lg">local_shipping</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-800">Home Delivery</p>
+                                        <p class="text-xs text-gray-400">+Rs. {{ delivery_charge }}</p>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="flex-1 cursor-pointer">
+                                <input type="radio" name="delivery_type" value="pickup" class="peer sr-only" onchange="updateDelivery(this)">
+                                <div class="flex items-center gap-2 border-2 border-gray-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 rounded-lg px-3 py-2.5 transition-all">
+                                    <span class="material-symbols-outlined text-emerald-600 text-lg">storefront</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-800">Store Pickup</p>
+                                        <p class="text-xs text-gray-400">Free</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Contact + Address -->
+                    <div class="bg-white rounded-xl shadow p-4">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact & Address</p>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Full Name *</label>
+                                <input name="full_name" type="text" required value="{{ request.user.get_full_name|default:request.user.email }}"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Phone *</label>
+                                <input name="phone" type="tel" required value="{{ request.user.phone|default:'' }}"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="block text-xs text-gray-500 mb-1">Email</label>
+                            <input name="email" type="email" value="{{ request.user.email }}"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+
+                        <!-- Address fields — hidden for pickup -->
+                        <div id="addressFields">
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">City *</label>
+                                    <input name="city" id="cityInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Address *</label>
+                                    <input name="address" id="addressInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="Street, area, landmark">
+                                </div>
+                            </div>
+
+                            <!-- Map -->
+                            <div class="mb-2">
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-xs text-gray-500">Pin Location on Map</label>
+                                    <button type="button" onclick="useMyLocation()" class="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-sm">my_location</span> Use my location
+                                    </button>
+                                </div>
+                                <div id="map" class="w-full h-44 rounded-lg border border-gray-200 z-0"></div>
+                                <p class="text-xs text-gray-400 mt-1">Click on the map to pin your delivery location</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Order Note <span class="text-gray-300">(optional)</span></label>
+                            <textarea name="note" rows="2"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                                placeholder="Special instructions..."></textarea>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right: Order Summary -->
+                <div class="lg:col-span-1">
+                    <!-- Payment Method -->
+                    <div class="bg-white rounded-xl shadow p-4 mb-4">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Payment</p>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-400 transition-all" id="codOption">
+                                <input type="radio" name="payment_method" value="cod" checked class="accent-emerald-600" onchange="updatePayment(this)">
+                                <span class="material-symbols-outlined text-emerald-600 text-lg">payments</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Cash on Delivery</p>
+                                    <p class="text-xs text-gray-400">Pay when your order arrives</p>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-400 transition-all" id="onlineOption">
+                                <input type="radio" name="payment_method" value="online" class="accent-emerald-600" onchange="updatePayment(this)">
+                                <span class="material-symbols-outlined text-emerald-600 text-lg">account_balance</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Bank Transfer / Online</p>
+                                    <p class="text-xs text-gray-400">Transfer & upload receipt</p>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-400 transition-all" id="payAtStoreOption" style="display:none">
+                                <input type="radio" name="payment_method" value="pickup" class="accent-emerald-600" onchange="updatePayment(this)">
+                                <span class="material-symbols-outlined text-emerald-600 text-lg">storefront</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">Pay at Store</p>
+                                    <p class="text-xs text-gray-400">Pay when you collect</p>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="bankDetails" class="hidden mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <p class="text-xs font-semibold text-gray-600 mb-2">Bank Transfer Details</p>
+                            <div class="space-y-1 text-sm mb-3">
+                                {% if settings.bank_name %}<div class="flex gap-2"><span class="text-gray-400 w-28 flex-shrink-0">Bank</span><span class="font-medium text-gray-800">{{ settings.bank_name }}</span></div>{% endif %}
+                                {% if settings.bank_account_name %}<div class="flex gap-2"><span class="text-gray-400 w-28 flex-shrink-0">Account Name</span><span class="font-medium text-gray-800">{{ settings.bank_account_name }}</span></div>{% endif %}
+                                {% if settings.bank_account_number %}<div class="flex gap-2"><span class="text-gray-400 w-28 flex-shrink-0">Account No.</span><span class="font-mono font-bold text-gray-800 select-all">{{ settings.bank_account_number }}</span></div>{% endif %}
+                                {% if settings.bank_branch %}<div class="flex gap-2"><span class="text-gray-400 w-28 flex-shrink-0">Branch</span><span class="font-medium text-gray-800">{{ settings.bank_branch }}</span></div>{% endif %}
+                                {% if not settings.bank_name and not settings.bank_account_number %}
+                                <p class="text-xs text-gray-400 italic">Bank details not configured yet.</p>
+                                {% endif %}
+                            </div>
+                            <label class="block text-xs text-gray-500 mb-1">Upload Payment Receipt *</label>
+                            <input type="file" name="payment_receipt" id="receiptInput" accept="image/*,.pdf"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                            <p class="text-xs text-gray-400 mt-1">Upload screenshot or photo of your transfer</p>
+                        </div>
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div class="bg-white rounded-xl shadow p-4 sticky top-24">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Order Summary</p>
+                        <div class="space-y-2 mb-3 max-h-48 overflow-y-auto">
+                            {% if source == 'buy_now' %}
+                            <div class="flex gap-2 items-center">
+                                {% with img=buy_product.primary_image %}{% if img %}<img src="{{ img.image.url }}" class="w-10 h-10 object-contain rounded border border-gray-100 flex-shrink-0">{% endif %}{% endwith %}
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-800 line-clamp-1">{{ buy_product.name }}</p>
+                                    <p class="text-xs text-gray-400">Qty: {{ buy_qty }} · Rs. {{ subtotal }}</p>
+                                </div>
+                            </div>
+                            {% else %}
+                            {% for item in items %}
+                            <div class="flex gap-2 items-center">
+                                {% with img=item.product.primary_image %}{% if img %}<img src="{{ img.image.url }}" class="w-10 h-10 object-contain rounded border border-gray-100 flex-shrink-0">{% endif %}{% endwith %}
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-800 line-clamp-1">{{ item.product.name }}</p>
+                                    <p class="text-xs text-gray-400">Qty: {{ item.quantity }} · Rs. {{ item.subtotal }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="border-t border-gray-100 pt-2 space-y-1 text-sm">
+                            <div class="flex justify-between text-gray-500"><span>Subtotal</span><span>Rs. {{ subtotal }}</span></div>
+                            <div class="flex justify-between text-gray-500"><span>Delivery</span><span id="deliveryAmt">Rs. {{ delivery_charge }}</span></div>
+                            <div class="flex justify-between font-bold text-gray-800 border-t border-gray-100 pt-1.5 text-base"><span>Total</span><span id="totalAmt">—</span></div>
+                        </div>
+                        <button type="submit" id="placeBtn" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">
+                            Place Order
+                        </button>
+                        <p class="text-xs text-gray-400 text-center mt-2">By ordering you agree to our terms.</p>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+const selectedItemsRaw = sessionStorage.getItem('selectedCartItems');
+let selectedItems = [];
+let subtotal = parseFloat("{{ subtotal }}");
+
+if (selectedItemsRaw && '{{ source }}' === 'cart') {
+    try {
+        selectedItems = JSON.parse(selectedItemsRaw);
+        document.getElementById('selectedItemsInput').value = selectedItemsRaw;
+        sessionStorage.removeItem('selectedCartItems');
+    } catch (e) {
+        console.error('Failed to parse selected items:', e);
+    }
+}
+
+const deliveryCharge = {{ delivery_charge }};
+let currentCharge = deliveryCharge;
+
+function updateTotal() {
+    document.getElementById('deliveryAmt').textContent = 'Rs. ' + currentCharge;
+    document.getElementById('totalAmt').textContent = 'Rs. ' + (subtotal + currentCharge).toFixed(2);
+}
+
+function updateDelivery(radio) {
+    const isDelivery = radio.value === 'delivery';
+    document.getElementById('addressFields').style.display = isDelivery ? '' : 'none';
+    document.getElementById('cityInput').required = isDelivery;
+    document.getElementById('addressInput').required = isDelivery;
+    document.getElementById('payAtStoreOption').style.display = isDelivery ? 'none' : '';
+    document.getElementById('onlineOption').style.display = isDelivery ? '' : 'none';
+    if (!isDelivery) {
+        document.querySelector('input[value="cod"]').checked = true;
+        document.getElementById('bankDetails').classList.add('hidden');
+    }
+    currentCharge = isDelivery ? deliveryCharge : 0;
+    updateTotal();
+    if (isDelivery && map) setTimeout(() => map.invalidateSize(), 100);
+}
+
+function updatePayment(radio) {
+    document.getElementById('bankDetails').classList.toggle('hidden', radio.value !== 'online');
+    document.getElementById('receiptInput').required = radio.value === 'online';
+}
+
+// init total
+updateTotal();
+
+// ── Leaflet Map ──────────────────────────────────────────────────────────────
+let map, marker;
+
+function initMap(lat, lng) {
+    map = L.map('map').setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+    map.on('click', function(e) { placeMarker(e.latlng.lat, e.latlng.lng); });
+}
+
+function placeMarker(lat, lng) {
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([lat, lng]).addTo(map);
+    document.getElementById('latInput').value = lat;
+    document.getElementById('lngInput').value = lng;
+    // reverse geocode for address hint
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+        .then(r => r.json()).then(d => {
+            if (d.display_name) {
+                const addr = document.getElementById('addressInput');
+                if (!addr.value) addr.value = d.display_name.split(',').slice(0,3).join(', ');
+                const city = document.getElementById('cityInput');
+                if (!city.value) city.value = d.address?.city || d.address?.town || d.address?.village || '';
+            }
+        }).catch(() => {});
+}
+
+function useMyLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        map.setView([lat, lng], 15);
+        placeMarker(lat, lng);
+    }, () => alert('Could not get your location.'));
+}
+
+// init map at Kathmandu default
+initMap(27.7172, 85.3240);
+</script>
+{% endblock %}

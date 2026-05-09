@@ -1,0 +1,116 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}My Quotations | Chhapadiya{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 md:px-8 py-10">
+
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">My Quotation Requests</h1>
+        <p class="text-sm text-gray-500 mt-1">Track the status of your quotation requests below.</p>
+    </div>
+
+    {% if quotations %}
+    <div class="space-y-4">
+        {% for q in quotations %}
+        <div class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+
+                <!-- Quotation info -->
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                        <span class="font-semibold text-gray-800">{{ q.user_name }}</span>
+                        <span class="text-gray-400 text-xs">{{ q.user_email }}</span>
+                        {% if q.phone %}<span class="text-gray-400 text-xs">· {{ q.phone }}</span>{% endif %}
+                        <span class="text-gray-300 text-xs ml-auto">{{ q.created_at|date:"d M Y" }}</span>
+                    </div>
+
+                    <!-- Items in quotation -->
+                    <div class="space-y-2 mb-3">
+                        {% for item in q.items.all %}
+                        <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                            {% with item.product.primary_image as img %}
+                            {% if img %}
+                            <img src="{{ img.image.url }}" class="w-12 h-12 object-cover rounded border" alt="{{ item.product.name }}">
+                            {% else %}
+                            <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                <span class="material-symbols-outlined text-gray-300 text-xl">inventory_2</span>
+                            </div>
+                            {% endif %}
+                            {% endwith %}
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-800 text-sm">{{ item.product.name }}</p>
+                                <p class="text-xs text-gray-400">SKU: {{ item.product.sku }} · Qty: {{ item.quantity }}</p>
+                                {% if item.product.mrp %}
+                                <p class="text-xs text-emerald-600 font-medium">MRP: Rs. {{ item.product.mrp }}</p>
+                                {% if q.linked_customer and q.linked_customer.tier %}
+                                    {% for tp in item.product.tier_prices.all %}
+                                        {% if tp.tier.pk == q.linked_customer.tier.pk %}
+                                        <p class="text-xs text-blue-600 font-medium">{{ q.linked_customer.tier.name }} Price: Rs. {{ tp.price }}</p>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if q.message %}
+                    <p class="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded italic mb-3">\"{{ q.message }}\"</p>
+                    {% endif %}
+
+                    {% if q.admin_note %}
+                    <div class="bg-emerald-50 border border-emerald-200 rounded px-3 py-2 mb-3">
+                        <p class="text-xs font-semibold text-emerald-700 mb-0.5">Response from us:</p>
+                        <p class="text-xs text-emerald-600">{{ q.admin_note }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Status & Actions -->
+                <div class="flex flex-col items-start sm:items-end gap-2 min-w-[140px]">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold
+                        {% if q.status == 'pending' %}bg-yellow-100 text-yellow-700
+                        {% elif q.status == 'reviewed' %}bg-blue-100 text-blue-700
+                        {% elif q.status == 'responded' %}bg-emerald-100 text-emerald-700
+                        {% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {% if q.status == 'pending' %}⏳ Pending
+                        {% elif q.status == 'reviewed' %}👀 Reviewed
+                        {% elif q.status == 'responded' %}✅ Responded
+                        {% else %}🔒 Closed{% endif %}
+                    </span>
+                    {% if q.linked_customer and q.linked_customer.tier %}
+                    <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full font-medium border border-blue-200">
+                        {{ q.linked_customer.tier.name }} Customer
+                    </span>
+                    {% endif %}
+                    {% if q.status == 'responded' %}
+                    <a href="{% url 'quotation_pdf' q.pk %}" target="_blank"
+                        class="mt-1 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 border border-emerald-300 hover:border-emerald-500 px-3 py-1.5 rounded-lg transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Download PDF
+                    </a>
+                    {% else %}
+                    <p class="mt-1 text-xs text-gray-400 italic px-1">Awaiting response...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-white border border-gray-200 rounded-xl p-16 text-center">
+        <span class="material-symbols-outlined text-5xl text-gray-200 block mb-4">request_quote</span>
+        <p class="text-gray-500 font-medium mb-1">No quotation requests yet</p>
+        <p class="text-sm text-gray-400 mb-6">Browse our products and click "Request Quote" to get started.</p>
+        <a href="{% url 'index' %}" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors">
+            Browse Products
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

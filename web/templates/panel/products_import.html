@@ -1,0 +1,213 @@
+{% extends "panel/base.html" %}
+{% block title %} — Import Products{% endblock %}
+{% block nav_product_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_product_open %}{% endblock %}
+{% block nav_product_arrow %}rotate-180{% endblock %}
+{% block nav_products %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-4"><p class="text-xs text-gray-500 mb-1">Products</p><h1 class="text-lg font-semibold text-gray-800">Import Products from Excel</h1></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Upload Section -->
+    <div class="lg:col-span-2 space-y-4">
+        <!-- Instructions -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-blue-900 mb-2">How to Import:</h3>
+            <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Download the sample template below</li>
+                <li>Fill in product details (Name, SKU, MRP are required)</li>
+                <li>Use dropdowns for Category, Country, Active, Featured fields</li>
+                <li>Add image file paths (local paths on your computer)</li>
+                <li>Upload the Excel file to import all products at once</li>
+            </ul>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <form method="post" enctype="multipart/form-data" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Excel File</label>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls" required class="w-full border-2 border-dashed border-gray-300 rounded-lg px-4 py-6 text-center cursor-pointer hover:border-blue-400 transition">
+                    <p class="text-xs text-gray-500 mt-1">Supported formats: .xlsx, .xls</p>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-semibold text-sm">Upload & Import</button>
+            </form>
+        </div>
+
+        <!-- Column Reference -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Excel Column Reference</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Column</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Field</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Required</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Example</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr><td class="px-3 py-2">A</td><td class="px-3 py-2">Product Name</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">Mixer Grinder</td></tr>
+                        <tr><td class="px-3 py-2">B</td><td class="px-3 py-2">SKU</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">MG-001</td></tr>
+                        <tr><td class="px-3 py-2">C</td><td class="px-3 py-2">Brand</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Philips</td></tr>
+                        <tr><td class="px-3 py-2">D</td><td class="px-3 py-2">Category</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
+                        <tr><td class="px-3 py-2">E</td><td class="px-3 py-2">Sub-Category</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Blenders</td></tr>
+                        <tr><td class="px-3 py-2">F</td><td class="px-3 py-2">Country/Origin</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
+                        <tr><td class="px-3 py-2">G</td><td class="px-3 py-2">MRP</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">2500.00</td></tr>
+                        <tr><td class="px-3 py-2">H</td><td class="px-3 py-2">Short Description</td><td class="px-3 py-2">No</td><td class="px-3 py-2">High-speed mixer</td></tr>
+                        <tr><td class="px-3 py-2">I</td><td class="px-3 py-2">Full Description</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Powerful 1000W motor...</td></tr>
+                        <tr><td class="px-3 py-2">J</td><td class="px-3 py-2">Specifications</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Power: 1000W, Speed: 3</td></tr>
+                        <tr><td class="px-3 py-2">K</td><td class="px-3 py-2">Active (Yes/No)</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
+                        <tr><td class="px-3 py-2">L</td><td class="px-3 py-2">Featured (Yes/No)</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
+                        <tr><td class="px-3 py-2">M-P</td><td class="px-3 py-2">Image Paths (1-4)</td><td class="px-3 py-2">No</td><td class="px-3 py-2">C:\Images\product1.jpg</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+        <!-- Download Template -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Download Template</h3>
+            <button id="downloadBtn" class="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download Excel Template
+            </button>
+            <p class="text-xs text-gray-500 mt-2">With auto-fill dropdowns</p>
+        </div>
+
+        <!-- Available Options -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Available Options</h3>
+            
+            <div class="mb-3">
+                <p class="text-xs font-semibold text-gray-600 mb-1">Categories ({{ categories|length }})</p>
+                <div class="text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
+                    {% for cat in categories %}
+                    <div>• {{ cat.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <p class="text-xs font-semibold text-gray-600 mb-1">Countries ({{ countries|length }})</p>
+                <div class="text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
+                    {% for country in countries %}
+                    <div>• {{ country.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Customer Tiers ({{ tiers|length }})</p>
+                <div class="text-xs text-gray-600 space-y-0.5">
+                    {% for tier in tiers %}
+                    <div>• {{ tier.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-yellow-900 mb-2">Tips:</h3>
+            <ul class="text-xs text-yellow-800 space-y-1 list-disc list-inside">
+                <li>Dropdowns auto-fill from database</li>
+                <li>Image paths must be absolute</li>
+                <li>First image becomes primary</li>
+                <li>Max 4 images per product</li>
+                <li>Check for duplicates before upload</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const categoryNames = [{% for cat in categories %}'{{ cat.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+const countryNames = [{% for country in countries %}'{{ country.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+
+document.getElementById('downloadBtn').addEventListener('click', downloadTemplate);
+
+function downloadTemplate() {
+    if (typeof XLSX === 'undefined') {
+        alert('XLSX library is not loaded. Please refresh the page.');
+        return;
+    }
+    
+    const yesNoOptions = ['Yes', 'No'];
+    const firstCategory = categoryNames.length > 0 ? categoryNames[0] : '';
+    const firstCountry = countryNames.length > 0 ? countryNames[0] : '';
+    
+    const sampleData = [
+        ['Product Name', 'SKU', 'Brand', 'Category', 'Sub-Category', 'Country', 'MRP', 'Short Description', 'Full Description', 'Specifications', 'Active', 'Featured', 'Image 1', 'Image 2', 'Image 3', 'Image 4'],
+        ['Mixer Grinder', 'MG-001', 'Philips', firstCategory, '', firstCountry, 2500, 'High-speed mixer', 'Powerful 1000W motor with 3 speed settings', 'Power: 1000W, Speed: 3', 'Yes', 'No', 'C:\\Images\\mixer1.jpg', 'C:\\Images\\mixer2.jpg', '', ''],
+        ['Refrigerator', 'RF-001', 'LG', firstCategory, '', firstCountry, 45000, 'Energy efficient fridge', 'Advanced cooling technology', 'Capacity: 500L, Energy: 5 Star', 'Yes', 'Yes', 'C:\\Images\\fridge1.jpg', '', '', ''],
+    ];
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sampleData);
+    
+    ws['!cols'] = [
+        {wch: 20}, {wch: 12}, {wch: 15}, {wch: 18}, {wch: 18}, {wch: 15},
+        {wch: 12}, {wch: 20}, {wch: 25}, {wch: 25}, {wch: 10}, {wch: 10},
+        {wch: 25}, {wch: 25}, {wch: 25}, {wch: 25}
+    ];
+    
+    const dataValidation = [];
+    
+    if (categoryNames.length > 0) {
+        dataValidation.push({
+            type: 'list',
+            formula1: '"' + categoryNames.join(',') + '"',
+            sqref: 'D2:D1000',
+            showInputMessage: true,
+            showErrorMessage: true,
+            errorTitle: 'Invalid Category',
+            error: 'Please select from available categories'
+        });
+    }
+    
+    if (countryNames.length > 0) {
+        dataValidation.push({
+            type: 'list',
+            formula1: '"' + countryNames.join(',') + '"',
+            sqref: 'F2:F1000',
+            showInputMessage: true,
+            showErrorMessage: true,
+            errorTitle: 'Invalid Country',
+            error: 'Please select from available countries'
+        });
+    }
+    
+    dataValidation.push({
+        type: 'list',
+        formula1: '"Yes,No"',
+        sqref: 'K2:K1000',
+        showInputMessage: true,
+        showErrorMessage: true,
+        errorTitle: 'Invalid Value',
+        error: 'Please select Yes or No'
+    });
+    
+    dataValidation.push({
+        type: 'list',
+        formula1: '"Yes,No"',
+        sqref: 'L2:L1000',
+        showInputMessage: true,
+        showErrorMessage: true,
+        errorTitle: 'Invalid Value',
+        error: 'Please select Yes or No'
+    });
+    
+    ws.dataValidations = dataValidation;
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Products');
+    XLSX.writeFile(wb, 'product_import_template.xlsx');
+}
+</script>
+{% endblock %}

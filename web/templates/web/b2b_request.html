@@ -1,0 +1,185 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}B2B Quote Request | Chhapadiya Traders{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<section class="relative h-[250px] flex items-center overflow-hidden">
+    <img src="{% static 'images/chhadipya.jpg' %}" alt="B2B" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-gradient-to-b from-emerald-900/70 to-emerald-900/90"></div>
+    <div class="relative max-w-7xl mx-auto px-4 md:px-8 w-full">
+        <h1 class="font-['Work_Sans'] text-4xl md:text-5xl font-bold text-white mb-4">B2B Quote Request</h1>
+        <p class="text-emerald-100 text-lg max-w-2xl">Get bulk pricing and customized solutions for your business needs</p>
+    </div>
+</section>
+
+<!-- Main Content -->
+<section class="py-16 bg-surface">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="grid md:grid-cols-3 gap-12">
+            <!-- Form -->
+            <div class="md:col-span-2">
+                <div class="bg-white p-8 rounded-lg border border-outline-variant">
+                    <h2 class="font-['Work_Sans'] text-2xl font-bold text-primary mb-6">Submit Your Request</h2>
+                    
+                    <form id="b2bForm" class="space-y-6" onsubmit="submitB2BRequest(event)">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
+                                <input type="text" name="company_name" required placeholder="Your company name" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Contact Person *</label>
+                                <input type="text" name="contact_person" required placeholder="Full name" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                <input type="email" name="email" required placeholder="your@email.com" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
+                                <input type="tel" name="phone" required placeholder="+977-98XXXXXXXX" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Business Type *</label>
+                            <select name="business_type" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                                <option value="">Select business type</option>
+                                <option value="retailer">Retailer</option>
+                                <option value="distributor">Distributor</option>
+                                <option value="wholesaler">Wholesaler</option>
+                                <option value="corporate">Corporate/Institutional</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Products Interested In *</label>
+                            <textarea name="products_interested" required rows="3" placeholder="List the products or categories you're interested in..." class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Estimated Monthly Volume</label>
+                            <input type="text" name="monthly_volume" placeholder="e.g., 100-500 units" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Additional Requirements</label>
+                            <textarea name="requirements" rows="3" placeholder="Any special requirements, delivery preferences, payment terms, etc." class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        </div>
+
+                        <div id="b2bError" class="hidden text-sm text-red-600 bg-red-50 px-4 py-3 rounded"></div>
+
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg text-sm transition-colors">
+                            Submit B2B Request
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Benefits -->
+            <div class="space-y-6">
+                <div class="bg-emerald-50 p-6 rounded-lg border border-emerald-200">
+                    <h3 class="font-['Work_Sans'] font-bold text-primary mb-4">B2B Benefits</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-emerald-600 flex-shrink-0">check_circle</span>
+                            <span class="text-sm text-gray-700">Bulk pricing discounts</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-emerald-600 flex-shrink-0">check_circle</span>
+                            <span class="text-sm text-gray-700">Flexible payment terms</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-emerald-600 flex-shrink-0">check_circle</span>
+                            <span class="text-sm text-gray-700">Dedicated account manager</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-emerald-600 flex-shrink-0">check_circle</span>
+                            <span class="text-sm text-gray-700">Priority support</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-emerald-600 flex-shrink-0">check_circle</span>
+                            <span class="text-sm text-gray-700">Custom packaging options</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg border border-outline-variant">
+                    <h3 class="font-['Work_Sans'] font-bold text-primary mb-4">Quick Contact</h3>
+                    {% if settings.email %}
+                    <a href="mailto:{{ settings.email }}" class="flex items-center gap-3 text-sm text-gray-700 hover:text-emerald-700 mb-3">
+                        <span class="material-symbols-outlined">mail</span>
+                        <span>{{ settings.email }}</span>
+                    </a>
+                    {% endif %}
+                    {% if settings.phone %}
+                    <a href="tel:{{ settings.phone }}" class="flex items-center gap-3 text-sm text-gray-700 hover:text-emerald-700 mb-3">
+                        <span class="material-symbols-outlined">call</span>
+                        <span>{{ settings.phone }}</span>
+                    </a>
+                    {% endif %}
+                    {% if settings.whatsapp %}
+                    <a href="https://wa.me/{{ settings.whatsapp }}" target="_blank" class="flex items-center gap-3 text-sm text-gray-700 hover:text-emerald-700">
+                        <span class="material-symbols-outlined">chat</span>
+                        <span>WhatsApp</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
+
+async function submitB2BRequest(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>';
+    
+    const data = new FormData(form);
+    data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    
+    try {
+        const res = await fetch('{% url "b2b_request" %}', { method: 'POST', body: data });
+        const json = await res.json();
+        btn.disabled = false;
+        btn.textContent = orig;
+        
+        if (json.success) {
+            form.reset();
+            const t = document.getElementById('cartToast');
+            if (t) {
+                t.textContent = 'B2B request submitted successfully! We will contact you soon.';
+                t.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+            }
+        } else {
+            const err = document.getElementById('b2bError');
+            err.textContent = json.message || 'Something went wrong.';
+            err.classList.remove('hidden');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = orig;
+        document.getElementById('b2bError').textContent = 'An error occurred. Please try again.';
+        document.getElementById('b2bError').classList.remove('hidden');
+    }
+}
+</script>
+
+{% endblock %}

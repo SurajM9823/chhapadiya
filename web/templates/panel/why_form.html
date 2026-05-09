@@ -1,0 +1,52 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ action }} Why Choose Us{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_services %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <p class="text-xs text-gray-500 mb-1"><a href="{% url 'panel_services' %}" class="hover:underline">Services</a> › Why Choose Us › {{ action }}</p>
+    <h1 class="text-xl font-semibold text-gray-800">{{ action }} Why Choose Us Item</h1>
+</div>
+<div class="max-w-lg bg-white rounded-xl shadow p-8">
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <input name="title" type="text" value="{{ item.title|default:'' }}" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="e.g. Shipping Available">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+            <textarea name="description" rows="3" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">{{ item.description|default:'' }}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Material Icon Name <span class="text-gray-400 font-normal">(e.g. local_shipping, support_agent, verified_user)</span>
+            </label>
+            <input name="icon" type="text" value="{{ item.icon|default:'' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="local_shipping">
+            <p class="text-xs text-gray-400 mt-1">
+                Browse at <a href="https://fonts.google.com/icons" target="_blank" class="text-blue-500 hover:underline">fonts.google.com/icons</a>
+            </p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <input name="order" type="number" value="{{ item.order|default:'0' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div class="flex items-center gap-2">
+            <input name="is_active" type="checkbox" id="is_active" {% if item.is_active or not item %}checked{% endif %}>
+            <label for="is_active" class="text-sm font-medium text-gray-700">Active</label>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700">Save</button>
+            <a href="{% url 'panel_services' %}" class="px-5 py-2 rounded border text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

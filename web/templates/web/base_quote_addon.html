@@ -1,0 +1,173 @@
+<!-- Quote Request Modal -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<style>
+.select2-container--default .select2-selection--single { height: 36px; border: 1px solid #e5e7eb; border-radius: 0.5rem; }
+.select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 34px; font-size: 0.875rem; color: #374151; padding-left: 12px; }
+.select2-container--default .select2-selection--single .select2-selection__arrow { height: 34px; }
+.select2-container--default.select2-container--focus .select2-selection--single { border-color: #10b981; outline: none; }
+.select2-dropdown { border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+.select2-results__option--highlighted { background-color: #ecfdf5 !important; color: #065f46 !important; }
+</style>
+<div id="quoteModal" style="display:none" class="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm items-center justify-center px-4" onclick="closeQuoteModal()">
+    <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-800 text-sm">Request a Quote</h3>
+            <button onclick="closeQuoteModal()" class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined text-xl">close</span></button>
+        </div>
+        <div class="px-6 py-4 max-h-[80vh] overflow-y-auto">
+            <div id="quoteError" class="hidden text-xs text-red-600 bg-red-50 px-3 py-2 rounded mb-3"></div>
+            <form id="quoteForm" class="space-y-4" onsubmit="submitQuote(event)">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Your Name</label>
+                        <input name="user_name" type="text" required placeholder="Full name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                        <input name="phone" type="tel" placeholder="+977-98XXXXXXXX" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-2">Products &amp; Quantities</label>
+                    <div id="quoteItemsList" class="space-y-2"></div>
+                    <button type="button" onclick="addQuoteItem()" class="mt-2 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                        <span class="material-symbols-outlined text-sm">add_circle</span> Add another product
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Message <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <textarea name="message" rows="2" placeholder="Specific requirements, delivery timeline, etc." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Submit Quote Request</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+let _quoteItemCount = 0;
+function addQuoteItem(presetId, presetName) {
+    const idx = _quoteItemCount++;
+    const row = document.createElement('div');
+    row.className = 'quote-item-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 68px 28px;gap:6px;align-items:center';
+    row.dataset.idx = idx;
+    row.innerHTML = `
+        <div style="min-width:0">
+            <select id="quoteSelect_${idx}" class="w-full quote-product-select" style="width:100%">
+                ${presetId ? `<option value="${presetId}" selected>${presetName}</option>` : ''}
+            </select>
+        </div>
+        <input type="number" min="1" value="1" placeholder="Qty" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-emerald-500 quote-qty-input">
+        <button type="button" onclick="removeQuoteItem(this)" class="text-gray-300 hover:text-red-400">
+            <span class="material-symbols-outlined text-lg">remove_circle</span>
+        </button>`;
+    document.getElementById('quoteItemsList').appendChild(row);
+    $(`#quoteSelect_${idx}`).select2({
+        placeholder: 'Search product...',
+        allowClear: true,
+        minimumInputLength: 0,
+        ajax: {
+            url: '/products/search/',
+            dataType: 'json',
+            delay: 200,
+            data: params => ({ q: params.term || '' }),
+            processResults: data => ({ results: data.results.map(r => ({ id: r.id, text: r.text + ' (Rs.' + r.mrp + ')' })) }),
+            cache: true
+        },
+        dropdownParent: $('#quoteModal')
+    });
+    if (presetId) $(`#quoteSelect_${idx}`).trigger('change');
+}
+function removeQuoteItem(btn) {
+    const row = btn.closest('.quote-item-row');
+    const idx = row.dataset.idx;
+    $(`#quoteSelect_${idx}`).select2('destroy');
+    row.remove();
+    if (document.querySelectorAll('.quote-item-row').length === 0) addQuoteItem();
+}
+function handleBuyNow(url) {
+    {% if user.is_authenticated %}
+    window.location.href = url;
+    {% else %}
+    window._pendingBuyUrl = url;
+    openAuthModal('login');
+    {% endif %}
+}
+function openQuoteModal(productId, productName) {
+    {% if user.is_authenticated %}
+    document.getElementById('quoteError').classList.add('hidden');
+    document.getElementById('quoteForm').reset();
+    const nameField = document.querySelector('#quoteForm [name="user_name"]');
+    const phoneField = document.querySelector('#quoteForm [name="phone"]');
+    if (nameField) nameField.value = '{{ request.user.get_full_name|default:request.user.email }}';
+    if (phoneField) phoneField.value = '{{ request.user.phone }}';
+    document.querySelectorAll('.quote-item-row').forEach(r => {
+        const idx = r.dataset.idx;
+        try { $(`#quoteSelect_${idx}`).select2('destroy'); } catch(e) {}
+        r.remove();
+    });
+    _quoteItemCount = 0;
+    addQuoteItem(productId || null, productName || null);
+    document.getElementById('quoteModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    {% else %}
+    window._pendingQuote = {id: productId, name: productName};
+    openAuthModal('login');
+    {% endif %}
+}
+function closeQuoteModal() {
+    document.getElementById('quoteModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+async function submitQuote(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    const items = [];
+    document.querySelectorAll('.quote-item-row').forEach(row => {
+        const idx = row.dataset.idx;
+        const productId = $(`#quoteSelect_${idx}`).val();
+        const qty = row.querySelector('.quote-qty-input').value || 1;
+        if (productId) items.push({ product_id: productId, quantity: parseInt(qty) });
+    });
+    if (items.length === 0) {
+        const err = document.getElementById('quoteError');
+        err.textContent = 'Please select at least one product.';
+        err.classList.remove('hidden');
+        return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>';
+    const data = new FormData(form);
+    data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    data.append('items', JSON.stringify(items));
+    const res = await fetch('/quote/request/', {method: 'POST', body: data});
+    const json = await res.json();
+    btn.disabled = false; btn.textContent = orig;
+    if (json.success) {
+        closeQuoteModal();
+        const t = document.getElementById('cartToast');
+        if (t) { t.textContent = 'Quote request submitted ✓'; t.classList.remove('translate-y-20','opacity-0'); setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),2500); }
+    } else {
+        const err = document.getElementById('quoteError');
+        err.textContent = json.message || 'Something went wrong.';
+        err.classList.remove('hidden');
+    }
+}
+let _compareList = JSON.parse(localStorage.getItem('compareList') || '[]');
+function addToCompare(slug, name) {
+    if (_compareList.find(p => p.slug === slug)) {
+        _compareList = _compareList.filter(p => p.slug !== slug);
+        showFavToast('Removed from compare');
+    } else {
+        if (_compareList.length >= 2) _compareList.shift();
+        _compareList.push({slug, name});
+        showFavToast(_compareList.length < 2 ? 'Added — pick one more to compare' : 'Ready to compare!');
+    }
+    localStorage.setItem('compareList', JSON.stringify(_compareList));
+}
+</script>

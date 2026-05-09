@@ -1,0 +1,61 @@
+{% extends "panel/base.html" %}
+{% block title %} — Categories{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_categories %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div><p class="text-xs text-gray-500 mb-1">Content Management</p><h1 class="text-xl font-semibold text-gray-800">Categories</h1></div>
+    <a href="{% url 'panel_category_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Category</a>
+</div>
+{% if categories %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Icon</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Sub-categories</th>
+                <th class="px-4 py-3 text-left">Link</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for cat in categories %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    <img src="{{ cat.icon.url }}" class="w-10 h-10 object-contain rounded bg-gray-100 p-1" alt="{{ cat.name }}">
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ cat.name }}</td>
+                <td class="px-4 py-3">
+                    <a href="{% url 'panel_subcategories' cat.pk %}" class="text-blue-600 hover:underline text-xs">
+                        {{ cat.subcategories.count }} sub{% if cat.subcategories.count != 1 %}s{% endif %} →
+                    </a>
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ cat.link }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ cat.order }}</td>
+                <td class="px-4 py-3">
+                    {% if cat.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex gap-3">
+                        <a href="{% url 'panel_subcategories' cat.pk %}" class="text-gray-500 hover:underline text-xs">Subs</a>
+                        <a href="{% url 'panel_category_edit' cat.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                        <form method="post" action="{% url 'panel_category_delete' cat.pk %}" onsubmit="return confirm('Delete category and all its sub-categories?')">{% csrf_token %}
+                            <button class="text-red-500 hover:underline text-xs">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No categories yet. <a href="{% url 'panel_category_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+{% endblock %}

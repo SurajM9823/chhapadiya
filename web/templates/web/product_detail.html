@@ -1,0 +1,514 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Buy Online | Chhapadiya Traders{% endblock %}
+
+{% block meta_description %}{{ product.short_description|default:product.name }} — Buy {{ product.name }} online at best price in Nepal. SKU: {{ product.sku }}{% if product.brand %}, Brand: {{ product.brand }}{% endif %}. Fast delivery across Nepal.{% endblock %}
+
+{% block og_title %}{{ product.name }} | Chhapadiya Traders{% endblock %}
+{% block og_description %}{{ product.short_description|default:product.name }}{% endblock %}
+
+{% block extra_head %}
+{% with img=product.primary_image %}
+{% if img %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ img.image.url }}">{% endif %}
+{% endwith %}
+<meta property="og:type" content="product">
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' product.slug %}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ product.name|escapejs }}",
+  "sku": "{{ product.sku }}",
+  {% with img=product.primary_image %}{% if img %}"image": "{{ request.scheme }}://{{ request.get_host }}{{ img.image.url }}",{% endif %}{% endwith %}
+  "description": "{{ product.short_description|default:product.name|escapejs }}",
+  {% if product.brand %}"brand": {"@type": "Brand", "name": "{{ product.brand|escapejs }}"},{% endif %}
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "NPR",
+    "price": "{{ product.mrp }}",
+    "availability": "{% if stock > 0 %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+    "seller": {"@type": "Organization", "name": "Chhapadiya Traders"}
+  }
+}
+</script>
+<style>
+    #mainImage { transition: opacity 0.2s ease; }
+    .thumb-btn.active { border-color: #059669; }
+    #zoomLens {
+        position: absolute; border: 2px solid #059669;
+        width: 120px; height: 120px; cursor: crosshair;
+        display: none; pointer-events: none;
+        background: rgba(5,150,105,0.08);
+    }
+    #zoomResult {
+        display: none; position: absolute;
+        top: 0; left: calc(100% + 16px);
+        width: 380px; height: 380px;
+        border: 1px solid #e5e7eb;
+        background-repeat: no-repeat; background-color: white;
+        z-index: 50; box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    @media (max-width: 1024px) { #zoomResult { display: none !important; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-surface min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-6">
+
+        <!-- Breadcrumb -->
+        <nav class="flex items-center gap-2 text-xs text-gray-500 mb-6 flex-wrap">
+            <a href="{% url 'index' %}" class="hover:text-emerald-700">Home</a>
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <a href="{% url 'products' %}" class="hover:text-emerald-700">Products</a>
+            {% if product.category %}
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <a href="{% url 'products' %}" class="hover:text-emerald-700">{{ product.category.name }}</a>
+            {% endif %}
+            <span class="material-symbols-outlined text-sm">chevron_right</span>
+            <span class="text-gray-700 truncate max-w-xs">{{ product.name }}</span>
+        </nav>
+
+        <!-- Main Product Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1fr_1fr_360px] gap-8 mb-12">
+
+            <!-- Image Gallery -->
+            <div class="lg:col-span-1">
+                <div class="relative bg-white border border-gray-200 mb-3 overflow-hidden" id="imageContainer"
+                     onmousemove="zoomMove(event)" onmouseenter="zoomEnter()" onmouseleave="zoomLeave()">
+                    <div id="zoomLens"></div>
+                    {% with img=product.primary_image %}
+                    <img id="mainImage"
+                         src="{% if img %}{{ img.image.url }}{% else %}{% static 'images/logo.jpg' %}{% endif %}"
+                         alt="{{ product.name }}"
+                         class="w-full aspect-square object-contain p-4">
+                    {% endwith %}
+                    <div id="zoomResult"></div>
+                    {% if stock == 0 %}
+                    <span class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                        Out of Stock
+                    </span>
+                    {% endif %}
+                </div>
+                <!-- Thumbnails -->
+                {% if product.images.count > 1 %}
+                <div class="flex gap-2 overflow-x-auto pb-1">
+                    {% for img in product.images.all %}
+                    <button onclick="switchImage('{{ img.image.url }}', this)"
+                            class="thumb-btn flex-shrink-0 w-16 h-16 border-2 border-gray-200 bg-white overflow-hidden hover:border-emerald-500 transition-colors {% if forloop.first %}active{% endif %}">
+                        <img src="{{ img.image.url }}" alt="thumb" class="w-full h-full object-contain p-1">
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <!-- Action icons -->
+                <div class="flex gap-2 mt-4 relative">
+                    <!-- Wishlist -->
+                    <button onclick="toggleFavourite(this, '{{ product.pk }}')" id="wishlistBtn"
+                        class="flex items-center gap-1.5 text-xs px-3 py-2 border rounded-lg transition-all {% if is_wishlisted %}border-red-400 text-red-500 bg-red-50{% else %}border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-500{% endif %}">
+                        <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' {% if is_wishlisted %}1{% else %}0{% endif %}">favorite</span>
+                        <span>{% if is_wishlisted %}Wishlisted{% else %}Wishlist{% endif %}</span>
+                    </button>
+                    <!-- Share -->
+                    <div class="relative" id="shareWrapper">
+                        <button onclick="toggleShareMenu()" id="shareBtn"
+                            class="flex items-center gap-1.5 text-xs px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition-all">
+                            <span class="material-symbols-outlined text-base">share</span>
+                            <span>Share</span>
+                        </button>
+                        <!-- Share dropdown -->
+                        <div id="shareMenu" class="hidden absolute left-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-4 pt-3 pb-1">Share this product</p>
+                            <!-- Copy link -->
+                            <button onclick="copyLink()" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <span class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-sm text-gray-600">link</span>
+                                </span>
+                                Copy Link
+                            </button>
+                            <!-- WhatsApp -->
+                            <a id="waShareBtn" href="#" target="_blank" rel="noopener"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <span class="w-7 h-7 rounded-full bg-[#25D366] flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-brands fa-whatsapp text-white text-sm"></i>
+                                </span>
+                                WhatsApp
+                            </a>
+                            <!-- Facebook -->
+                            <a id="fbShareBtn" href="#" target="_blank" rel="noopener"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <span class="w-7 h-7 rounded-full bg-[#1877F2] flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-brands fa-facebook-f text-white text-sm"></i>
+                                </span>
+                                Facebook
+                            </a>
+                            <!-- Twitter/X -->
+                            <a id="twShareBtn" href="#" target="_blank" rel="noopener"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <span class="w-7 h-7 rounded-full bg-black flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-brands fa-x-twitter text-white text-sm"></i>
+                                </span>
+                                Twitter / X
+                            </a>
+                            <!-- Viber -->
+                            <a id="viberShareBtn" href="#" target="_blank" rel="noopener"
+                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <span class="w-7 h-7 rounded-full bg-[#7360F2] flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-brands fa-viber text-white text-sm"></i>
+                                </span>
+                                Viber
+                            </a>
+                            <!-- Native share (mobile) -->
+                            <button onclick="nativeShare()" id="nativeShareBtn" class="hidden w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100">
+                                <span class="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-sm text-emerald-600">ios_share</span>
+                                </span>
+                                More options...
+                            </button>
+                            <!-- Copy toast -->
+                            <div id="copyToast" class="hidden text-xs text-emerald-600 text-center py-2 bg-emerald-50">✓ Link copied!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Info -->
+            <div class="space-y-4">
+                <!-- Category / Brand / SKU -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    {% if product.category %}
+                    <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded">{{ product.category.name }}</span>
+                    <span class="text-xs text-gray-400">|</span>
+                    {% endif %}
+                    {% if product.brand %}
+                    <span class="text-xs text-gray-500">Brand: <span class="font-semibold text-gray-700">{{ product.brand }}</span></span>
+                    <span class="text-xs text-gray-400">|</span>
+                    {% endif %}
+                    <span class="text-xs text-gray-500">SKU: <span class="font-semibold text-gray-700">{{ product.sku }}</span></span>
+                    {% if product.origin %}
+                    <span class="text-xs text-gray-400">|</span>
+                    <span class="text-xs text-gray-500">Origin: <span class="font-semibold text-gray-700">{{ product.origin.name }}</span></span>
+                    {% endif %}
+                </div>
+
+                <!-- Name -->
+                <h1 class="font-['Work_Sans'] text-xl md:text-2xl font-bold text-gray-900 leading-snug">{{ product.name }}</h1>
+
+                {% if product.short_description %}
+                <p class="text-sm text-gray-500">{{ product.short_description }}</p>
+                {% endif %}
+
+                <!-- Price -->
+                <div class="bg-gray-50 border border-gray-200 rounded-sm p-4">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Price</p>
+                    <span class="text-3xl font-bold text-gray-900">Rs. {{ product.mrp }}</span>
+                    {% if not product.tax_included and product.tax_percent > 0 %}
+                    <span class="text-xs text-gray-400 ml-2">+ {{ product.tax_percent }}% tax</span>
+                    {% endif %}
+                </div>
+
+                <!-- Stock -->
+                <div class="flex items-center gap-2">
+                    {% if stock > 0 %}
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                    <span class="text-sm text-emerald-600 font-medium">In Stock</span>
+                    {% else %}
+                    <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                    <span class="text-sm text-red-600 font-medium">Out of Stock</span>
+                    {% endif %}
+                </div>
+
+                <!-- Quantity + Buttons -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-4">
+                        <label class="text-sm font-semibold text-gray-700">Quantity:</label>
+                        <div class="flex items-center border border-gray-300 rounded-sm overflow-hidden">
+                            <button onclick="changeQty(-1)" class="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors text-lg font-medium">−</button>
+                            <input id="qtyInput" type="number" value="1" min="1" {% if stock > 0 %}max="{{ stock }}"{% endif %}
+                                   class="w-12 h-9 text-center text-sm font-semibold border-x border-gray-300 focus:outline-none">
+                            <button onclick="changeQty(1)" class="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors text-lg font-medium">+</button>
+                        </div>
+                    </div>
+                    {% if stock > 0 %}
+                    <div class="flex gap-3">
+                        <button onclick="addToCart('{{ product.pk }}')" class="flex-1 bg-primary hover:bg-emerald-800 text-white font-['Work_Sans'] font-semibold py-3 text-sm flex items-center justify-center gap-2 transition-colors">
+                            <span class="material-symbols-outlined text-base">shopping_cart</span> Add to Cart
+                        </button>
+                        <a href="{% url 'buy_now' product.slug %}?qty=1" id="buyNowBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-['Work_Sans'] font-semibold py-3 text-sm flex items-center justify-center gap-2 transition-colors">
+                            <span class="material-symbols-outlined text-base">bolt</span> Buy Now
+                        </a>
+                    </div>
+                    {% else %}
+                    <button disabled class="w-full bg-gray-200 text-gray-400 font-semibold py-3 text-sm cursor-not-allowed">Out of Stock</button>
+                    {% endif %}
+                    <button onclick="openQuoteModal('{{ product.pk }}', '{{ product.name|escapejs }}')"
+                        class="w-full border-2 border-primary text-primary hover:bg-primary hover:text-white font-['Work_Sans'] font-semibold py-2.5 text-sm flex items-center justify-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-base">request_quote</span> Request Quote
+                    </button>
+                </div>
+
+                <!-- Delivery info -->
+                <div class="border border-gray-200 rounded-sm divide-y divide-gray-100">
+                    <div class="flex items-center gap-3 px-4 py-3">
+                        <span class="material-symbols-outlined text-emerald-600 text-xl">local_shipping</span>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-800">Home Delivery Available</p>
+                            <p class="text-xs text-gray-500">Delivered to your door. Delivery charge applies.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 px-4 py-3">
+                        <span class="material-symbols-outlined text-emerald-600 text-xl">storefront</span>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-800">Store Pickup</p>
+                            <p class="text-xs text-gray-500">Pick up from our store for free.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 px-4 py-3">
+                        <span class="material-symbols-outlined text-emerald-600 text-xl">verified_user</span>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-800">Genuine Product</p>
+                            <p class="text-xs text-gray-500">100% authentic. Sourced directly{% if product.brand %} from {{ product.brand }}{% endif %}.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Seller Card -->
+            <div class="xl:col-span-1 space-y-4">
+                <div class="bg-white border border-gray-200 rounded-sm p-5">
+                    <h3 class="font-['Work_Sans'] font-semibold text-gray-800 mb-4 text-sm uppercase tracking-wider">Sold By</h3>
+                    <div class="flex items-center gap-3 mb-4">
+                        <img src="{% static 'images/logo.jpg' %}" alt="Seller" class="h-10 w-auto object-contain">
+                        <div>
+                            <p class="font-semibold text-gray-800 text-sm">Chhapadiya Traders</p>
+                            <p class="text-xs text-gray-500">Verified Seller</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'contact' %}" class="block w-full text-center border border-primary text-primary hover:bg-primary hover:text-white text-xs font-semibold py-2 transition-colors">
+                        Contact Seller
+                    </a>
+                </div>
+
+                {% if product.brand %}
+                <div class="bg-white border border-gray-200 rounded-sm p-5">
+                    <h3 class="font-['Work_Sans'] font-semibold text-gray-800 mb-3 text-sm uppercase tracking-wider">Brand</h3>
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-12 h-12 bg-gray-100 flex items-center justify-center rounded">
+                            <span class="material-symbols-outlined text-gray-400 text-2xl">storefront</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800">{{ product.brand }}</p>
+                            {% if product.origin %}<p class="text-xs text-gray-500">Made in {{ product.origin.name }}</p>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="bg-white border border-gray-200 rounded-sm p-4">
+                    <p class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wider">Secure Checkout</p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded"><span class="material-symbols-outlined text-sm text-emerald-600">lock</span>SSL Secured</span>
+                        <span class="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded"><span class="material-symbols-outlined text-sm text-emerald-600">payments</span>COD Available</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white border border-gray-200 rounded-sm mb-12">
+            <div class="flex border-b border-gray-200 overflow-x-auto">
+                <button onclick="switchTab('desc')" id="tab-desc" class="px-6 py-4 text-sm font-semibold whitespace-nowrap border-b-2 text-emerald-700 border-emerald-600">Description</button>
+                {% if specs %}<button onclick="switchTab('spec')" id="tab-spec" class="px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 text-gray-500 border-transparent hover:text-gray-700">Specifications</button>{% endif %}
+            </div>
+
+            <!-- Description -->
+            <div id="panel-desc" class="p-6 md:p-8">
+                {% if product.full_description %}
+                <p class="text-gray-600 leading-relaxed whitespace-pre-line">{{ product.full_description }}</p>
+                {% elif product.short_description %}
+                <p class="text-gray-600 leading-relaxed">{{ product.short_description }}</p>
+                {% else %}
+                <p class="text-gray-400 italic">No description available.</p>
+                {% endif %}
+            </div>
+
+            <!-- Specifications -->
+            {% if specs %}
+            <div id="panel-spec" class="hidden p-6 md:p-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-gray-100">
+                            {% for spec in specs %}
+                            <tr class="{% if forloop.even %}bg-gray-50{% endif %}">
+                                {% if spec.label %}
+                                <td class="py-3 px-4 font-semibold text-gray-700 w-1/3">{{ spec.label }}</td>
+                                <td class="py-3 px-4 text-gray-600">{{ spec.value }}</td>
+                                {% else %}
+                                <td colspan="2" class="py-3 px-4 text-gray-600">{{ spec.value }}</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Related Products -->
+        {% if related %}
+        <div>
+            <h2 class="font-['Work_Sans'] text-2xl font-bold text-gray-900 mb-6">Related Products</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% for item in related %}
+                {% with img=item.primary_image %}
+                <a href="{% url 'product_detail' item.slug %}" class="bg-white border border-gray-200 p-3 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
+                    <div class="aspect-square mb-3 overflow-hidden bg-white">
+                        {% if img %}
+                        <img src="{{ img.image.url }}" alt="{{ item.name }}" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 p-2">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center bg-gray-100">
+                            <span class="material-symbols-outlined text-3xl text-gray-300">image_not_supported</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if item.category %}<span class="text-[10px] font-semibold text-emerald-600 uppercase mb-1">{{ item.category.name }}</span>{% endif %}
+                    <p class="text-xs font-medium text-gray-800 line-clamp-2 mb-2 group-hover:text-emerald-700 transition-colors">{{ item.name }}</p>
+                    <p class="text-sm font-bold text-gray-900 mt-auto">Rs. {{ item.mrp }}</p>
+                </a>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Image switcher
+    function switchImage(src, btn) {
+        const img = document.getElementById('mainImage');
+        img.style.opacity = '0';
+        setTimeout(() => { img.src = src; img.style.opacity = '1'; }, 150);
+        document.querySelectorAll('.thumb-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('zoomResult').style.backgroundImage = `url('${src}')`;
+    }
+
+    // Zoom
+    const container = document.getElementById('imageContainer');
+    const lens = document.getElementById('zoomLens');
+    const result = document.getElementById('zoomResult');
+    function zoomEnter() {
+        const src = document.getElementById('mainImage').src;
+        const cw = container.offsetWidth, ch = container.offsetHeight;
+        const rx = result.offsetWidth / lens.offsetWidth, ry = result.offsetHeight / lens.offsetHeight;
+        result.style.backgroundImage = `url('${src}')`;
+        result.style.backgroundSize = `${cw * rx}px ${ch * ry}px`;
+        lens.style.display = 'block'; result.style.display = 'block';
+    }
+    function zoomLeave() { lens.style.display = 'none'; result.style.display = 'none'; }
+    function zoomMove(e) {
+        const rect = container.getBoundingClientRect();
+        const lw = lens.offsetWidth, lh = lens.offsetHeight;
+        const cw = container.offsetWidth, ch = container.offsetHeight;
+        const rx = result.offsetWidth / lw, ry = result.offsetHeight / lh;
+        let x = Math.max(0, Math.min(e.clientX - rect.left - lw/2, cw - lw));
+        let y = Math.max(0, Math.min(e.clientY - rect.top - lh/2, ch - lh));
+        lens.style.left = x + 'px'; lens.style.top = y + 'px';
+        result.style.backgroundPosition = `-${x*rx}px -${y*ry}px`;
+    }
+
+    // Quantity
+    function changeQty(delta) {
+        const input = document.getElementById('qtyInput');
+        if (!input) return;
+        const max = parseInt(input.max) || 999;
+        const newVal = Math.max(1, Math.min(max, parseInt(input.value) + delta));
+        input.value = newVal;
+        const buyBtn = document.getElementById('buyNowBtn');
+        if (buyBtn) buyBtn.href = buyBtn.href.split('?')[0] + '?qty=' + newVal;
+    }
+    const qtyInput = document.getElementById('qtyInput');
+    if (qtyInput) {
+        qtyInput.addEventListener('change', function() {
+            const buyBtn = document.getElementById('buyNowBtn');
+            if (buyBtn) buyBtn.href = buyBtn.href.split('?')[0] + '?qty=' + this.value;
+        });
+    }
+
+    // Share
+    const productUrl = '{{ request.scheme }}://{{ request.get_host }}{% url "product_detail" product.slug %}';
+    const productTitle = '{{ product.name|escapejs }}';
+    const shareText = productTitle + ' \u2014 Rs. {{ product.mrp }}\n' + productUrl;
+
+    document.getElementById('waShareBtn').href =
+        'https://wa.me/?text=' + encodeURIComponent(shareText);
+    document.getElementById('fbShareBtn').href =
+        'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(productUrl);
+    document.getElementById('twShareBtn').href =
+        'https://twitter.com/intent/tweet?text=' + encodeURIComponent(productTitle + ' \u2014 Rs. {{ product.mrp }}') +
+        '&url=' + encodeURIComponent(productUrl);
+    document.getElementById('viberShareBtn').href =
+        'viber://forward?text=' + encodeURIComponent(shareText);
+
+    // Show native share on mobile
+    if (navigator.share) {
+        document.getElementById('nativeShareBtn').classList.remove('hidden');
+        document.getElementById('nativeShareBtn').classList.add('flex');
+    }
+
+    function toggleShareMenu() {
+        document.getElementById('shareMenu').classList.toggle('hidden');
+    }
+    // Close share menu on outside click
+    document.addEventListener('click', function(e) {
+        if (!document.getElementById('shareWrapper').contains(e.target)) {
+            document.getElementById('shareMenu').classList.add('hidden');
+        }
+    });
+    function copyLink() {
+        navigator.clipboard.writeText(productUrl).then(() => {
+            const t = document.getElementById('copyToast');
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 2000);
+        });
+    }
+    async function nativeShare() {
+        try {
+            await navigator.share({
+                title: productTitle,
+                text: productTitle + ' \u2014 Rs. {{ product.mrp }}',
+                url: productUrl,
+            });
+        } catch(e) {}
+    }
+
+    // Tabs
+    function switchTab(name) {
+        ['desc', 'spec'].forEach(t => {
+            const panel = document.getElementById('panel-' + t);
+            const btn = document.getElementById('tab-' + t);
+            if (panel) panel.classList.add('hidden');
+            if (btn) {
+                btn.style.color = '#6b7280';
+                btn.style.borderBottomColor = 'transparent';
+                btn.style.fontWeight = '500';
+            }
+        });
+        const activePanel = document.getElementById('panel-' + name);
+        const activeBtn = document.getElementById('tab-' + name);
+        if (activePanel) activePanel.classList.remove('hidden');
+        if (activeBtn) {
+            activeBtn.style.color = '#059669';
+            activeBtn.style.borderBottomColor = '#059669';
+            activeBtn.style.fontWeight = '600';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "panel/base.html" %}
+{% block title %} — Countries{% endblock %}
+{% block nav_product_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_product_open %}{% endblock %}
+{% block nav_product_arrow %}rotate-180{% endblock %}
+{% block nav_countries %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div><p class="text-xs text-gray-500 mb-1">Products</p><h1 class="text-xl font-semibold text-gray-800">Countries of Origin</h1></div>
+    <a href="{% url 'panel_country_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Country</a>
+</div>
+{% if countries %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">ISO Code</th>
+                <th class="px-4 py-3 text-left">Products</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for c in countries %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ c.name }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ c.code|default:"—" }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ c.products.count }}</td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_country_edit' c.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_country_delete' c.pk %}" onsubmit="return confirm('Delete country?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No countries yet. <a href="{% url 'panel_country_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+{% endif %}
+{% endblock %}

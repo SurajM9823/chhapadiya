@@ -1,0 +1,61 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ category.name }} Sub-categories{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_categories %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <p class="text-xs text-gray-500 mb-1">
+            <a href="{% url 'panel_categories' %}" class="hover:underline">Categories</a> › {{ category.name }}
+        </p>
+        <h1 class="text-xl font-semibold text-gray-800">Sub-categories</h1>
+    </div>
+    <a href="{% url 'panel_subcategory_add' category.pk %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Sub-category</a>
+</div>
+
+{% if subs %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Products</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for sub in subs %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ sub.name }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ sub.products.count }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ sub.order }}</td>
+                <td class="px-4 py-3">
+                    {% if sub.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    <a href="{% url 'panel_subcategory_edit' category.pk sub.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    <form method="post" action="{% url 'panel_subcategory_delete' category.pk sub.pk %}" onsubmit="return confirm('Delete sub-category?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">
+    No sub-categories for <strong>{{ category.name }}</strong> yet.
+    <a href="{% url 'panel_subcategory_add' category.pk %}" class="text-blue-600 hover:underline ml-1">Add one</a>.
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'panel_categories' %}" class="text-sm text-gray-500 hover:underline">← Back to Categories</a>
+</div>
+{% endblock %}

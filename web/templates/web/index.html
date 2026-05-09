@@ -1,0 +1,400 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Clan Wowo | Industrial Solutions{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative w-full bg-surface overflow-hidden">
+    <div id="hero-carousel" class="flex transition-transform duration-700 ease-in-out h-auto max-h-[65vh] md:h-[65vh]">
+        {% if slides %}
+            {% for slide in slides %}
+            <div class="w-full flex-shrink-0">
+                <img alt="{{ slide.title }}" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{{ slide.image.url }}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="w-full flex-shrink-0">
+            <img alt="Banner 1" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/chhadipya.jpg' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        </div>
+        <div class="w-full flex-shrink-0">
+            <img alt="Banner 2" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/car1.png' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        </div>
+        <div class="w-full flex-shrink-0">
+            <img alt="Banner 3" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/car2.png' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        </div>
+        {% endif %}
+    </div>
+    <button onclick="prevHeroSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 z-10 transition-colors">
+        <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button onclick="nextHeroSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 z-10 transition-colors">
+        <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+</section>
+
+<!-- Reels/Stories Section -->
+<section class="mt-8 py-4 bg-surface w-full overflow-hidden">
+    <div class="w-full px-2 md:px-4">
+        <div id="reelsContainer" class="flex overflow-x-auto gap-3 pb-2 snap-x hide-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <style>.hide-scrollbar::-webkit-scrollbar { display: none; }</style>
+        </div>
+        <div id="reelsLoadingIndicator" class="hidden text-center py-4">
+            <div class="inline-block">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+            </div>
+        </div>
+        <div id="reelsSentinel" style="height: 10px; margin-top: 20px;"></div>
+    </div>
+</section>
+
+<!-- Categories Section -->
+<section class="py-12 bg-surface">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <h2 class="font-['Work_Sans'] text-2xl font-medium text-gray-800 mb-6">Categories</h2>
+        <div class="bg-gray-200 border border-gray-200 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-[1px]">
+            {% for cat in categories %}
+            <a href="{{ cat.safe_link }}" class="bg-white p-4 flex flex-col items-center hover:bg-gray-50 transition-colors group">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 flex items-center justify-center">
+                    <img src="{{ cat.icon.url }}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform" alt="{{ cat.name }}">
+                </div>
+                <span class="text-center text-xs text-gray-600 leading-snug">{{ cat.name }}</span>
+            </a>
+            {% empty %}
+            <p class="col-span-8 text-center text-gray-400 py-8 text-sm">No categories yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products Section with Infinite Scroll -->
+<section class="py-16 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="flex justify-between items-end mb-8">
+            <h2 class="text-2xl font-medium text-gray-800">Featured Products</h2>
+        </div>
+        <div id="productsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10">
+            <!-- Skeleton loaders -->
+            <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                <div class="space-y-2">
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                <div class="space-y-2">
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                <div class="space-y-2">
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 p-3 md:p-4 rounded-sm animate-pulse">
+                <div class="aspect-square mb-3 bg-gray-200 rounded"></div>
+                <div class="h-4 bg-gray-200 rounded mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded mb-3 w-2/3"></div>
+                <div class="h-6 bg-gray-200 rounded mb-3"></div>
+                <div class="space-y-2">
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                    <div class="h-8 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loadingIndicator" class="hidden text-center py-8">
+            <div class="inline-block">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        </div>
+
+        <div id="scrollSentinel" style="height: 100px; margin-top: 40px;"></div>
+        
+        <div class="flex justify-center mt-8">
+            <a href="{% url 'products' %}" class="px-8 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 transition-colors flex items-center gap-2">
+                View All Products <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<script>
+const imageCache = new Map();
+let currentPage = 0;
+let isLoading = false;
+let hasMore = true;
+let wishlistedProducts = new Set();
+let carouselIndex = 0;
+let reelsPage = 0;
+let reelsLoading = false;
+let reelsHasMore = true;
+
+function loadCarouselImages() {
+    const slides = document.querySelectorAll('.carousel-img');
+    slides.forEach((img, idx) => {
+        const src = img.dataset.src;
+        if (imageCache.has(src)) {
+            img.src = imageCache.get(src);
+        } else {
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                img.src = src;
+                imageCache.set(src, src);
+            };
+            tempImg.src = src;
+        }
+    });
+}
+
+function preloadAdjacentCarouselImages() {
+    const slides = document.querySelectorAll('.carousel-img');
+    const nextIdx = (carouselIndex + 1) % slides.length;
+    const prevIdx = (carouselIndex - 1 + slides.length) % slides.length;
+    
+    [nextIdx, prevIdx].forEach(idx => {
+        const img = slides[idx];
+        const src = img.dataset.src;
+        if (!imageCache.has(src) && !img.src.includes('data:')) {
+            const tempImg = new Image();
+            tempImg.onload = () => imageCache.set(src, src);
+            tempImg.src = src;
+        }
+    });
+}
+
+function createReelCard(reel) {
+    return `
+    <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 cursor-pointer snap-start bg-gray-200 reel-card" onclick="showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}')">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" data-src="${reel.thumbnail_url}" class="w-full h-full object-cover reel-thumbnail" alt="${reel.title}">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
+            <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
+        </div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="bg-white/30 rounded-full p-2">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+        </div>
+    </div>
+    `;
+}
+
+function loadReelThumbnails() {
+    const thumbnails = document.querySelectorAll('.reel-thumbnail');
+    thumbnails.forEach(img => {
+        if (img.src.includes('data:') && img.dataset.src) {
+            const src = img.dataset.src;
+            if (imageCache.has(src)) {
+                img.src = imageCache.get(src);
+            } else {
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    img.src = src;
+                    imageCache.set(src, src);
+                };
+                tempImg.src = src;
+            }
+        }
+    });
+}
+
+async function loadMoreReels() {
+    if (reelsLoading || !reelsHasMore) return;
+    
+    reelsLoading = true;
+    document.getElementById('reelsLoadingIndicator').classList.remove('hidden');
+    
+    try {
+        const nextPage = reelsPage + 1;
+        const res = await fetch(`/api/reels/?page=${nextPage}&limit=10`);
+        if (res.ok) {
+            const data = await res.json();
+            const container = document.getElementById('reelsContainer');
+            
+            if (reelsPage === 0) {
+                container.innerHTML = '';
+            }
+            
+            data.reels.forEach(reel => {
+                container.innerHTML += createReelCard(reel);
+            });
+            
+            loadReelThumbnails();
+            reelsPage = nextPage;
+            reelsHasMore = data.has_more;
+        }
+    } catch(e) {
+        console.error('Error loading reels:', e);
+    } finally {
+        reelsLoading = false;
+        document.getElementById('reelsLoadingIndicator').classList.add('hidden');
+    }
+}
+
+function setupReelsInfiniteScroll() {
+    const sentinel = document.getElementById('reelsSentinel');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && reelsHasMore && !reelsLoading) {
+                loadMoreReels();
+            }
+        });
+    }, { rootMargin: '200px' });
+    
+    observer.observe(sentinel);
+}
+
+async function fetchWishlistedProducts() {
+    try {
+        const res = await fetch('/api/wishlist/');
+        if (res.ok) {
+            const data = await res.json();
+            wishlistedProducts = new Set(data.wishlisted_ids || []);
+        }
+    } catch(e) {
+        console.log('Could not fetch wishlist');
+    }
+}
+
+function createProductCard(product) {
+    const isWishlisted = wishlistedProducts.has(product.id);
+    return `
+    <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
+        <div class="absolute top-2 right-2 z-10 flex flex-row gap-1.5">
+            <div class="relative group/fav">
+                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/fav:opacity-100 transition-opacity pointer-events-none">Favourite</span>
+                <button onclick="toggleFavourite(this, '${product.id}')" class="w-8 h-8 ${isWishlisted ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} rounded-full flex items-center justify-center text-white transition-all"><i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart text-sm"></i></button>
+            </div>
+            <div class="relative group/cmp">
+                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/cmp:opacity-100 transition-opacity pointer-events-none">Compare</span>
+                <button onclick="addToCompare('${product.slug}', '${product.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white transition-all"><span class="material-symbols-outlined text-sm">compare</span></button>
+            </div>
+        </div>
+        <div class="block aspect-square mb-3 bg-white overflow-hidden p-2">
+            <a href="/product/${product.slug}/">
+            <img src="${product.image}" loading="lazy" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt="${product.name}">
+            </a>
+        </div>
+        <a href="/product/${product.slug}/" class="font-medium text-xs md:text-sm text-gray-800 line-clamp-2 mb-1 hover:text-emerald-600 transition-colors">${product.name}</a>
+        ${product.brand ? `<p class="text-xs text-gray-400 mb-2">${product.brand}</p>` : ''}
+        <span class="text-sm md:text-base font-bold text-gray-900 mb-3">Rs. ${product.mrp.toFixed(2)}</span>
+        <div class="flex flex-col gap-2 mt-auto">
+            <div class="flex gap-2">
+                <button onclick="addToCart('${product.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[14px]">shopping_cart</span> Add to Cart
+                </button>
+                <button onclick="handleBuyNow('/buy/${product.slug}/')" class="flex-1 bg-gray-900 hover:bg-gray-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[14px]">payments</span> Buy
+                </button>
+            </div>
+            <button onclick="openQuoteModal('${product.id}', '${product.name.replace(/'/g, "\\'")}')" class="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
+                <span class="material-symbols-outlined text-[14px]">request_quote</span> Request Quote
+            </button>
+        </div>
+    </div>
+    `;
+}
+
+async function loadMoreProducts() {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+    
+    try {
+        const nextPage = currentPage + 1;
+        const res = await fetch(`/api/featured-products/?page=${nextPage}&limit=10`);
+        if (res.ok) {
+            const data = await res.json();
+            const grid = document.getElementById('productsGrid');
+            
+            if (currentPage === 0) {
+                grid.innerHTML = '';
+            }
+            
+            data.products.forEach(product => {
+                grid.innerHTML += createProductCard(product);
+            });
+            
+            currentPage = nextPage;
+            hasMore = data.has_more;
+            console.log(`Loaded page ${nextPage}, hasMore: ${hasMore}`);
+        }
+    } catch(e) {
+        console.error('Error loading products:', e);
+    } finally {
+        isLoading = false;
+        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+}
+
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('scrollSentinel');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && hasMore && !isLoading) {
+                console.log('Sentinel visible, loading more...');
+                loadMoreProducts();
+            }
+        });
+    }, { rootMargin: '300px' });
+    
+    observer.observe(sentinel);
+}
+
+function nextHeroSlide() {
+    const carousel = document.getElementById('hero-carousel');
+    const slides = carousel.querySelectorAll('.w-full');
+    carouselIndex = (carouselIndex + 1) % slides.length;
+    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
+    preloadAdjacentCarouselImages();
+}
+
+function prevHeroSlide() {
+    const carousel = document.getElementById('hero-carousel');
+    const slides = carousel.querySelectorAll('.w-full');
+    carouselIndex = (carouselIndex - 1 + slides.length) % slides.length;
+    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
+    preloadAdjacentCarouselImages();
+}
+
+let autoplayInterval;
+function startAutoplay() {
+    autoplayInterval = setInterval(nextHeroSlide, 5000);
+}
+
+function stopAutoplay() {
+    clearInterval(autoplayInterval);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    loadCarouselImages();
+    preloadAdjacentCarouselImages();
+    startAutoplay();
+    
+    const carousel = document.getElementById('hero-carousel');
+    carousel.addEventListener('mouseenter', stopAutoplay);
+    carousel.addEventListener('mouseleave', startAutoplay);
+    
+    await fetchWishlistedProducts();
+    setupInfiniteScroll();
+    setupReelsInfiniteScroll();
+    await loadMoreProducts();
+    await loadMoreReels();
+});
+</script>
+{% endblock %}
