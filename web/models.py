@@ -208,9 +208,17 @@ class CarouselSlide(models.Model):
 
 
 class Reel(models.Model):
+    VIDEO_TYPE_CHOICES = [
+        ('upload', 'Upload Video'),
+        ('youtube', 'YouTube Link'),
+        ('tiktok', 'TikTok Link'),
+    ]
     title = models.CharField(max_length=200)
-    thumbnail = models.ImageField(upload_to='reels/thumbnails/')
-    video = models.FileField(upload_to='reels/videos/')
+    video_type = models.CharField(max_length=20, choices=VIDEO_TYPE_CHOICES, default='upload')
+    thumbnail = models.ImageField(upload_to='reels/thumbnails/', blank=True, null=True)
+    video = models.FileField(upload_to='reels/videos/', blank=True, null=True)
+    youtube_url = models.URLField(blank=True, null=True, help_text='YouTube video URL (e.g., https://www.youtube.com/watch?v=...)')
+    tiktok_url = models.URLField(blank=True, null=True, help_text='TikTok video URL (e.g., https://www.tiktok.com/@.../video/...)')
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -220,6 +228,37 @@ class Reel(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def get_video_url(self):
+        if self.video_type == 'youtube' and self.youtube_url:
+            return self.youtube_url
+        elif self.video_type == 'tiktok' and self.tiktok_url:
+            return self.tiktok_url
+        elif self.video_type == 'upload' and self.video:
+            return self.video.url
+        return None
+    
+    def get_embed_url(self):
+        if self.video_type == 'youtube' and self.youtube_url:
+            url = self.youtube_url
+            video_id = None
+            # Handle youtube.com/watch?v=
+            if 'youtube.com/watch?v=' in url:
+                video_id = url.split('v=')[1].split('&')[0]
+            # Handle youtu.be/
+            elif 'youtu.be/' in url:
+                video_id = url.split('youtu.be/')[1].split('?')[0]
+            # Handle youtube.com/shorts/
+            elif 'youtube.com/shorts/' in url:
+                video_id = url.split('shorts/')[1].split('?')[0].split('/')[0]
+            # Fallback
+            else:
+                video_id = url.split('v=')[-1].split('&')[0] if 'v=' in url else url.split('/')[-1].split('?')[0]
+            
+            return f'https://www.youtube-nocookie.com/embed/{video_id}' if video_id else None
+        elif self.video_type == 'tiktok' and self.tiktok_url:
+            return self.tiktok_url
+        return None
 
 
 class Category(models.Model):

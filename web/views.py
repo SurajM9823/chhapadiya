@@ -641,7 +641,9 @@ def reels_api(request):
         result.append({
             'id': reel.pk,
             'title': reel.title,
-            'video_url': reel.video.url,
+            'video_type': reel.video_type,
+            'video_url': reel.get_video_url(),
+            'embed_url': reel.get_embed_url(),
             'thumbnail_url': reel.thumbnail.url if reel.thumbnail else '',
         })
     

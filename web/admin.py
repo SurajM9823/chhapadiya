@@ -25,8 +25,22 @@ class CarouselSlideAdmin(admin.ModelAdmin):
 
 @admin.register(Reel)
 class ReelAdmin(admin.ModelAdmin):
-    list_display = ['title', 'order', 'is_active']
+    list_display = ['title', 'video_type', 'order', 'is_active']
     list_editable = ['order', 'is_active']
+    list_filter = ['video_type', 'is_active']
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('title', 'video_type', 'order', 'is_active')
+        }),
+        ('Video Source', {
+            'fields': ('video', 'youtube_url', 'tiktok_url'),
+            'description': 'Choose one: Upload a video file, paste a YouTube URL, or paste a TikTok URL'
+        }),
+        ('Thumbnail', {
+            'fields': ('thumbnail',),
+            'description': 'Optional: Upload a custom thumbnail image'
+        }),
+    )
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

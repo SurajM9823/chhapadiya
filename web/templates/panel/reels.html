@@ -21,6 +21,7 @@
             <tr>
                 <th class="px-4 py-3 text-left">Thumbnail</th>
                 <th class="px-4 py-3 text-left">Title</th>
+                <th class="px-4 py-3 text-left">Type</th>
                 <th class="px-4 py-3 text-left">Order</th>
                 <th class="px-4 py-3 text-left">Status</th>
                 <th class="px-4 py-3 text-left">Actions</th>
@@ -30,8 +31,14 @@
             {% for reel in reels %}
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3">
-                    <div class="relative w-24 h-14">
+                    <div class="relative w-24 h-14 bg-gray-100 rounded">
+                        {% if reel.thumbnail %}
                         <img src="{{ reel.thumbnail.url }}" class="w-full h-full object-cover rounded" alt="{{ reel.title }}">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-gray-400">
+                            <span class="material-symbols-outlined">image</span>
+                        </div>
+                        {% endif %}
                         <div class="absolute inset-0 flex items-center justify-center">
                             <div class="bg-black/40 rounded-full p-1">
                                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -40,6 +47,15 @@
                     </div>
                 </td>
                 <td class="px-4 py-3 font-medium text-gray-800">{{ reel.title }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">
+                    {% if reel.video_type == 'youtube' %}
+                    <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">YouTube</span>
+                    {% elif reel.video_type == 'tiktok' %}
+                    <span class="bg-black text-white px-2 py-0.5 rounded">TikTok</span>
+                    {% else %}
+                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Upload</span>
+                    {% endif %}
+                </td>
                 <td class="px-4 py-3 text-gray-500">{{ reel.order }}</td>
                 <td class="px-4 py-3">
                     {% if reel.is_active %}

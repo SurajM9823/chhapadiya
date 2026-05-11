@@ -4,19 +4,95 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>{% block title %}Clan Wowo | Industrial Solutions{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'images/fevicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/fevicon.png' %}">
-    <meta name="description" content="{% block meta_description %}Clan Wowo — Industrial machinery, bakery equipment, dairy machinery, food processing machines, hotel & kitchen equipment, and refrigeration solutions.{% endblock %}">
-    <meta name="keywords" content="bakery machinery, dairy machinery, food processing, hotel kitchen equipment, refrigeration, industrial machinery">
-    <meta property="og:title" content="{% block og_title %}Clan Wowo | Industrial Solutions{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Professional machinery supply and technical support for bakery, dairy, food processing, hotel & kitchen, and refrigeration industries.{% endblock %}">
-    <meta property="og:image" content="{% static 'images/fevicon.png' %}">
-    <meta property="og:type" content="website">
+    <meta name="description" content="{% block meta_description %}Chhapadiya Traders — Premium bakery equipment, ice cream & dairy machinery, milk dairy ingredients, commercial kitchen equipment, and meat processing solutions in Kathmandu, Nepal.{% endblock %}">
+    <meta name="keywords" content="bakery equipment, ice cream machinery, dairy equipment, milk ingredients, commercial kitchen equipment, meat processing, industrial machinery, Kathmandu">
+    <meta property="og:title" content="{% block og_title %}Chhapadiya Traders | Bakery & Dairy Equipment Supplier{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Leading supplier of bakery equipment, ice cream & dairy machinery, commercial kitchen solutions, and meat processing equipment in Kathmandu, Nepal.{% endblock %}">
+    <meta name="author" content="Chhapadiya Traders">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    <link rel="canonical" href="https://chhapadiyatraders.com/">
+    <meta property="og:url" content="https://chhapadiyatraders.com/">
+    <meta property="og:type" content="business.business">
+    <meta property="og:site_name" content="Chhapadiya Traders">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Chhapadiya Traders | Bakery & Dairy Equipment">
+    <meta name="twitter:description" content="Premium bakery equipment, dairy machinery, and commercial kitchen solutions in Kathmandu.">
+    <meta name="geo.placename" content="Kathmandu">
+    <meta name="geo.region" content="NP-BA">
+    <meta name="ICBM" content="27.6918809, 85.3188547">
+    <meta property="og:image" content="{% static 'images/logo.jpg' %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:image" content="{% static 'images/logo.jpg' %}">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>{% block title %}Chhapadiya Traders | Bakery & Dairy Equipment Supplier in Kathmandu{% endblock %}</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "Chhapadiya Traders",
+      "image": "https://chhapadiyatraders.com/static/images/logo.jpg",
+      "description": "Premium supplier of bakery equipment, ice cream & dairy machinery, milk dairy ingredients, commercial kitchen equipment, and meat processing solutions.",
+      "url": "https://chhapadiyatraders.com",
+      "telephone": "+977-9801588803",
+      "email": "info@chhapadiyatraders.com",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Dhunge-Adda (Kalanki)",
+        "addressLocality": "Kathmandu",
+        "postalCode": "10000",
+        "addressCountry": "NP"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": "27.6918809",
+        "longitude": "85.3188547"
+      },
+      "sameAs": [
+        "https://www.facebook.com/chhapadiyatraders",
+        "https://www.instagram.com/chhapadiyatraders"
+      ],
+      "priceRange": "$$",
+      "areaServed": "NP",
+      "serviceType": ["Bakery Equipment", "Dairy Machinery", "Commercial Kitchen Equipment", "Meat Processing Equipment"],
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        "opens": "09:00",
+        "closes": "18:00"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Chhapadiya Traders",
+      "url": "https://chhapadiyatraders.com",
+      "logo": "https://chhapadiyatraders.com/static/images/logo.jpg",
+      "description": "Leading supplier of bakery equipment, dairy machinery, and commercial kitchen solutions in Kathmandu, Nepal.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Customer Service",
+        "telephone": "+977-9801588803",
+        "email": "info@chhapadiyatraders.com"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Dhunge-Adda (Kalanki)",
+        "addressLocality": "Kathmandu",
+        "postalCode": "10000",
+        "addressCountry": "NP"
+      }
+    }
+    </script>
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -130,6 +206,7 @@
             overflow-y: auto;
         }
     </style>
+    {% include 'web/seo_schema.html' %}
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-surface font-body-base text-on-surface">
@@ -350,7 +427,7 @@
 
             <div class="border-t border-emerald-700 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-emerald-200 text-center">
                 <p>&copy; 2024 Chhapadiya Traders. All rights reserved.</p>
-                <p>Built with quality &amp; care.</p>
+                <p>Premium bakery, dairy &amp; commercial kitchen equipment supplier.</p>
             </div>
         </div>
     </footer>
@@ -388,7 +465,7 @@
             <span class="material-symbols-outlined text-3xl">close</span>
         </button>
         <div class="relative w-full max-w-sm mx-4" onclick="event.stopPropagation()">
-            <video id="reelModalVideo" controls playsinline preload="auto" class="w-full rounded-lg max-h-[85vh]"></video>
+            <div id="reelModalContent"></div>
         </div>
     </div>
 
@@ -416,26 +493,42 @@
             document.getElementById('reelLoadingOverlay').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
-        function openReelModal(reelId, url) {
+        function openReelModal(reelId, url, videoType, embedUrl) {
             const modal = document.getElementById('reelModal');
             const overlay = document.getElementById('reelLoadingOverlay');
-            const video = document.getElementById('reelModalVideo');
-            video.src = url;
-            video.load();
-            modal.style.display = 'flex';
-            video.oncanplay = function() {
+            const content = document.getElementById('reelModalContent');
+            
+            videoType = videoType || 'upload';
+            
+            if (videoType === 'youtube') {
+                const fullEmbedUrl = embedUrl + '?autoplay=1&mute=1&controls=1';
+                content.innerHTML = `<iframe width="100%" height="600" src="${fullEmbedUrl}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="w-full rounded-lg max-h-[85vh]"></iframe>`;
                 overlay.style.display = 'none';
-                video.play();
-                video.oncanplay = null;
-            };
+                modal.style.display = 'flex';
+            } else if (videoType === 'tiktok') {
+                content.innerHTML = `<iframe src="${url}" width="100%" height="600" frameborder="0" allow="autoplay" class="w-full rounded-lg max-h-[85vh]"></iframe>`;
+                overlay.style.display = 'none';
+                modal.style.display = 'flex';
+            } else {
+                const video = document.createElement('video');
+                video.className = 'w-full rounded-lg max-h-[85vh]';
+                video.controls = true;
+                video.playsinline = true;
+                video.preload = 'auto';
+                video.muted = true;
+                video.autoplay = true;
+                video.src = url;
+                content.innerHTML = '';
+                content.appendChild(video);
+                overlay.style.display = 'none';
+                modal.style.display = 'flex';
+                video.play().catch(e => console.log('Autoplay prevented:', e));
+            }
         }
         function closeReelModal() {
-            const video = document.getElementById('reelModalVideo');
             const overlay = document.getElementById('reelLoadingOverlay');
-            video.oncanplay = null;
-            video.pause();
-            video.removeAttribute('src');
-            video.load();
+            const content = document.getElementById('reelModalContent');
+            content.innerHTML = '';
             overlay.style.display = 'none';
             document.getElementById('reelModal').style.display = 'none';
             document.body.style.overflow = '';

@@ -218,11 +218,24 @@ def panel_reels(request):
 @user_passes_test(is_superuser, login_url='panel_login')
 def panel_reel_add(request):
     if request.method == 'POST':
-        Reel.objects.create(
-            title=request.POST['title'], thumbnail=request.FILES['thumbnail'],
-            video=request.FILES['video'], order=request.POST.get('order', 0),
-            is_active=request.POST.get('is_active') == 'on',
-        )
+        video_type = request.POST.get('video_type', 'upload')
+        data = {
+            'title': request.POST['title'],
+            'video_type': video_type,
+            'order': request.POST.get('order', 0),
+            'is_active': request.POST.get('is_active') == 'on',
+        }
+        if video_type == 'upload' and 'video' in request.FILES:
+            data['video'] = request.FILES['video']
+        elif video_type == 'youtube':
+            data['youtube_url'] = request.POST.get('youtube_url', '')
+        elif video_type == 'tiktok':
+            data['tiktok_url'] = request.POST.get('tiktok_url', '')
+        
+        if 'thumbnail' in request.FILES:
+            data['thumbnail'] = request.FILES['thumbnail']
+        
+        Reel.objects.create(**data)
         messages.success(request, 'Reel added.')
         return redirect('panel_reels')
     return render(request, 'panel/reel_form.html', {'action': 'Add'})
@@ -233,12 +246,22 @@ def panel_reel_edit(request, pk):
     reel = get_object_or_404(Reel, pk=pk)
     if request.method == 'POST':
         reel.title = request.POST['title']
+        reel.video_type = request.POST.get('video_type', 'upload')
         reel.order = request.POST.get('order', 0)
         reel.is_active = request.POST.get('is_active') == 'on'
+        
+        if reel.video_type == 'upload' and 'video' in request.FILES:
+            reel.video = request.FILES['video']
+        elif reel.video_type == 'youtube':
+            reel.youtube_url = request.POST.get('youtube_url', '')
+            reel.video = None
+        elif reel.video_type == 'tiktok':
+            reel.tiktok_url = request.POST.get('tiktok_url', '')
+            reel.video = None
+        
         if 'thumbnail' in request.FILES:
             reel.thumbnail = request.FILES['thumbnail']
-        if 'video' in request.FILES:
-            reel.video = request.FILES['video']
+        
         reel.save()
         messages.success(request, 'Reel updated.')
         return redirect('panel_reels')
