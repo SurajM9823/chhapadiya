@@ -2,15 +2,113 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
+# ── Roles & Permissions ────────────────────────────────────────────────────────
+
+class Role(models.Model):
+    ROLE_CHOICES = [
+        ('superuser', 'Superuser (Admin)'),
+        ('admin_purchase', 'Admin - Purchase'),
+        ('admin_sales', 'Admin - Sales'),
+        ('admin_logistics', 'Admin - Logistics'),
+        ('admin_finance', 'Admin - Finance'),
+    ]
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Role'
+        verbose_name_plural = 'Roles'
+
+    def __str__(self):
+        return self.get_name_display()
+
+
+class Permission(models.Model):
+    ACTION_CHOICES = [
+        ('view', 'View'),
+        ('create', 'Create'),
+        ('edit', 'Edit'),
+        ('delete', 'Delete'),
+    ]
+    MODULE_CHOICES = [
+        ('products', 'Products'),
+        ('packages', 'Packages'),
+        ('orders', 'Orders'),
+        ('customers', 'Customers'),
+        ('quotations', 'Quotations'),
+        ('stock', 'Stock'),
+        ('reports', 'Reports'),
+        ('settings', 'Settings'),
+        ('content', 'Content Management'),
+        ('users', 'User Management'),
+    ]
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='permissions')
+    module = models.CharField(max_length=50, choices=MODULE_CHOICES)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+
+    class Meta:
+        unique_together = ('role', 'module', 'action')
+        ordering = ['module', 'action']
+        verbose_name = 'Permission'
+        verbose_name_plural = 'Permissions'
+
+    def __str__(self):
+        return f"{self.role.get_name_display()} - {self.get_module_display()} ({self.get_action_display()})"
+
+
 # ── Customer User ─────────────────────────────────────────────────────────────
 
 class CustomerUser(AbstractUser):
+    USER_TYPE_CHOICES = [
+        ('customer', 'Customer'),
+        ('agent', 'Agent'),
+    ]
+    
     phone = models.CharField(max_length=20, blank=True)
     google_id = models.CharField(max_length=200, blank=True)
     avatar = models.URLField(blank=True)
+    role = models.ForeignKey(Role, null=True, blank=True, on_delete=models.SET_NULL, related_name='users')
+    
+    # User type and reference
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='customer')
+    reference_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    
+    # Company/Organization details
+    company_name = models.CharField(max_length=200, blank=True)
+    company_address = models.TextField(blank=True)
+    company_phone = models.CharField(max_length=20, blank=True)
+    company_email = models.EmailField(blank=True)
+    company_website = models.URLField(blank=True)
+    tax_id = models.CharField(max_length=50, blank=True, verbose_name='Tax ID/VAT Number')
+    
+    # Agent specific
+    referral_code = models.CharField(max_length=9, unique=True, blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        # Generate reference number if not exists
+        if not self.reference_number:
+            import random
+            self.reference_number = f'REF{random.randint(100000, 999999)}'
+        
+        # Generate referral code for agents if not exists
+        if self.user_type == 'agent' and not self.referral_code:
+            import random
+            self.referral_code = ''.join([str(random.randint(0, 9)) for _ in range(9)])
+        
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email or self.username
+
+    def has_permission(self, module, action):
+        """Check if user has permission for a module action."""
+        if self.is_superuser:
+            return True
+        if not self.role:
+            return False
+        return self.role.permissions.filter(module=module, action=action).exists()
 
 
 # ── Cart ──────────────────────────────────────────────────────────────────────
@@ -94,6 +192,8 @@ class Order(models.Model):
     city            = models.CharField(max_length=100, blank=True)
     lat             = models.FloatField(null=True, blank=True)
     lng             = models.FloatField(null=True, blank=True)
+    billing_address = models.TextField(blank=True)
+    billing_city    = models.CharField(max_length=100, blank=True)
     note            = models.TextField(blank=True)
     payment_method  = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cod')
     subtotal        = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -130,6 +230,23 @@ class OrderItem(models.Model):
     @property
     def subtotal(self):
         return self.unit_price * self.quantity
+
+
+class ProductReview(models.Model):
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, related_name='reviews')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    review = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('product', 'user', 'order')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.product.name} ({self.rating}★)"
 
 
 
@@ -324,10 +441,39 @@ class CustomerTier(models.Model):
         return self.name
 
 
+class DeliveryTimeTier(models.Model):
+    TIME_UNIT_CHOICES = [
+        ('hours', 'Hours'),
+        ('days', 'Days'),
+        ('weeks', 'Weeks'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    min_time = models.IntegerField()
+    min_unit = models.CharField(max_length=10, choices=TIME_UNIT_CHOICES, default='days')
+    max_time = models.IntegerField()
+    max_unit = models.CharField(max_length=10, choices=TIME_UNIT_CHOICES, default='days')
+    description = models.TextField(blank=True)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.min_time} {self.min_unit} - {self.max_time} {self.max_unit})"
+    
+    def get_display_time(self):
+        return f"{self.min_time} {self.min_unit} - {self.max_time} {self.max_unit}"
+
+
 class Customer(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
+    pan_number = models.CharField(max_length=10, blank=True, verbose_name='PAN Number')
     company = models.CharField(max_length=200, blank=True)
     address = models.TextField(blank=True)
     tier = models.ForeignKey(CustomerTier, null=True, blank=True, on_delete=models.SET_NULL, related_name='customers')
@@ -348,10 +494,12 @@ class Product(models.Model):
     name = models.CharField(max_length=300)
     slug = models.SlugField(max_length=350, unique=True, blank=True)
     sku = models.CharField(max_length=100, unique=True)
+    product_code = models.CharField(max_length=100, blank=True)
     brand = models.CharField(max_length=200, blank=True)
     origin = models.ForeignKey('Country', null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
     category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
     sub_category = models.ForeignKey('SubCategory', null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
+    linked_package = models.ForeignKey('Package', null=True, blank=True, on_delete=models.SET_NULL, related_name='linked_products', help_text='Link this product to a package offer')
 
     # Descriptions
     short_description = models.TextField(blank=True)
@@ -362,6 +510,9 @@ class Product(models.Model):
     mrp = models.DecimalField(max_digits=12, decimal_places=2, help_text='Public / normal user price')
     tax_included = models.BooleanField(default=True, help_text='Is VAT/tax included in MRP?')
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Tax % if not included')
+
+    # Delivery
+    delivery_time = models.ForeignKey(DeliveryTimeTier, null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
 
     # Related products (self M2M)
     related_products = models.ManyToManyField('self', blank=True, symmetrical=False)
@@ -522,6 +673,75 @@ class WhyChooseUs(models.Model):
         return self.title
 
 
+# ── POS Billing ───────────────────────────────────────────────────────────────
+
+class Billing(models.Model):
+    SALE_TYPE_CHOICES = [
+        ('counter', 'Counter Sale'),
+        ('online_pos', 'Online POS'),
+        ('agent', 'Agent Sale'),
+    ]
+    PAYMENT_STATUS_CHOICES = [
+        ('paid', 'Paid'),
+        ('partial', 'Partial'),
+        ('unpaid', 'Unpaid'),
+    ]
+
+    bill_number     = models.CharField(max_length=20, unique=True)
+    sale_type       = models.CharField(max_length=20, choices=SALE_TYPE_CHOICES, default='counter')
+    customer        = models.ForeignKey('Customer', null=True, blank=True, on_delete=models.SET_NULL, related_name='billings')
+    walk_in_name    = models.CharField(max_length=200, blank=True)
+    walk_in_phone   = models.CharField(max_length=30, blank=True)
+    agent           = models.ForeignKey('CustomerUser', null=True, blank=True, on_delete=models.SET_NULL, related_name='agent_billings', limit_choices_to={'user_type': 'agent'})
+    billed_by       = models.ForeignKey('CustomerUser', null=True, blank=True, on_delete=models.SET_NULL, related_name='created_billings')
+    subtotal        = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    item_discount   = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    overall_discount= models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total           = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Split payment
+    cash_amount     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    card_amount     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    online_amount   = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_paid     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_status  = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='paid')
+    note            = models.TextField(blank=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bill #{self.bill_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.bill_number:
+            import random, string
+            self.bill_number = 'BILL' + ''.join(random.choices(string.digits, k=6))
+        super().save(*args, **kwargs)
+
+    @property
+    def balance_due(self):
+        return self.total - self.amount_paid
+
+
+class BillingItem(models.Model):
+    billing      = models.ForeignKey(Billing, on_delete=models.CASCADE, related_name='items')
+    product      = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True)
+    product_name = models.CharField(max_length=300)
+    product_sku  = models.CharField(max_length=100, blank=True)
+    unit_price   = models.DecimalField(max_digits=12, decimal_places=2)
+    quantity     = models.PositiveIntegerField(default=1)
+    discount     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    @property
+    def subtotal(self):
+        return (self.unit_price * self.quantity) - self.discount
+
+    def __str__(self):
+        return f"{self.quantity}x {self.product_name}"
+
+
 class StockEntry(models.Model):
     ENTRY_TYPES = [
         ('import', 'Import / Stock In'),
@@ -606,3 +826,54 @@ class QuoteRequest(models.Model):
 
     def __str__(self):
         return f"Quote: {self.product} by {self.user_email}"
+
+
+# ── Package System ────────────────────────────────────────────────────────────
+
+class Package(models.Model):
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    sku = models.CharField(max_length=100, unique=True)
+    total_mrp = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False)
+    overall_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    selling_price = models.DecimalField(max_digits=12, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} [{self.sku}]"
+
+    def calculate_total_mrp(self):
+        from django.db.models import Sum, F
+        result = self.items.aggregate(
+            total=Sum(F('product__mrp') * F('quantity') - F('item_discount'))
+        )
+        return result['total'] or 0
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.total_mrp = self.calculate_total_mrp()
+        if self.pk:
+            Package.objects.filter(pk=self.pk).update(total_mrp=self.total_mrp)
+
+
+class PackageItem(models.Model):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    item_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f"{self.quantity}x {self.product.name}"
+
+    @property
+    def item_total(self):
+        return (self.product.mrp * self.quantity) - self.item_discount
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.package.save()

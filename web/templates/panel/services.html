@@ -12,7 +12,9 @@
         <p class="text-xs text-gray-500 mb-1">Services Page</p>
         <h1 class="text-xl font-semibold text-gray-800">Services (What We Supply)</h1>
     </div>
+    {% if can_create %}
     <a href="{% url 'panel_service_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Service</a>
+    {% endif %}
 </div>
 
 {% if services %}
@@ -48,10 +50,17 @@
                     {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
                 </td>
                 <td class="px-4 py-3 flex gap-3">
+                    {% if can_edit %}
                     <a href="{% url 'panel_service_edit' s.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    {% endif %}
+                    {% if can_delete %}
                     <form method="post" action="{% url 'panel_service_delete' s.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
                         <button class="text-red-500 hover:underline text-xs">Delete</button>
                     </form>
+                    {% endif %}
+                    {% if not can_edit and not can_delete %}
+                    <span class="text-gray-400 text-xs">No actions</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -59,13 +68,15 @@
     </table>
 </div>
 {% else %}
-<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400 mb-10">No services yet. <a href="{% url 'panel_service_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400 mb-10">No services yet. {% if can_create %}<a href="{% url 'panel_service_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
 {% endif %}
 
 <!-- Why Choose Us -->
 <div class="flex justify-between items-center mb-4">
     <h2 class="text-lg font-semibold text-gray-800">Why Choose Us</h2>
+    {% if can_create %}
     <a href="{% url 'panel_why_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Item</a>
+    {% endif %}
 </div>
 
 {% if why_items %}
@@ -96,10 +107,17 @@
                     {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
                 </td>
                 <td class="px-4 py-3 flex gap-3">
+                    {% if can_edit %}
                     <a href="{% url 'panel_why_edit' w.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    {% endif %}
+                    {% if can_delete %}
                     <form method="post" action="{% url 'panel_why_delete' w.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
                         <button class="text-red-500 hover:underline text-xs">Delete</button>
                     </form>
+                    {% endif %}
+                    {% if not can_edit and not can_delete %}
+                    <span class="text-gray-400 text-xs">No actions</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -107,7 +125,7 @@
     </table>
 </div>
 {% else %}
-<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400">No items yet. <a href="{% url 'panel_why_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+<div class="bg-white rounded-xl shadow p-8 text-center text-gray-400">No items yet. {% if can_create %}<a href="{% url 'panel_why_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
 {% endif %}
 
 {% endblock %}

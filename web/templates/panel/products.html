@@ -8,8 +8,10 @@
 <div class="flex justify-between items-center mb-6">
     <div><p class="text-xs text-gray-500 mb-1">Products</p><h1 class="text-xl font-semibold text-gray-800">All Products</h1></div>
     <div class="flex gap-2">
+        {% if can_create %}
         <a href="{% url 'panel_products_import' %}" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">📥 Import Excel</a>
         <a href="{% url 'panel_product_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Product</a>
+        {% endif %}
     </div>
 </div>
 
@@ -109,11 +111,18 @@
                     <td class="px-4 py-3 text-center">
                         <div class="flex gap-1 justify-center flex-wrap">
                             <a href="{% url 'panel_product_detail' p.pk %}" class="text-gray-600 hover:text-gray-800 text-xs hover:underline">View</a>
+                            {% if can_edit %}
                             <a href="{% url 'panel_product_edit' p.pk %}" class="text-blue-600 hover:text-blue-800 text-xs hover:underline">Edit</a>
                             <a href="{% url 'panel_stock' p.pk %}" class="text-purple-600 hover:text-purple-800 text-xs hover:underline">Stock</a>
+                            {% endif %}
+                            {% if can_delete %}
                             <form method="post" action="{% url 'panel_product_delete' p.pk %}" onsubmit="return confirm('Delete this product?')" style="display:inline;">{% csrf_token %}
                                 <button class="text-red-600 hover:text-red-800 text-xs hover:underline">Delete</button>
                             </form>
+                            {% endif %}
+                            {% if not can_edit and not can_delete %}
+                            <span class="text-gray-400 text-xs">No actions</span>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -149,7 +158,9 @@
 {% else %}
 <div class="bg-white rounded-lg shadow p-12 text-center text-gray-400">
     <p class="mb-2">No products found.</p>
+    {% if can_create %}
     <a href="{% url 'panel_product_add' %}" class="text-blue-600 hover:underline text-sm">Add a new product</a>
+    {% endif %}
 </div>
 {% endif %}
 

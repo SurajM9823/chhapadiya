@@ -53,7 +53,7 @@
 
                     <!-- Contact + Address -->
                     <div class="bg-white rounded-xl shadow p-4">
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact & Address</p>
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact & Shipping Address</p>
                         <div class="grid grid-cols-2 gap-2 mb-2">
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Full Name *</label>
@@ -107,6 +107,33 @@
                                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"
                                 placeholder="Special instructions..."></textarea>
                         </div>
+                    </div>
+
+                    <!-- Billing Address -->
+                    <div class="bg-white rounded-xl shadow p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Billing Address</p>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="sameAsShipping" onchange="toggleBillingAddress()" class="accent-emerald-600">
+                                <span class="text-xs text-gray-600">Same as shipping</span>
+                            </label>
+                        </div>
+                        <div id="billingFields">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Billing City</label>
+                                    <input name="billing_city" id="billingCityInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Billing Address</label>
+                                    <input name="billing_address" id="billingAddressInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="Street, area, landmark">
+                                </div>
+                            </div>
+                        </div>
+                        <div id="billingSameNote" class="hidden text-xs text-gray-400 italic">Same as shipping address</div>
                     </div>
 
                 </div>
@@ -243,6 +270,27 @@ function updatePayment(radio) {
     document.getElementById('bankDetails').classList.toggle('hidden', radio.value !== 'online');
     document.getElementById('receiptInput').required = radio.value === 'online';
 }
+
+function toggleBillingAddress() {
+    const checked = document.getElementById('sameAsShipping').checked;
+    const billingFields = document.getElementById('billingFields');
+    const billingSameNote = document.getElementById('billingSameNote');
+    if (checked) {
+        billingFields.style.display = 'none';
+        billingSameNote.classList.remove('hidden');
+    } else {
+        billingFields.style.display = '';
+        billingSameNote.classList.add('hidden');
+    }
+}
+
+// On form submit, copy shipping to billing if same-as-shipping is checked
+document.getElementById('checkoutForm').addEventListener('submit', function() {
+    if (document.getElementById('sameAsShipping').checked) {
+        document.getElementById('billingCityInput').value = document.getElementById('cityInput').value;
+        document.getElementById('billingAddressInput').value = document.getElementById('addressInput').value;
+    }
+});
 
 // init total
 updateTotal();

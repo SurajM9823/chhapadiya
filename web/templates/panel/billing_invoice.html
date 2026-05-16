@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice #{{ bill.bill_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .invoice { max-width: 210mm; margin: 0 auto; border: 2px solid #000; padding: 20px; }
+        
+        .header { display: flex; align-items: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 15px; }
+        .header .logo { width: 80px; }
+        .header .logo img { width: 100%; }
+        .header .business { flex: 1; text-align: center; padding: 0 20px; }
+        .header .business h1 { font-size: 24px; margin-bottom: 5px; }
+        .header .business p { font-size: 11px; margin: 2px 0; }
+        
+        .invoice-title { text-align: center; background: #000; color: #fff; padding: 8px; font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+        
+        .customer-row { display: flex; border: 1px solid #000; margin-bottom: 15px; }
+        .customer-row > div { flex: 1; padding: 8px; border-right: 1px solid #000; }
+        .customer-row > div:last-child { border-right: none; }
+        .customer-row strong { display: block; font-size: 10px; color: #666; }
+        .customer-row span { font-size: 12px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        table th { background: #000; color: #fff; padding: 8px; text-align: left; font-size: 12px; border: 1px solid #000; }
+        table td { padding: 8px; border: 1px solid #000; font-size: 12px; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        .totals { float: right; width: 300px; margin-bottom: 15px; }
+        .totals table td { padding: 6px 10px; }
+        .totals .grand { background: #000; color: #fff; font-weight: bold; font-size: 14px; }
+        
+        .payment { clear: both; padding: 10px; background: #f5f5f5; border: 1px solid #000; margin-bottom: 15px; font-size: 12px; }
+        
+        .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+        .signature { text-align: center; width: 200px; }
+        .signature-line { border-top: 1px solid #000; margin-bottom: 5px; }
+        .signature p { font-size: 11px; }
+        
+        .print-btn { background: #007bff; color: #fff; border: none; padding: 10px 20px; cursor: pointer; margin-bottom: 20px; }
+        @media print { .print-btn { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+    
+    <div class="invoice">
+        <div class="header">
+            <div class="logo">
+                {% if settings.logo %}<img src="{{ settings.logo.url }}" alt="Logo">{% endif %}
+            </div>
+            <div class="business">
+                <h1>{{ settings.business_name }}</h1>
+                <p>{{ settings.address }}</p>
+                <p>Email: {{ settings.email }} | Phone: {{ settings.phone }}</p>
+            </div>
+            <div class="logo">
+                {% if settings.logo %}<img src="{{ settings.logo.url }}" alt="Logo">{% endif %}
+            </div>
+        </div>
+
+        <div class="invoice-title">INVOICE</div>
+
+        <div class="customer-row">
+            <div>
+                <strong>Customer Name</strong>
+                <span>{% if bill.customer %}{{ bill.customer.name }}{% else %}{{ bill.walk_in_name|default:"Walk-in" }}{% endif %}</span>
+            </div>
+            <div>
+                <strong>Phone / PAN</strong>
+                <span>{% if bill.customer %}{{ bill.customer.phone|default:"-" }}{% if bill.customer.pan_number %} / {{ bill.customer.pan_number }}{% endif %}{% else %}{{ bill.walk_in_phone|default:"-" }}{% endif %}</span>
+            </div>
+            <div>
+                <strong>Invoice # / Date</strong>
+                <span>{{ bill.bill_number }} / {{ bill.created_at|date:"d-m-Y" }}</span>
+            </div>
+            <div>
+                <strong>Agent</strong>
+                <span>{% if bill.agent %}{{ bill.agent.get_full_name|default:bill.agent.username }}{% else %}-{% endif %}</span>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%">#</th>
+                    <th style="width: 45%">Product Name</th>
+                    <th style="width: 10%" class="text-center">Qty</th>
+                    <th style="width: 15%" class="text-right">Rate</th>
+                    <th style="width: 15%" class="text-right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bill.items.all %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-right">₹{{ item.unit_price }}</td>
+                    <td class="text-right">₹{{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <table>
+                <tr>
+                    <td>Subtotal:</td>
+                    <td class="text-right">₹{{ bill.subtotal }}</td>
+                </tr>
+                <tr>
+                    <td>Discount:</td>
+                    <td class="text-right">- ₹{{ bill.item_discount|add:bill.overall_discount }}</td>
+                </tr>
+                <tr class="grand">
+                    <td>Grand Total:</td>
+                    <td class="text-right">₹{{ bill.total }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="payment">
+            <strong>Payment:</strong> {{ bill.payment_status|upper }} | <strong>Paid:</strong> ₹{{ bill.amount_paid }}{% if bill.balance_due > 0 %} | <strong>Due:</strong> ₹{{ bill.balance_due }}{% endif %}
+        </div>
+
+        <div class="signatures">
+            <div class="signature">
+                <div class="signature-line"></div>
+                <p>Customer Signature</p>
+            </div>
+            <div class="signature">
+                <div class="signature-line"></div>
+                <p>Authorized Signature</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

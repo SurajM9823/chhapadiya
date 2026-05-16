@@ -1,0 +1,115 @@
+{% extends 'panel/base.html' %}
+
+{% block title %} - {{ action }} User {% endblock %}
+{% block nav_user_parent %}bg-gray-700 text-white{% endblock %}
+{% block nav_user_arrow %}rotate-180{% endblock %}
+{% block nav_user_open %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ action }} User</h1>
+        <p class="text-gray-600">Manage user accounts and permissions</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <form method="post" class="p-8 space-y-8">
+            {% csrf_token %}
+
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Basic Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username <span class="text-red-500">*</span></label>
+                        {% if user %}
+                        <input type="text" value="{{ user.username }}" disabled class="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed">
+                        {% else %}
+                        <input type="text" name="username" placeholder="e.g., john_doe" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
+                        <input type="email" name="email" value="{% if user %}{{ user.email }}{% endif %}" placeholder="user@example.com" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                        <input type="text" name="first_name" value="{% if user %}{{ user.first_name }}{% endif %}" placeholder="John" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                        <input type="text" name="last_name" value="{% if user %}{{ user.last_name }}{% endif %}" placeholder="Doe" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                        <input type="tel" name="phone" value="{% if user %}{{ user.phone }}{% endif %}" placeholder="+977-98XXXXXXXX" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                        <select name="role" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select a Role</option>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}" {% if user and user.role.id == role.id %}selected{% endif %}>{{ role.get_name_display }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Security</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password {% if not user %}<span class="text-red-500">*</span>{% endif %}</label>
+                        <input type="password" name="password" {% if not user %}required{% endif %} class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    {% if not user %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password <span class="text-red-500">*</span></label>
+                        <input type="password" name="password_confirm" required class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Status</h2>
+                
+                <div class="space-y-4">
+                    <label class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" name="is_active" {% if not user or user.is_active %}checked{% endif %} class="w-5 h-5 text-blue-600 rounded">
+                        <div class="ml-3">
+                            <p class="font-medium text-gray-900">Active Account</p>
+                            <p class="text-sm text-gray-600">User can log in</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" name="is_staff" {% if user and user.is_staff %}checked{% endif %} class="w-5 h-5 text-blue-600 rounded">
+                        <div class="ml-3">
+                            <p class="font-medium text-gray-900">Staff Member</p>
+                            <p class="text-sm text-gray-600">Can access admin panel</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-4 pt-8 border-t border-gray-200">
+                <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+                    {% if user %}Update{% else %}Create{% endif %}
+                </button>
+                <a href="{% url 'panel_users' %}" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

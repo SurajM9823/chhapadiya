@@ -57,7 +57,11 @@
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ order.created_at|date:"d M Y" }}</td>
                     <td class="px-6 py-4 text-sm">
+                        {% if can_edit %}
                         <a href="{% url 'panel_order_detail' order.pk %}" class="text-blue-600 hover:text-blue-800 font-medium">View</a>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">No actions</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

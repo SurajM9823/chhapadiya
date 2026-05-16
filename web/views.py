@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country
+from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview
 from .email_utils import send_order_confirmation_email
 
 def base_context():
@@ -51,8 +51,9 @@ def services(request):
 @ensure_csrf_cookie
 def products(request):
     import json as _json
+    from django.db.models import Avg
     search_query = request.GET.get('search', '')
-    qs = Product.objects.filter(is_active=True).select_related('category', 'sub_category').prefetch_related('images')
+    qs = Product.objects.filter(is_active=True).select_related('category', 'sub_category', 'delivery_time').prefetch_related('images').annotate(avg_rating=Avg('reviews__rating'))
     products_data = []
     for p in qs:
         img = p.primary_image
@@ -69,6 +70,8 @@ def products(request):
             'mrp': float(p.mrp),
             'image': img.image.url if img else '',
             'is_featured': p.is_featured,
+            'delivery_time': p.delivery_time.get_display_time() if p.delivery_time else None,
+            'avg_rating': round(p.avg_rating, 1) if p.avg_rating else None,
         })
     categories = Category.objects.filter(is_active=True).prefetch_related('subcategories').order_by('order', 'name')
     return render(request, 'web/products.html', {
@@ -80,8 +83,8 @@ def products(request):
 
 def product_detail(request, slug):
     product = get_object_or_404(
-        Product.objects.select_related('category', 'sub_category', 'origin')
-                       .prefetch_related('images', 'related_products__images'),
+        Product.objects.select_related('category', 'sub_category', 'origin', 'linked_package')
+                       .prefetch_related('images', 'related_products__images', 'linked_package__items__product__images'),
         slug=slug, is_active=True
     )
     related = product.related_products.filter(is_active=True).prefetch_related('images')[:4]
@@ -100,6 +103,9 @@ def product_detail(request, slug):
         request.user.is_authenticated and
         Favourite.objects.filter(user=request.user, product=product).exists()
     )
+    reviews = product.reviews.select_related('user').order_by('-created_at')
+    from django.db.models import Avg, Count
+    review_stats = reviews.aggregate(avg_rating=Avg('rating'), total_reviews=Count('id'))
     return render(request, 'web/product_detail.html', {
         **base_context(),
         'product': product,
@@ -107,6 +113,9 @@ def product_detail(request, slug):
         'specs': specs,
         'stock': product.stock_quantity,
         'is_wishlisted': is_wishlisted,
+        'reviews': reviews,
+        'avg_rating': review_stats['avg_rating'] or 0,
+        'total_reviews': review_stats['total_reviews'],
     })
 
 
@@ -316,6 +325,8 @@ def place_order(request):
     email          = request.POST.get('email', '').strip()
     address        = request.POST.get('address', '').strip()
     city           = request.POST.get('city', '').strip()
+    billing_address = request.POST.get('billing_address', '').strip()
+    billing_city    = request.POST.get('billing_city', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     source         = request.POST.get('source', 'cart')
@@ -332,7 +343,8 @@ def place_order(request):
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
-            email=email, address=address, city=city, note=note,
+            email=email, address=address, city=city,
+            billing_address=billing_address, billing_city=billing_city, note=note,
             payment_method=payment_method,
             subtotal=subtotal, delivery_charge=charge, total=total,
         )
@@ -362,7 +374,8 @@ def place_order(request):
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
-            email=email, address=address, city=city, note=note,
+            email=email, address=address, city=city,
+            billing_address=billing_address, billing_city=billing_city, note=note,
             payment_method=payment_method,
             subtotal=subtotal, delivery_charge=charge, total=total,
         )
@@ -391,23 +404,68 @@ def my_orders(request):
     return render(request, 'web/my_orders.html', {**base_context(), 'orders': orders})
 
 
+def my_profile(request):
+    if not request.user.is_authenticated:
+        return redirect('index')
+    
+    if request.method == 'POST':
+        user = request.user
+        user.first_name = request.POST.get('first_name', '')
+        user.last_name = request.POST.get('last_name', '')
+        user.phone = request.POST.get('phone', '')
+        user.user_type = request.POST.get('user_type', 'customer')
+        
+        # Company details
+        user.company_name = request.POST.get('company_name', '')
+        user.company_address = request.POST.get('company_address', '')
+        user.company_phone = request.POST.get('company_phone', '')
+        user.company_email = request.POST.get('company_email', '')
+        user.company_website = request.POST.get('company_website', '')
+        user.tax_id = request.POST.get('tax_id', '')
+        
+        # Password change
+        new_password = request.POST.get('new_password', '').strip()
+        if new_password:
+            user.set_password(new_password)
+        
+        user.save()
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('my_profile')
+    
+    return render(request, 'web/my_profile.html', {**base_context()})
+
+
 def order_detail(request, order_number):
     if not request.user.is_authenticated:
         return redirect('index')
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
-    return render(request, 'web/order_detail.html', {**base_context(), 'order': order})
+    items_with_reviews = []
+    for item in order.items.all():
+        review = None
+        if item.product and order.status == 'delivered':
+            review = ProductReview.objects.filter(product=item.product, user=request.user, order=order).first()
+        items_with_reviews.append({'item': item, 'review': review})
+    return render(request, 'web/order_detail.html', {**base_context(), 'order': order, 'items_with_reviews': items_with_reviews})
 
 
 def update_order_location(request, order_number):
     if request.method != 'POST' or not request.user.is_authenticated:
         return JsonResponse({'ok': False, 'error': 'Invalid request'})
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
+    if order.status in ['confirmed', 'processing', 'shipped', 'delivered']:
+        return JsonResponse({'ok': False, 'error': 'Cannot edit confirmed orders'})
     address = request.POST.get('address', '').strip()
     city = request.POST.get('city', '').strip()
+    billing_address = request.POST.get('billing_address', '').strip()
+    billing_city = request.POST.get('billing_city', '').strip()
     if not address or not city:
         return JsonResponse({'ok': False, 'error': 'Address and city are required'})
     order.address = address
     order.city = city
+    if billing_address:
+        order.billing_address = billing_address
+    if billing_city:
+        order.billing_city = billing_city
     order.save()
     return JsonResponse({'ok': True})
 
@@ -602,11 +660,12 @@ def origins_api(request):
     return JsonResponse({'origins': result})
 
 def featured_products_api(request):
+    from django.db.models import Avg
     page = int(request.GET.get('page', 1))
     limit = int(request.GET.get('limit', 10))
     offset = (page - 1) * limit
     
-    products = Product.objects.filter(is_active=True, is_featured=True).select_related('category').prefetch_related('images').order_by('-created_at')[offset:offset+limit]
+    products = Product.objects.filter(is_active=True, is_featured=True).select_related('category', 'delivery_time').prefetch_related('images').annotate(avg_rating=Avg('reviews__rating')).order_by('-created_at')[offset:offset+limit]
     
     result = []
     for p in products:
@@ -619,6 +678,8 @@ def featured_products_api(request):
             'mrp': float(p.mrp),
             'category': p.category.name if p.category else '',
             'image': img.image.url if img else '',
+            'delivery_time': p.delivery_time.get_display_time() if p.delivery_time else None,
+            'avg_rating': round(p.avg_rating, 1) if p.avg_rating else None,
         })
     
     total = Product.objects.filter(is_active=True, is_featured=True).count()
@@ -763,3 +824,42 @@ def privacy_policy(request):
 
 def terms_conditions(request):
     return render(request, 'web/terms_conditions.html', {**base_context()})
+
+
+def product_review_save(request):
+    if request.method != 'POST' or not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Invalid request'})
+    
+    order_id = request.POST.get('order_id')
+    product_id = request.POST.get('product_id')
+    rating = request.POST.get('rating')
+    review_text = request.POST.get('review', '').strip()
+    
+    if not all([order_id, product_id, rating]):
+        return JsonResponse({'ok': False, 'error': 'Missing required fields'})
+    
+    order = get_object_or_404(Order, pk=order_id, user=request.user, status='delivered')
+    product = get_object_or_404(Product, pk=product_id)
+    
+    if not order.items.filter(product=product).exists():
+        return JsonResponse({'ok': False, 'error': 'Product not in this order'})
+    
+    review, created = ProductReview.objects.update_or_create(
+        product=product,
+        user=request.user,
+        order=order,
+        defaults={'rating': int(rating), 'review': review_text}
+    )
+    
+    return JsonResponse({'ok': True, 'created': created})
+
+
+def product_review_delete(request):
+    if request.method != 'POST' or not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Invalid request'})
+    
+    review_id = request.POST.get('review_id')
+    review = get_object_or_404(ProductReview, pk=review_id, user=request.user)
+    review.delete()
+    
+    return JsonResponse({'ok': True})

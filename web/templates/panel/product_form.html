@@ -21,10 +21,14 @@
                     <label class="block text-xs font-medium text-gray-700 mb-0.5">Product Name *</label>
                     <input name="name" type="text" value="{{ product.name|default:'' }}" required class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-0.5">SKU *</label>
                         <input name="sku" type="text" value="{{ product.sku|default:'' }}" required class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-0.5">Product Code</label>
+                        <input name="product_code" type="text" value="{{ product.product_code|default:'' }}" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-0.5">Brand</label>
@@ -59,6 +63,25 @@
                         <option value="{{ country.pk }}" {% if product.origin_id == country.pk %}selected{% endif %}>{{ country.name }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-0.5">Delivery Time</label>
+                    <select name="delivery_time" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        <option value="">None</option>
+                        {% for dt in delivery_times %}
+                        <option value="{{ dt.pk }}" {% if product.delivery_time_id == dt.pk %}selected{% endif %}>{{ dt.name }} ({{ dt.get_display_time }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-0.5">Linked Package</label>
+                    <select name="linked_package" id="linked_package_select" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                        <option value="">None</option>
+                        {% for pkg in packages %}
+                        <option value="{{ pkg.pk }}" {% if product.linked_package_id == pkg.pk %}selected{% endif %}>{{ pkg.name }} [{{ pkg.sku }}] - Rs.{{ pkg.selling_price }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Link this product to a package offer</p>
                 </div>
             </div>
         </div>
@@ -202,6 +225,45 @@ document.querySelectorAll('input[name="delete_images"]').forEach(cb => {
     cb.closest('.relative').querySelector('img').addEventListener('click', () => {
         cb.checked = !cb.checked;
         cb.closest('.relative').querySelector('img').classList.toggle('opacity-40', cb.checked);
+    });
+});
+
+// Initialize Select2 for Linked Package
+$(document).ready(function() {
+    $('#linked_package_select').select2({
+        placeholder: 'Search and select a package...',
+        allowClear: true,
+        width: '100%',
+        minimumInputLength: 0,
+        templateResult: function(data) {
+            if (!data.id) return data.text;
+            var $result = $('<div class="select2-package-result">');
+            var text = data.text;
+            // Parse: "Package Name [SKU] - Rs.Price"
+            var match = text.match(/^(.+?)\s*\[(.+?)\]\s*-\s*Rs\.(.+)$/);
+            if (match) {
+                $result.html(
+                    '<div style="font-weight: 600; font-size: 13px; color: #1f2937; margin-bottom: 4px;">' + match[1] + '</div>' +
+                    '<div style="font-size: 11px; color: #6b7280;">' +
+                    '<span style="background: #e5e7eb; padding: 2px 6px; border-radius: 3px; margin-right: 6px; font-family: monospace;">SKU: ' + match[2] + '</span>' +
+                    '<span style="color: #059669; font-weight: 600;">₹ ' + match[3] + '</span>' +
+                    '</div>'
+                );
+            } else {
+                $result.text(text);
+            }
+            return $result;
+        },
+        templateSelection: function(data) {
+            if (!data.id) return data.text;
+            var text = data.text;
+            // Show just name and SKU in selection
+            var match = text.match(/^(.+?)\s*\[(.+?)\]/);
+            if (match) {
+                return match[1] + ' [' + match[2] + ']';
+            }
+            return text;
+        }
     });
 });
 </script>

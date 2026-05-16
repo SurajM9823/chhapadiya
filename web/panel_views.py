@@ -1,22 +1,33 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem
 from .email_utils import send_order_status_update_email
+from .permissions import permission_required, check_permission
 
-def is_superuser(user):
-    return user.is_superuser
+def is_staff_user(user):
+    return user.is_superuser or user.is_staff
 
 def panel_login(request):
-    if request.user.is_authenticated and request.user.is_superuser:
-        return redirect('panel_dashboard')
-    if request.method == 'POST':
-        user = authenticate(request, username=request.POST['username'], password=request.POST['password'])
-        if user and user.is_superuser:
-            login(request, user)
+    if request.user.is_authenticated:
+        if request.user.is_superuser or request.user.role:
             return redirect('panel_dashboard')
-        messages.error(request, 'Invalid credentials or not a superuser.')
+        else:
+            messages.error(request, f'Your account does not have a role assigned. Please contact administrator.')
+            logout(request)
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        user = authenticate(request, username=username, password=password)
+        if user:
+            if user.is_superuser or user.role:
+                login(request, user)
+                return redirect('panel_dashboard')
+            else:
+                messages.error(request, f'User "{username}" does not have a role assigned. Contact administrator.')
+        else:
+            messages.error(request, 'Invalid username or password.')
     return render(request, 'panel/login.html')
 
 def panel_logout(request):
@@ -24,89 +35,112 @@ def panel_logout(request):
     return redirect('panel_login')
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
 def panel_dashboard(request):
+    # Allow all authenticated users with a role to see dashboard
+    if not (request.user.is_superuser or request.user.role):
+        messages.error(request, 'Access denied. Role assignment required.')
+        return redirect('panel_login')
     from django.db.models import Sum, Count, Q
     from datetime import timedelta
     from django.utils import timezone
     
-    # Orders Statistics
-    total_orders = Order.objects.count()
-    pending_orders = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).count()
-    delivered_orders = Order.objects.filter(status='delivered').count()
-    cancelled_orders = Order.objects.filter(status='cancelled').count()
+    # Check permissions for different modules
+    can_view_orders = request.user.is_superuser or check_permission(request.user, 'orders', 'view')
+    can_view_customers = request.user.is_superuser or check_permission(request.user, 'customers', 'view')
+    can_view_products = request.user.is_superuser or check_permission(request.user, 'products', 'view')
+    can_view_content = request.user.is_superuser or check_permission(request.user, 'content', 'view')
     
-    # Income Calculation (only from delivered orders)
-    delivered_income = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
-    pending_income = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).aggregate(total=Sum('total'))['total'] or 0
-    total_income = delivered_income
+    # Orders Statistics (only if user has permission)
+    total_orders = 0
+    pending_orders = 0
+    delivered_orders = 0
+    cancelled_orders = 0
+    delivered_income = 0
+    pending_income = 0
+    total_income = 0
+    pending_order_list = []
+    sales_by_status = []
     
-    # Pending Orders List
-    pending_order_list = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).select_related('user').prefetch_related('items')[:5]
+    if can_view_orders:
+        total_orders = Order.objects.count()
+        pending_orders = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).count()
+        delivered_orders = Order.objects.filter(status='delivered').count()
+        cancelled_orders = Order.objects.filter(status='cancelled').count()
+        delivered_income = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
+        pending_income = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).aggregate(total=Sum('total'))['total'] or 0
+        total_income = delivered_income
+        pending_order_list = Order.objects.filter(status__in=['pending', 'confirmed', 'processing']).select_related('user').prefetch_related('items')[:5]
+        sales_by_status = Order.objects.values('status').annotate(count=Count('id'), total=Sum('total')).order_by('-count')
     
-    # Top Customers (by total spent on delivered orders)
-    from django.db.models import F
-    top_customers = Order.objects.filter(status='delivered').values('user__email', 'user__first_name', 'user__last_name').annotate(
-        total_spent=Sum('total'),
-        order_count=Count('id')
-    ).order_by('-total_spent')[:5]
-    
-    # Format top customers
+    # Top Customers (only if user has permission)
     top_customers_list = []
-    for cust in top_customers:
-        top_customers_list.append({
-            'email': cust['user__email'],
-            'full_name': f"{cust['user__first_name']} {cust['user__last_name']}".strip() or cust['user__email'],
-            'total_spent': cust['total_spent'],
-            'order_count': cust['order_count']
-        })
-    
-    # Low Stock Products (stock < 10)
-    low_stock_products = []
-    for product in Product.objects.all():
-        stock = product.stock_quantity
-        if stock < 10:
-            low_stock_products.append({
-                'name': product.name,
-                'sku': product.sku,
-                'stock': stock,
-                'mrp': product.mrp
+    if can_view_customers and can_view_orders:
+        from django.db.models import F
+        top_customers = Order.objects.filter(status='delivered').values('user__email', 'user__first_name', 'user__last_name').annotate(
+            total_spent=Sum('total'),
+            order_count=Count('id')
+        ).order_by('-total_spent')[:5]
+        
+        for cust in top_customers:
+            top_customers_list.append({
+                'email': cust['user__email'],
+                'full_name': f"{cust['user__first_name']} {cust['user__last_name']}".strip() or cust['user__email'],
+                'total_spent': cust['total_spent'],
+                'order_count': cust['order_count']
             })
-    low_stock_products = low_stock_products[:5]
     
-    # Recent Inquiries
-    recent_inquiries = ContactInquiry.objects.all()[:5]
+    # Low Stock Products (only if user has permission)
+    low_stock_products = []
+    total_products = 0
+    low_stock_count = 0
+    out_of_stock_count = 0
     
-    # Visitor Data (last 7 days)
+    if can_view_products:
+        total_products = Product.objects.count()
+        for product in Product.objects.all():
+            stock = product.stock_quantity
+            if stock < 10:
+                if len(low_stock_products) < 5:
+                    low_stock_products.append({
+                        'name': product.name,
+                        'sku': product.sku,
+                        'stock': stock,
+                        'mrp': product.mrp
+                    })
+            if stock < 10:
+                low_stock_count += 1
+            if stock == 0:
+                out_of_stock_count += 1
+    
+    # Recent Inquiries (only if user has permission)
+    recent_inquiries = []
+    total_inquiries = 0
+    unread_inquiries = 0
+    
+    if can_view_content:
+        recent_inquiries = ContactInquiry.objects.all()[:5]
+        total_inquiries = ContactInquiry.objects.count()
+        unread_inquiries = ContactInquiry.objects.filter(is_read=False).count()
+    
+    # Visitor Data (mock data - available to all)
     visitor_data = []
     for i in range(6, -1, -1):
         date = timezone.now() - timedelta(days=i)
         visitor_data.append({
             'date': date.strftime('%a'),
-            'count': (i * 15 + 20) if i > 0 else 45  # Mock data
+            'count': (i * 15 + 20) if i > 0 else 45
         })
     
-    # Sales by Status
-    sales_by_status = Order.objects.values('status').annotate(
-        count=Count('id'),
-        total=Sum('total')
-    ).order_by('-count')
-    
-    # Site Visitors (mock data - would need analytics integration)
+    # Site Visitors (mock data - available to all)
     total_visitors = 1250
     mobile_users = 750
     desktop_users = 500
     
-    # Inquiries Count
-    total_inquiries = ContactInquiry.objects.count()
-    unread_inquiries = ContactInquiry.objects.filter(is_read=False).count()
-    
-    # Stock Report
-    total_products = Product.objects.count()
-    low_stock_count = sum(1 for p in Product.objects.all() if p.stock_quantity < 10)
-    out_of_stock_count = sum(1 for p in Product.objects.all() if p.stock_quantity == 0)
-    
     context = {
+        'can_view_orders': can_view_orders,
+        'can_view_customers': can_view_customers,
+        'can_view_products': can_view_products,
+        'can_view_content': can_view_content,
         'total_orders': total_orders,
         'pending_orders': pending_orders,
         'delivered_orders': delivered_orders,
@@ -131,13 +165,20 @@ def panel_dashboard(request):
     return render(request, 'panel/dashboard.html', context)
 
 
-# ── Site Settings ─────────────────────────────────────────────────────────────
+
+# â”€â”€ Site Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('settings', 'view')
 def panel_settings(request):
     s = SiteSettings.get()
+    
+    # Check if user can edit when trying to save
     if request.method == 'POST':
+        if not (request.user.is_superuser or check_permission(request.user, 'settings', 'edit')):
+            messages.error(request, 'You do not have permission to edit settings.')
+            return redirect('panel_settings')
+        
         s.business_name = request.POST.get('business_name', '')
         s.tagline = request.POST.get('tagline', '')
         s.email = request.POST.get('email', '')
@@ -162,28 +203,56 @@ def panel_settings(request):
         s.save()
         messages.success(request, 'Settings saved.')
         return redirect('panel_settings')
-    return render(request, 'panel/settings.html', {'settings': s})
+    
+    # Pass permission info to template
+    can_edit = request.user.is_superuser or check_permission(request.user, 'settings', 'edit')
+    return render(request, 'panel/settings.html', {'settings': s, 'can_edit': can_edit})
 
 
-# ── Carousel ──────────────────────────────────────────────────────────────────
+# â”€â”€ Carousel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
+def panel_carousel(request):
+    slides = CarouselSlide.objects.all().order_by('order')
+    
+    can_create = request.user.is_superuser or check_permission(request.user, 'content', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
+    return render(request, 'panel/carousel.html', {
+        'slides': slides,
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
+
+@login_required(login_url='panel_login')
+@permission_required('content', 'view')
 def panel_carousel_add(request):
+    # Check create permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'create')):
+        messages.error(request, 'You do not have permission to create carousel slides.')
+        return redirect('panel_carousel')
     if request.method == 'POST':
         CarouselSlide.objects.create(
             title=request.POST['title'], image=request.FILES['image'],
             order=request.POST.get('order', 0), is_active=request.POST.get('is_active') == 'on',
         )
         messages.success(request, 'Slide added.')
-        return redirect('panel_dashboard')
+        return redirect('panel_carousel')
     return render(request, 'panel/carousel_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_carousel_edit(request, pk):
     slide = get_object_or_404(CarouselSlide, pk=pk)
+    
+    # Check edit permission when saving
     if request.method == 'POST':
+        if not (request.user.is_superuser or check_permission(request.user, 'content', 'edit')):
+            messages.error(request, 'You do not have permission to edit carousel slides.')
+            return redirect('panel_carousel')
         slide.title = request.POST['title']
         slide.order = request.POST.get('order', 0)
         slide.is_active = request.POST.get('is_active') == 'on'
@@ -191,32 +260,53 @@ def panel_carousel_edit(request, pk):
             slide.image = request.FILES['image']
         slide.save()
         messages.success(request, 'Slide updated.')
-        return redirect('panel_dashboard')
-    return render(request, 'panel/carousel_form.html', {'action': 'Edit', 'slide': slide})
+        return redirect('panel_carousel')
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    return render(request, 'panel/carousel_form.html', {'action': 'Edit', 'slide': slide, 'can_edit': can_edit})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_carousel_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete carousel slides.')
+        return redirect('panel_carousel')
+    
     get_object_or_404(CarouselSlide, pk=pk).delete()
     messages.success(request, 'Slide deleted.')
-    return redirect('panel_dashboard')
+    return redirect('panel_carousel')
 
 
-# ── Reels ─────────────────────────────────────────────────────────────────────
+# â”€â”€ Reels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_reels(request):
     from django.core.paginator import Paginator
     reels_list = Reel.objects.all()
     paginator = Paginator(reels_list, 10)
     page_number = request.GET.get('page', 1)
     reels = paginator.get_page(page_number)
-    return render(request, 'panel/reels.html', {'reels': reels})
+    
+    can_create = request.user.is_superuser or check_permission(request.user, 'content', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
+    return render(request, 'panel/reels.html', {
+        'reels': reels,
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_reel_add(request):
+    # Check create permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'create')):
+        messages.error(request, 'You do not have permission to create reels.')
+        return redirect('panel_reels')
     if request.method == 'POST':
         video_type = request.POST.get('video_type', 'upload')
         data = {
@@ -241,10 +331,15 @@ def panel_reel_add(request):
     return render(request, 'panel/reel_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_reel_edit(request, pk):
     reel = get_object_or_404(Reel, pk=pk)
+    
+    # Check edit permission when saving
     if request.method == 'POST':
+        if not (request.user.is_superuser or check_permission(request.user, 'content', 'edit')):
+            messages.error(request, 'You do not have permission to edit reels.')
+            return redirect('panel_reels')
         reel.title = request.POST['title']
         reel.video_type = request.POST.get('video_type', 'upload')
         reel.order = request.POST.get('order', 0)
@@ -265,27 +360,48 @@ def panel_reel_edit(request, pk):
         reel.save()
         messages.success(request, 'Reel updated.')
         return redirect('panel_reels')
-    return render(request, 'panel/reel_form.html', {'action': 'Edit', 'reel': reel})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    return render(request, 'panel/reel_form.html', {'action': 'Edit', 'reel': reel, 'can_edit': can_edit})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_reel_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete reels.')
+        return redirect('panel_reels')
+    
     get_object_or_404(Reel, pk=pk).delete()
     messages.success(request, 'Reel deleted.')
     return redirect('panel_reels')
 
 
-# ── Categories ────────────────────────────────────────────────────────────────
+# â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_categories(request):
     categories = Category.objects.prefetch_related('subcategories').all()
-    return render(request, 'panel/categories.html', {'categories': categories})
+    
+    can_create = request.user.is_superuser or check_permission(request.user, 'content', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
+    return render(request, 'panel/categories.html', {
+        'categories': categories,
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_category_add(request):
+    # Check create permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'create')):
+        messages.error(request, 'You do not have permission to create categories.')
+        return redirect('panel_categories')
     if request.method == 'POST':
         Category.objects.create(
             name=request.POST['name'], icon=request.FILES['icon'],
@@ -297,10 +413,15 @@ def panel_category_add(request):
     return render(request, 'panel/category_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_category_edit(request, pk):
     category = get_object_or_404(Category, pk=pk)
+    
+    # Check edit permission when saving
     if request.method == 'POST':
+        if not (request.user.is_superuser or check_permission(request.user, 'content', 'edit')):
+            messages.error(request, 'You do not have permission to edit categories.')
+            return redirect('panel_categories')
         category.name = request.POST['name']
         category.link = request.POST.get('link', '/')
         category.order = request.POST.get('order', 0)
@@ -310,26 +431,33 @@ def panel_category_edit(request, pk):
         category.save()
         messages.success(request, 'Category updated.')
         return redirect('panel_categories')
-    return render(request, 'panel/category_form.html', {'action': 'Edit', 'category': category})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    return render(request, 'panel/category_form.html', {'action': 'Edit', 'category': category, 'can_edit': can_edit})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_category_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete categories.')
+        return redirect('panel_categories')
+    
     get_object_or_404(Category, pk=pk).delete()
     messages.success(request, 'Category deleted.')
     return redirect('panel_categories')
 
 
-# ── Sub Categories ────────────────────────────────────────────────────────────
+# â”€â”€ Sub Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_subcategories(request, cat_pk):
     category = get_object_or_404(Category, pk=cat_pk)
     return render(request, 'panel/subcategories.html', {'category': category, 'subs': category.subcategories.all()})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'create')
 def panel_subcategory_add(request, cat_pk):
     category = get_object_or_404(Category, pk=cat_pk)
     if request.method == 'POST':
@@ -343,7 +471,7 @@ def panel_subcategory_add(request, cat_pk):
     return render(request, 'panel/subcategory_form.html', {'action': 'Add', 'category': category})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'edit')
 def panel_subcategory_edit(request, cat_pk, pk):
     category = get_object_or_404(Category, pk=cat_pk)
     sub = get_object_or_404(SubCategory, pk=pk, category=category)
@@ -357,31 +485,31 @@ def panel_subcategory_edit(request, cat_pk, pk):
     return render(request, 'panel/subcategory_form.html', {'action': 'Edit', 'category': category, 'sub': sub})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'delete')
 def panel_subcategory_delete(request, cat_pk, pk):
     get_object_or_404(SubCategory, pk=pk, category_id=cat_pk).delete()
     messages.success(request, 'Sub-category deleted.')
     return redirect('panel_subcategories', cat_pk=cat_pk)
 
 
-# ── Product Detail ────────────────────────────────────────────────────────────
+# â”€â”€ Product Detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'view')
 def panel_product_detail(request, pk):
-    product = get_object_or_404(Product.objects.select_related('category', 'sub_category').prefetch_related('images', 'tier_prices__tier', 'related_products'), pk=pk)
+    product = get_object_or_404(Product.objects.select_related('category', 'sub_category', 'linked_package').prefetch_related('images', 'tier_prices__tier', 'related_products', 'linked_package__items__product'), pk=pk)
     return render(request, 'panel/product_detail.html', {'product': product})
 
 
-# ── Countries ─────────────────────────────────────────────────────────────────
+# â”€â”€ Countries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'view')
 def panel_countries(request):
     return render(request, 'panel/countries.html', {'countries': Country.objects.all()})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'edit')
 def panel_country_save(request, pk=None):
     country = get_object_or_404(Country, pk=pk) if pk else None
     if request.method == 'POST':
@@ -397,22 +525,31 @@ def panel_country_save(request, pk=None):
     return render(request, 'panel/country_form.html', {'action': 'Edit' if country else 'Add', 'country': country})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'delete')
 def panel_country_delete(request, pk):
     get_object_or_404(Country, pk=pk).delete()
     messages.success(request, 'Country deleted.')
     return redirect('panel_countries')
 
 
-# ── Customer Tiers ────────────────────────────────────────────────────────────
+# â”€â”€ Customer Tiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'view')
 def panel_tiers(request):
-    return render(request, 'panel/tiers.html', {'tiers': CustomerTier.objects.all()})
+    can_create = request.user.is_superuser or check_permission(request.user, 'customers', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'customers', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'customers', 'delete')
+    
+    return render(request, 'panel/tiers.html', {
+        'tiers': CustomerTier.objects.all(),
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'create')
 def panel_tier_add(request):
     if request.method == 'POST':
         CustomerTier.objects.create(
@@ -424,7 +561,7 @@ def panel_tier_add(request):
     return render(request, 'panel/tier_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'edit')
 def panel_tier_edit(request, pk):
     tier = get_object_or_404(CustomerTier, pk=pk)
     if request.method == 'POST':
@@ -438,28 +575,99 @@ def panel_tier_edit(request, pk):
     return render(request, 'panel/tier_form.html', {'action': 'Edit', 'tier': tier})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'delete')
 def panel_tier_delete(request, pk):
     get_object_or_404(CustomerTier, pk=pk).delete()
     messages.success(request, 'Tier deleted.')
     return redirect('panel_tiers')
 
 
-# ── Customers ─────────────────────────────────────────────────────────────────
+# ── Delivery Time Tiers ──────────────────────────────────────────────────────
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('settings', 'view')
+def panel_delivery_times(request):
+    can_create = request.user.is_superuser or check_permission(request.user, 'settings', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'settings', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'settings', 'delete')
+    
+    return render(request, 'panel/delivery_times.html', {
+        'delivery_times': DeliveryTimeTier.objects.all(),
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
+
+@login_required(login_url='panel_login')
+@permission_required('settings', 'create')
+def panel_delivery_time_add(request):
+    if request.method == 'POST':
+        DeliveryTimeTier.objects.create(
+            name=request.POST['name'],
+            min_time=request.POST['min_time'],
+            min_unit=request.POST['min_unit'],
+            max_time=request.POST['max_time'],
+            max_unit=request.POST['max_unit'],
+            description=request.POST.get('description', ''),
+            order=request.POST.get('order', 0),
+            is_active=request.POST.get('is_active') == 'on',
+        )
+        messages.success(request, 'Delivery time tier added.')
+        return redirect('panel_delivery_times')
+    return render(request, 'panel/delivery_time_form.html', {'action': 'Add'})
+
+@login_required(login_url='panel_login')
+@permission_required('settings', 'edit')
+def panel_delivery_time_edit(request, pk):
+    delivery_time = get_object_or_404(DeliveryTimeTier, pk=pk)
+    if request.method == 'POST':
+        delivery_time.name = request.POST['name']
+        delivery_time.min_time = request.POST['min_time']
+        delivery_time.min_unit = request.POST['min_unit']
+        delivery_time.max_time = request.POST['max_time']
+        delivery_time.max_unit = request.POST['max_unit']
+        delivery_time.description = request.POST.get('description', '')
+        delivery_time.order = request.POST.get('order', 0)
+        delivery_time.is_active = request.POST.get('is_active') == 'on'
+        delivery_time.save()
+        messages.success(request, 'Delivery time tier updated.')
+        return redirect('panel_delivery_times')
+    return render(request, 'panel/delivery_time_form.html', {'action': 'Edit', 'delivery_time': delivery_time})
+
+@login_required(login_url='panel_login')
+@permission_required('settings', 'delete')
+def panel_delivery_time_delete(request, pk):
+    get_object_or_404(DeliveryTimeTier, pk=pk).delete()
+    messages.success(request, 'Delivery time tier deleted.')
+    return redirect('panel_delivery_times')
+
+
+# â”€â”€ Customers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+@login_required(login_url='panel_login')
+@permission_required('customers', 'view')
 def panel_customers(request):
-    return render(request, 'panel/customers.html', {'customers': Customer.objects.select_related('tier').all()})
+    can_create = request.user.is_superuser or check_permission(request.user, 'customers', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'customers', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'customers', 'delete')
+    
+    return render(request, 'panel/customers.html', {
+        'customers': Customer.objects.select_related('tier').all(),
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'create')
 def panel_customer_add(request):
     tiers = CustomerTier.objects.filter(is_active=True)
     if request.method == 'POST':
         Customer.objects.create(
             name=request.POST['name'], email=request.POST['email'],
-            phone=request.POST.get('phone', ''), company=request.POST.get('company', ''),
+            phone=request.POST.get('phone', ''), 
+            pan_number=request.POST.get('pan_number', '').upper(),
+            company=request.POST.get('company', ''),
             address=request.POST.get('address', ''),
             tier_id=request.POST.get('tier') or None,
             is_active=request.POST.get('is_active') == 'on',
@@ -469,7 +677,7 @@ def panel_customer_add(request):
     return render(request, 'panel/customer_form.html', {'action': 'Add', 'tiers': tiers})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'edit')
 def panel_customer_edit(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     tiers = CustomerTier.objects.filter(is_active=True)
@@ -477,6 +685,7 @@ def panel_customer_edit(request, pk):
         customer.name = request.POST['name']
         customer.email = request.POST['email']
         customer.phone = request.POST.get('phone', '')
+        customer.pan_number = request.POST.get('pan_number', '').upper()
         customer.company = request.POST.get('company', '')
         customer.address = request.POST.get('address', '')
         customer.tier_id = request.POST.get('tier') or None
@@ -487,17 +696,17 @@ def panel_customer_edit(request, pk):
     return render(request, 'panel/customer_form.html', {'action': 'Edit', 'customer': customer, 'tiers': tiers})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('customers', 'delete')
 def panel_customer_delete(request, pk):
     get_object_or_404(Customer, pk=pk).delete()
     messages.success(request, 'Customer deleted.')
     return redirect('panel_customers')
 
 
-# ── Products ──────────────────────────────────────────────────────────────────
+# â”€â”€ Products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'view')
 def panel_products(request):
     from django.core.paginator import Paginator
     from django.db.models import Q
@@ -542,6 +751,10 @@ def panel_products(request):
     products = paginator.get_page(page)
     categories = Category.objects.filter(is_active=True).values('id', 'name').order_by('name')
     
+    can_create = request.user.is_superuser or check_permission(request.user, 'products', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'products', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'products', 'delete')
+    
     return render(request, 'panel/products.html', {
         'products': products,
         'categories': list(categories),
@@ -550,18 +763,24 @@ def panel_products(request):
         'status': status,
         'limit': limit,
         'total_count': paginator.count,
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
     })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'create')
 def panel_product_add(request):
     categories = Category.objects.prefetch_related('subcategories').filter(is_active=True)
     tiers = CustomerTier.objects.filter(is_active=True)
     all_products = Product.objects.all()
     countries = Country.objects.all()
+    delivery_times = DeliveryTimeTier.objects.filter(is_active=True)
+    packages = Package.objects.filter(is_active=True)
     if request.method == 'POST':
         product = Product.objects.create(
             name=request.POST['name'], sku=request.POST['sku'],
+            product_code=request.POST.get('product_code', ''),
             brand=request.POST.get('brand', ''), origin_id=request.POST.get('origin') or None,
             category_id=request.POST.get('category') or None,
             sub_category_id=request.POST.get('sub_category') or None,
@@ -571,6 +790,8 @@ def panel_product_add(request):
             mrp=request.POST['mrp'],
             tax_included=request.POST.get('tax_included') == 'on',
             tax_percent=request.POST.get('tax_percent') or 0,
+            delivery_time_id=request.POST.get('delivery_time') or None,
+            linked_package_id=request.POST.get('linked_package') or None,
             is_active=request.POST.get('is_active') == 'on',
             is_featured=request.POST.get('is_featured') == 'on',
         )
@@ -592,21 +813,24 @@ def panel_product_add(request):
         return redirect('panel_products')
     return render(request, 'panel/product_form.html', {
         'action': 'Add', 'categories': categories, 'tiers': tiers,
-        'all_products': all_products, 'countries': countries,
+        'all_products': all_products, 'countries': countries, 'delivery_times': delivery_times, 'packages': packages,
     })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'edit')
 def panel_product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
     categories = Category.objects.prefetch_related('subcategories').filter(is_active=True)
     tiers = CustomerTier.objects.filter(is_active=True)
     all_products = Product.objects.exclude(pk=pk)
     countries = Country.objects.all()
+    delivery_times = DeliveryTimeTier.objects.filter(is_active=True)
+    packages = Package.objects.filter(is_active=True)
     tier_prices = {tp.tier_id: tp.price for tp in product.tier_prices.all()}
     if request.method == 'POST':
         product.name = request.POST['name']
         product.sku = request.POST['sku']
+        product.product_code = request.POST.get('product_code', '')
         product.brand = request.POST.get('brand', '')
         product.origin_id = request.POST.get('origin') or None
         product.category_id = request.POST.get('category') or None
@@ -617,6 +841,8 @@ def panel_product_edit(request, pk):
         product.mrp = request.POST['mrp']
         product.tax_included = request.POST.get('tax_included') == 'on'
         product.tax_percent = request.POST.get('tax_percent') or 0
+        product.delivery_time_id = request.POST.get('delivery_time') or None
+        product.linked_package_id = request.POST.get('linked_package') or None
         product.is_active = request.POST.get('is_active') == 'on'
         product.is_featured = request.POST.get('is_featured') == 'on'
         product.save()
@@ -637,11 +863,11 @@ def panel_product_edit(request, pk):
         return redirect('panel_products')
     return render(request, 'panel/product_form.html', {
         'action': 'Edit', 'product': product, 'categories': categories,
-        'tiers': tiers, 'tier_prices': tier_prices, 'all_products': all_products, 'countries': countries,
+        'tiers': tiers, 'tier_prices': tier_prices, 'all_products': all_products, 'countries': countries, 'delivery_times': delivery_times, 'packages': packages,
     })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'delete')
 def panel_product_delete(request, pk):
     get_object_or_404(Product, pk=pk).delete()
     messages.success(request, 'Product deleted.')
@@ -649,7 +875,7 @@ def panel_product_delete(request, pk):
 
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('products', 'create')
 def panel_products_import(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         import openpyxl
@@ -769,10 +995,10 @@ def panel_products_import(request):
     })
 
 
-# ── Stock ─────────────────────────────────────────────────────────────────────
+# â”€â”€ Stock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('stock', 'edit')
 def panel_stock(request, pk):
     product = get_object_or_404(Product, pk=pk)
     entries = product.stock_entries.select_related('customer').all()
@@ -807,19 +1033,30 @@ def panel_stock(request, pk):
     })
 
 
-# ── Services ──────────────────────────────────────────────────────────────────
+# â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_services(request):
+    can_create = request.user.is_superuser or check_permission(request.user, 'content', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
     return render(request, 'panel/services.html', {
         'services': Service.objects.all(),
         'why_items': WhyChooseUs.objects.all(),
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
     })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_service_add(request):
+    # Check create permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'create')):
+        messages.error(request, 'You do not have permission to create services.')
+        return redirect('panel_services')
     if request.method == 'POST':
         Service.objects.create(
             title=request.POST['title'], description=request.POST['description'],
@@ -832,10 +1069,15 @@ def panel_service_add(request):
     return render(request, 'panel/service_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_service_edit(request, pk):
     service = get_object_or_404(Service, pk=pk)
+    
+    # Check edit permission when saving
     if request.method == 'POST':
+        if not (request.user.is_superuser or check_permission(request.user, 'content', 'edit')):
+            messages.error(request, 'You do not have permission to edit services.')
+            return redirect('panel_services')
         service.title = request.POST['title']
         service.description = request.POST['description']
         service.icon = request.POST.get('icon', '')
@@ -846,20 +1088,27 @@ def panel_service_edit(request, pk):
         service.save()
         messages.success(request, 'Service updated.')
         return redirect('panel_services')
-    return render(request, 'panel/service_form.html', {'action': 'Edit', 'service': service})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    return render(request, 'panel/service_form.html', {'action': 'Edit', 'service': service, 'can_edit': can_edit})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_service_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete services.')
+        return redirect('panel_services')
+    
     get_object_or_404(Service, pk=pk).delete()
     messages.success(request, 'Service deleted.')
     return redirect('panel_services')
 
 
-# ── Why Choose Us ─────────────────────────────────────────────────────────────
+# â”€â”€ Why Choose Us â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'create')
 def panel_why_add(request):
     if request.method == 'POST':
         WhyChooseUs.objects.create(
@@ -872,7 +1121,7 @@ def panel_why_add(request):
     return render(request, 'panel/why_form.html', {'action': 'Add'})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'edit')
 def panel_why_edit(request, pk):
     item = get_object_or_404(WhyChooseUs, pk=pk)
     if request.method == 'POST':
@@ -887,31 +1136,44 @@ def panel_why_edit(request, pk):
     return render(request, 'panel/why_form.html', {'action': 'Edit', 'item': item})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'delete')
 def panel_why_delete(request, pk):
     get_object_or_404(WhyChooseUs, pk=pk).delete()
     messages.success(request, 'Item deleted.')
     return redirect('panel_services')
 
 
-# ── About Page ────────────────────────────────────────────────────────────────
+# â”€â”€ About Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_about(request):
+    can_create = request.user.is_superuser or check_permission(request.user, 'content', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'content', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
     return render(request, 'panel/about.html', {
         'stats': Stat.objects.all(),
         'trusted_clients': TrustedClient.objects.all(),
         'testimonials': Testimonial.objects.all(),
         'team': TeamMember.objects.all(),
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
     })
 
 # Stats
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_stat_save(request, pk=None):
     stat = get_object_or_404(Stat, pk=pk) if pk else None
+    
+    # Check create/edit permission
     if request.method == 'POST':
+        required_perm = 'edit' if stat else 'create'
+        if not (request.user.is_superuser or check_permission(request.user, 'content', required_perm)):
+            messages.error(request, f'You do not have permission to {required_perm} stats.')
+            return redirect('panel_about')
         data = dict(value=request.POST['value'], label=request.POST['label'],
                     order=request.POST.get('order', 0), is_active=request.POST.get('is_active') == 'on')
         if stat:
@@ -924,15 +1186,20 @@ def panel_stat_save(request, pk=None):
     return render(request, 'panel/stat_form.html', {'action': 'Edit' if stat else 'Add', 'stat': stat})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_stat_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete stats.')
+        return redirect('panel_about')
+    
     get_object_or_404(Stat, pk=pk).delete()
     messages.success(request, 'Stat deleted.')
     return redirect('panel_about')
 
 # Trusted Clients
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'edit')
 def panel_trusted_save(request, pk=None):
     obj = get_object_or_404(TrustedClient, pk=pk) if pk else None
     if request.method == 'POST':
@@ -950,15 +1217,20 @@ def panel_trusted_save(request, pk=None):
     return render(request, 'panel/trusted_form.html', {'action': 'Edit' if obj else 'Add', 'obj': obj})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_trusted_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete clients.')
+        return redirect('panel_about')
+    
     get_object_or_404(TrustedClient, pk=pk).delete()
     messages.success(request, 'Client deleted.')
     return redirect('panel_about')
 
 # Testimonials
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'edit')
 def panel_testimonial_save(request, pk=None):
     obj = get_object_or_404(Testimonial, pk=pk) if pk else None
     if request.method == 'POST':
@@ -977,15 +1249,20 @@ def panel_testimonial_save(request, pk=None):
     return render(request, 'panel/testimonial_form.html', {'action': 'Edit' if obj else 'Add', 'obj': obj})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_testimonial_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete testimonials.')
+        return redirect('panel_about')
+    
     get_object_or_404(Testimonial, pk=pk).delete()
     messages.success(request, 'Testimonial deleted.')
     return redirect('panel_about')
 
 # Team Members
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'edit')
 def panel_team_save(request, pk=None):
     obj = get_object_or_404(TeamMember, pk=pk) if pk else None
     if request.method == 'POST':
@@ -1004,44 +1281,69 @@ def panel_team_save(request, pk=None):
     return render(request, 'panel/team_form.html', {'action': 'Edit' if obj else 'Add', 'obj': obj})
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_team_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete team members.')
+        return redirect('panel_about')
+    
     get_object_or_404(TeamMember, pk=pk).delete()
     messages.success(request, 'Team member deleted.')
     return redirect('panel_about')
 
 
-# ── Contact Inquiries ─────────────────────────────────────────────────────────
+# â”€â”€ Contact Inquiries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_inquiries(request):
     inquiries = ContactInquiry.objects.all()
     # mark as read when viewed
     inquiries.filter(is_read=False).update(is_read=True)
-    return render(request, 'panel/inquiries.html', {'inquiries': inquiries})
+    
+    can_delete = request.user.is_superuser or check_permission(request.user, 'content', 'delete')
+    
+    return render(request, 'panel/inquiries.html', {
+        'inquiries': inquiries,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('content', 'view')
 def panel_inquiry_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete inquiries.')
+        return redirect('panel_inquiries')
+    
     get_object_or_404(ContactInquiry, pk=pk).delete()
     messages.success(request, 'Inquiry deleted.')
     return redirect('panel_inquiries')
 
 
-# ── Quote Requests ────────────────────────────────────────────────────────────
+# â”€â”€ Quote Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 from .models import QuoteRequest as QuoteRequestModel, QuotationRequest, QuotationRequestItem
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('quotations', 'view')
 def panel_quotes(request):
     quotations = QuotationRequest.objects.select_related('linked_customer__tier').prefetch_related('items__product__tier_prices__tier').all()
     tiers = CustomerTier.objects.filter(is_active=True)
-    return render(request, 'panel/quotations.html', {'quotations': quotations, 'tiers': tiers})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'quotations', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'quotations', 'delete')
+    
+    return render(request, 'panel/quotations.html', {
+        'quotations': quotations,
+        'tiers': tiers,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('quotations', 'edit')
 def panel_quote_update(request, pk):
     quotation = get_object_or_404(QuotationRequest, pk=pk)
     if request.method == 'POST':
@@ -1052,7 +1354,7 @@ def panel_quote_update(request, pk):
     return redirect('panel_quotes')
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('quotations', 'edit')
 def panel_quote_create_customer(request, pk):
     quotation = get_object_or_404(QuotationRequest, pk=pk)
     tiers = CustomerTier.objects.filter(is_active=True)
@@ -1086,28 +1388,37 @@ def panel_quote_create_customer(request, pk):
     })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('quotations', 'delete')
 def panel_quote_delete(request, pk):
     get_object_or_404(QuotationRequest, pk=pk).delete()
     messages.success(request, 'Quotation deleted.')
     return redirect('panel_quotes')
 
 
-# ── Orders ────────────────────────────────────────────────────────────────────
+# â”€â”€ Orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('orders', 'view')
 def panel_orders(request):
     from django.core.paginator import Paginator
     orders_list = Order.objects.select_related('user').prefetch_related('items').order_by('-created_at')
     paginator = Paginator(orders_list, 20)
     page_number = request.GET.get('page', 1)
     orders = paginator.get_page(page_number)
-    return render(request, 'panel/orders.html', {'orders': orders})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
+    
+    return render(request, 'panel/orders.html', {
+        'orders': orders,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('orders', 'edit')
 def panel_order_detail(request, pk):
+    from .models import ProductReview
     order = get_object_or_404(Order.objects.select_related('user').prefetch_related('items__product'), pk=pk)
     if request.method == 'POST':
         old_status = order.status
@@ -1127,13 +1438,807 @@ def panel_order_detail(request, pk):
                     )
         messages.success(request, 'Order status updated.')
         return redirect('panel_order_detail', pk=pk)
-    return render(request, 'panel/order_detail.html', {'order': order})
+    
+    # Get reviews for delivered orders
+    items_with_reviews = []
+    for item in order.items.all():
+        review = None
+        if item.product and order.status == 'delivered':
+            review = ProductReview.objects.filter(product=item.product, user=order.user, order=order).first()
+        items_with_reviews.append({'item': item, 'review': review})
+    
+    can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
+    
+    return render(request, 'panel/order_detail.html', {
+        'order': order,
+        'items_with_reviews': items_with_reviews,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
 
 @login_required(login_url='panel_login')
-@user_passes_test(is_superuser, login_url='panel_login')
+@permission_required('orders', 'delete')
 def panel_order_delete(request, pk):
     order = get_object_or_404(Order, pk=pk)
     order_number = order.order_number
     order.delete()
     messages.success(request, f'Order {order_number} deleted.')
     return redirect('panel_orders')
+
+
+# â”€â”€ User Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'view')
+def panel_users(request):
+    from django.core.paginator import Paginator
+    search = request.GET.get('search', '').strip()
+    role_id = request.GET.get('role', '').strip()
+    page = request.GET.get('page', 1)
+    
+    qs = CustomerUser.objects.select_related('role').filter(is_staff=True)
+    
+    if search:
+        qs = qs.filter(username__icontains=search) | qs.filter(email__icontains=search)
+    
+    if role_id:
+        try:
+            qs = qs.filter(role_id=int(role_id))
+        except:
+            pass
+    
+    qs = qs.order_by('-date_joined')
+    
+    paginator = Paginator(qs, 20)
+    users = paginator.get_page(page)
+    roles = Role.objects.all()
+    
+    can_create = request.user.is_superuser or check_permission(request.user, 'users', 'create')
+    can_edit = request.user.is_superuser or check_permission(request.user, 'users', 'edit')
+    can_delete = request.user.is_superuser or check_permission(request.user, 'users', 'delete')
+    
+    return render(request, 'panel/users.html', {
+        'users': users,
+        'roles': list(roles),
+        'search': search,
+        'role_id': role_id,
+        'total_count': paginator.count,
+        'can_create': can_create,
+        'can_edit': can_edit,
+        'can_delete': can_delete,
+    })
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'create')
+def panel_user_add(request):
+    roles = Role.objects.all()
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        role_id = request.POST.get('role') or None
+        is_staff = request.POST.get('is_staff') == 'on'
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if not username or not email or not password:
+            messages.error(request, 'Username, email, and password are required.')
+            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+        
+        if CustomerUser.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+        
+        if CustomerUser.objects.filter(email=email).exists():
+            messages.error(request, 'Email already exists.')
+            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+        
+        user = CustomerUser.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            role_id=role_id,
+            is_staff=is_staff,
+            is_active=is_active,
+            is_superuser=False,  # Don't auto-make superuser
+        )
+        messages.success(request, f'User "{username}" created successfully.')
+        return redirect('panel_users')
+    
+    return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'edit')
+def panel_user_edit(request, pk):
+    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    roles = Role.objects.all()
+    
+    if request.method == 'POST':
+        user.email = request.POST.get('email', user.email).strip()
+        user.first_name = request.POST.get('first_name', '').strip()
+        user.last_name = request.POST.get('last_name', '').strip()
+        user.phone = request.POST.get('phone', '').strip()
+        user.role_id = request.POST.get('role') or None
+        user.is_staff = request.POST.get('is_staff') == 'on'
+        user.is_active = request.POST.get('is_active') == 'on'
+        user.is_superuser = False  # Don't auto-make superuser
+        
+        password = request.POST.get('password', '').strip()
+        if password:
+            user.set_password(password)
+        
+        user.save()
+        messages.success(request, f'User "{user.username}" updated successfully.')
+        return redirect('panel_users')
+    
+    return render(request, 'panel/user_form.html', {'action': 'Edit', 'user': user, 'roles': roles})
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'delete')
+def panel_user_delete(request, pk):
+    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    username = user.username
+    user.delete()
+    messages.success(request, f'User "{username}" deleted.')
+    return redirect('panel_users')
+
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'view')
+def panel_roles(request):
+    can_edit = request.user.is_superuser or check_permission(request.user, 'users', 'edit')
+    
+    roles = Role.objects.prefetch_related('permissions').all()
+    return render(request, 'panel/roles.html', {
+        'roles': roles,
+        'can_edit': can_edit,
+    })
+
+@login_required(login_url='panel_login')
+@permission_required('users', 'edit')
+def panel_role_edit(request, pk):
+    role = get_object_or_404(Role, pk=pk)
+    permissions = role.permissions.all()
+    all_modules = Permission.MODULE_CHOICES
+    all_actions = Permission.ACTION_CHOICES
+    
+    if request.method == 'POST':
+        role.description = request.POST.get('description', '')
+        role.save()
+        
+        # Update permissions
+        selected_perms = request.POST.getlist('permissions')
+        role.permissions.all().delete()
+        
+        for perm_str in selected_perms:
+            try:
+                module, action = perm_str.split('|')
+                Permission.objects.create(role=role, module=module, action=action)
+            except:
+                pass
+        
+        messages.success(request, f'Role "{role.get_name_display()}" updated.')
+        return redirect('panel_roles')
+    
+    current_perms = set(f"{p.module}|{p.action}" for p in permissions)
+    
+    return render(request, 'panel/role_edit.html', {
+        'role': role,
+        'all_modules': all_modules,
+        'all_actions': all_actions,
+        'current_perms': current_perms,
+    })
+
+
+from django.http import JsonResponse
+
+
+# ── POS Billing ───────────────────────────────────────────────────────────────
+
+from .models import Billing, BillingItem
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'create')
+def panel_billing(request):
+    import json as _json
+    from django.db.models import Sum, Count, Q
+    from django.core.paginator import Paginator
+
+    # ── POST: create a bill ──────────────────────────────────────────────────
+    if request.method == 'POST':
+        try:
+            data = _json.loads(request.body)
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Invalid JSON'})
+
+        items_data = data.get('items', [])
+        if not items_data:
+            return JsonResponse({'ok': False, 'error': 'No items'})
+
+        sale_type        = data.get('sale_type', 'counter')
+        customer_id      = data.get('customer_id') or None
+        walk_in_name     = data.get('walk_in_name', '').strip()
+        walk_in_phone    = data.get('walk_in_phone', '').strip()
+        agent_id         = data.get('agent_id') or None
+        overall_discount = abs(float(data.get('overall_discount', 0)))
+        cash_amount      = abs(float(data.get('cash_amount', 0)))
+        card_amount      = abs(float(data.get('card_amount', 0)))
+        online_amount    = abs(float(data.get('online_amount', 0)))
+        note             = data.get('note', '').strip()
+
+        subtotal = 0
+        item_discount_total = 0
+        bill_items = []
+
+        for it in items_data:
+            product = Product.objects.filter(pk=it.get('product_id'), is_active=True).first()
+            if not product:
+                return JsonResponse({'ok': False, 'error': f"Product {it.get('product_id')} not found"})
+            qty      = max(1, int(it.get('qty', 1)))
+            price    = float(it.get('unit_price', float(product.mrp)))
+            discount = abs(float(it.get('discount', 0)))
+            line_sub = price * qty
+            subtotal += line_sub
+            item_discount_total += discount
+            bill_items.append({
+                'product': product, 'qty': qty,
+                'price': price, 'discount': discount,
+            })
+
+        total       = max(0, subtotal - item_discount_total - overall_discount)
+        amount_paid = cash_amount + card_amount + online_amount
+        if amount_paid >= total:
+            pay_status = 'paid'
+        elif amount_paid > 0:
+            pay_status = 'partial'
+        else:
+            pay_status = 'unpaid'
+
+        bill = Billing.objects.create(
+            sale_type=sale_type,
+            customer_id=customer_id,
+            walk_in_name=walk_in_name,
+            walk_in_phone=walk_in_phone,
+            agent_id=agent_id,
+            billed_by=request.user,
+            subtotal=subtotal,
+            item_discount=item_discount_total,
+            overall_discount=overall_discount,
+            total=total,
+            cash_amount=cash_amount,
+            card_amount=card_amount,
+            online_amount=online_amount,
+            amount_paid=amount_paid,
+            payment_status=pay_status,
+            note=note,
+        )
+
+        for it in bill_items:
+            BillingItem.objects.create(
+                billing=bill,
+                product=it['product'],
+                product_name=it['product'].name,
+                product_sku=it['product'].sku,
+                unit_price=it['price'],
+                quantity=it['qty'],
+                discount=it['discount'],
+            )
+            # deduct stock
+            StockEntry.objects.create(
+                product=it['product'],
+                entry_type='sale',
+                quantity_change=-it['qty'],
+                unit_price=it['price'],
+                note=f'POS Bill #{bill.bill_number}',
+            )
+
+        return JsonResponse({'ok': True, 'bill_number': bill.bill_number, 'bill_id': bill.pk})
+
+    # ── GET: render POS page ─────────────────────────────────────────────────
+    # Products JSON for POS grid
+    products_qs = Product.objects.filter(is_active=True).select_related('category').prefetch_related('images', 'tier_prices__tier')
+    products_data = []
+    for p in products_qs:
+        img = p.primary_image
+        tier_prices = {tp.tier_id: float(tp.price) for tp in p.tier_prices.all()}
+        products_data.append({
+            'id': p.pk, 'name': p.name, 'sku': p.sku,
+            'mrp': float(p.mrp),
+            'stock': p.stock_quantity,
+            'category': p.category.name if p.category else '',
+            'category_id': p.category_id or 0,
+            'image': img.image.url if img else '',
+            'tier_prices': tier_prices,
+        })
+
+    customers_qs = Customer.objects.filter(is_active=True).select_related('tier')
+    customers_data = [{
+        'id': c.pk, 'name': c.name, 'phone': c.phone, 'email': c.email,
+        'tier_id': c.tier_id, 'tier_name': c.tier.name if c.tier else '',
+    } for c in customers_qs]
+
+    agents_data = [{
+        'id': a.pk,
+        'name': (a.get_full_name() or a.username),
+        'referral_code': a.referral_code or '',
+    } for a in CustomerUser.objects.filter(user_type='agent', is_active=True)]
+
+    categories = list(Category.objects.filter(is_active=True).values('id', 'name').order_by('name'))
+
+    # ── Bills table (paginated, filtered) ────────────────────────────────────
+    bills_qs = Billing.objects.select_related('customer', 'agent', 'billed_by').order_by('-created_at')
+
+    f_search      = request.GET.get('search', '').strip()
+    f_sale_type   = request.GET.get('sale_type', '').strip()
+    f_pay_status  = request.GET.get('pay_status', '').strip()
+    f_date_from   = request.GET.get('date_from', '').strip()
+    f_date_to     = request.GET.get('date_to', '').strip()
+    page          = request.GET.get('page', 1)
+    limit         = int(request.GET.get('limit', 20))
+
+    if f_search:
+        bills_qs = bills_qs.filter(
+            Q(bill_number__icontains=f_search) |
+            Q(walk_in_name__icontains=f_search) |
+            Q(customer__name__icontains=f_search)
+        )
+    if f_sale_type:
+        bills_qs = bills_qs.filter(sale_type=f_sale_type)
+    if f_pay_status:
+        bills_qs = bills_qs.filter(payment_status=f_pay_status)
+    if f_date_from:
+        bills_qs = bills_qs.filter(created_at__date__gte=f_date_from)
+    if f_date_to:
+        bills_qs = bills_qs.filter(created_at__date__lte=f_date_to)
+
+    paginator   = Paginator(bills_qs, limit)
+    bills_page  = paginator.get_page(page)
+
+    # ── Stats (unfiltered totals) ─────────────────────────────────────────────
+    stats = Billing.objects.aggregate(
+        total_bills=Count('id'),
+        total_revenue=Sum('total'),
+        total_paid=Sum('amount_paid'),
+    )
+
+    return render(request, 'panel/billing.html', {
+        'products_json':  _json.dumps(products_data),
+        'customers_json': _json.dumps(customers_data),
+        'agents_json':    _json.dumps(agents_data),
+        'categories_json': _json.dumps(categories),
+        'bills':          bills_page,
+        'paginator':      paginator,
+        'stats':          stats,
+        'f_search':       f_search,
+        'f_sale_type':    f_sale_type,
+        'f_pay_status':   f_pay_status,
+        'f_date_from':    f_date_from,
+        'f_date_to':      f_date_to,
+        'limit':          limit,
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def panel_billing_view(request, pk):
+    bill = get_object_or_404(
+        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product'),
+        pk=pk
+    )
+    settings = SiteSettings.get()
+    return render(request, 'panel/billing_invoice.html', {
+        'bill': bill,
+        'settings': settings,
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def panel_billing_detail(request, pk):
+    bill = get_object_or_404(
+        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product'),
+        pk=pk
+    )
+    return JsonResponse({
+        'bill_number': bill.bill_number,
+        'sale_type': bill.get_sale_type_display(),
+        'customer': bill.customer.name if bill.customer else bill.walk_in_name or 'Walk-in',
+        'phone': bill.customer.phone if bill.customer else bill.walk_in_phone,
+        'agent': (bill.agent.get_full_name() or bill.agent.username) if bill.agent else '',
+        'billed_by': (bill.billed_by.get_full_name() or bill.billed_by.username) if bill.billed_by else '',
+        'subtotal': float(bill.subtotal),
+        'item_discount': float(bill.item_discount),
+        'overall_discount': float(bill.overall_discount),
+        'total': float(bill.total),
+        'cash_amount': float(bill.cash_amount),
+        'card_amount': float(bill.card_amount),
+        'online_amount': float(bill.online_amount),
+        'amount_paid': float(bill.amount_paid),
+        'balance_due': float(bill.balance_due),
+        'payment_status': bill.payment_status,
+        'note': bill.note,
+        'created_at': bill.created_at.strftime('%d %b %Y, %H:%M'),
+        'items': [{
+            'name': i.product_name, 'sku': i.product_sku,
+            'qty': i.quantity, 'unit_price': float(i.unit_price),
+            'discount': float(i.discount), 'subtotal': float(i.subtotal),
+        } for i in bill.items.all()],
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def api_billing_products(request):
+    """Search products for POS — returns JSON."""
+    q = request.GET.get('q', '').strip()
+    customer_id = request.GET.get('customer_id')
+    tier_id = None
+    if customer_id:
+        c = Customer.objects.filter(pk=customer_id).select_related('tier').first()
+        if c and c.tier_id:
+            tier_id = c.tier_id
+
+    qs = Product.objects.filter(is_active=True).prefetch_related('images', 'tier_prices__tier')
+    if q:
+        from django.db.models import Q as DQ
+        qs = qs.filter(DQ(name__icontains=q) | DQ(sku__icontains=q))
+    results = []
+    for p in qs[:30]:
+        img = p.primary_image
+        price = float(p.mrp)
+        if tier_id:
+            tp = p.tier_prices.filter(tier_id=tier_id).first()
+            if tp:
+                price = float(tp.price)
+        results.append({
+            'id': p.pk, 'name': p.name, 'sku': p.sku,
+            'price': price, 'mrp': float(p.mrp),
+            'stock': p.stock_quantity,
+            'image': img.image.url if img else '',
+        })
+    return JsonResponse({'results': results})
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def api_user_get(request, pk):
+    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    return JsonResponse({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'phone': user.phone,
+        'role_id': user.role_id,
+        'is_active': user.is_active,
+        'is_staff': user.is_staff,
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def api_customers(request):
+    customers = Customer.objects.filter(is_active=True).select_related('tier')
+    return JsonResponse([{
+        'id': c.pk, 'name': c.name, 'phone': c.phone, 'email': c.email,
+        'tier_id': c.tier_id, 'tier_name': c.tier.name if c.tier else '',
+    } for c in customers], safe=False)
+
+
+@login_required(login_url='panel_login')
+@permission_required('customers', 'create')
+def api_customer_create(request):
+    import json as _json
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    try:
+        data = _json.loads(request.body)
+    except:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip()
+    email = data.get('email', '').strip()
+    pan_number = data.get('pan_number', '').strip().upper()
+    
+    if not name:
+        return JsonResponse({'error': 'Name is required'}, status=400)
+    
+    # Check if customer already exists
+    if email and Customer.objects.filter(email=email).exists():
+        return JsonResponse({'error': 'Customer with this email already exists'}, status=400)
+    
+    customer = Customer.objects.create(
+        name=name,
+        phone=phone,
+        email=email,
+        pan_number=pan_number,
+        is_active=True
+    )
+    
+    return JsonResponse({
+        'id': customer.pk,
+        'name': customer.name,
+        'phone': customer.phone,
+        'email': customer.email,
+        'pan_number': customer.pan_number
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def api_agents(request):
+    agents = CustomerUser.objects.filter(user_type='agent', is_active=True)
+    return JsonResponse([{
+        'id': a.pk, 'username': a.username,
+        'name': a.get_full_name() or a.username,
+    } for a in agents], safe=False)
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def api_billing_list(request):
+    from django.db.models import Count, F, Value
+    from django.db.models.functions import Coalesce
+    limit = int(request.GET.get('limit', 10))
+    offset = int(request.GET.get('offset', 0))
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+    sale_type = request.GET.get('sale_type', '').strip()
+    payment_status = request.GET.get('payment_status', '').strip()
+    
+    qs = Billing.objects.select_related('customer', 'agent').prefetch_related('items')
+    
+    # Apply filters
+    if start_date:
+        qs = qs.filter(created_at__date__gte=start_date)
+    if end_date:
+        qs = qs.filter(created_at__date__lte=end_date)
+    if sale_type:
+        qs = qs.filter(sale_type=sale_type)
+    if payment_status:
+        qs = qs.filter(payment_status=payment_status)
+    
+    qs = qs.order_by('-created_at')
+    count = qs.count()
+    bills = qs[offset:offset+limit]
+    
+    # Calculate stats based on filtered queryset
+    filtered_bills = qs.all()
+    total_bills = filtered_bills.count()
+    total_revenue = sum(b.total for b in filtered_bills)
+    pending_amount = sum(b.balance_due for b in filtered_bills)
+    total_discount = sum(b.overall_discount + b.item_discount for b in filtered_bills)
+    
+    return JsonResponse({
+        'count': count,
+        'results': [{
+            'id': b.pk,
+            'bill_number': b.bill_number,
+            'created_at': b.created_at.isoformat(),
+            'customer_name': b.customer.name if b.customer else b.walk_in_name or 'Walk-in',
+            'sale_type': b.sale_type,
+            'items_count': b.items.count(),
+            'total': float(b.total),
+            'amount_paid': float(b.amount_paid),
+            'payment_status': b.payment_status,
+        } for b in bills],
+        'statistics': {
+            'total_bills': total_bills,
+            'total_revenue': float(total_revenue),
+            'pending_amount': float(pending_amount),
+            'total_discount': float(total_discount),
+        }
+    })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'create')
+def api_billing_create(request):
+    import json as _json
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    try:
+        data = _json.loads(request.body)
+    except:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    
+    items = data.get('items', [])
+    if not items:
+        return JsonResponse({'error': 'No items'}, status=400)
+    
+    customer_id = data.get('customer_id')
+    sale_type = data.get('sale_type', 'counter')
+    agent_id = data.get('agent_id')
+    payment_method = data.get('payment_method', 'cash')
+    payment_status = data.get('payment_status', 'paid')
+    amount_paid = float(data.get('amount_paid', 0))
+    overall_discount = float(data.get('overall_discount', 0))
+    split_payments = data.get('split_payments')
+    
+    subtotal = 0
+    item_discount_total = 0
+    bill_items = []
+    
+    for item in items:
+        product = Product.objects.filter(pk=item['product_id']).first()
+        if not product:
+            return JsonResponse({'error': f"Product {item['product_id']} not found"}, status=400)
+        
+        qty = int(item['quantity'])
+        price = float(item['price'])
+        discount_pct = float(item.get('discount', 0))
+        
+        line_total = price * qty
+        line_discount = line_total * (discount_pct / 100)
+        
+        subtotal += line_total
+        item_discount_total += line_discount
+        
+        bill_items.append({
+            'product': product,
+            'qty': qty,
+            'price': price,
+            'discount': line_discount,
+        })
+    
+    overall_discount_amount = subtotal * (overall_discount / 100)
+    total = subtotal - item_discount_total - overall_discount_amount
+    
+    cash_amount = 0
+    card_amount = 0
+    online_amount = 0
+    
+    if payment_method == 'split' and split_payments:
+        for sp in split_payments:
+            amt = float(sp['amount'])
+            if sp['method'] == 'cash':
+                cash_amount += amt
+            elif sp['method'] == 'card':
+                card_amount += amt
+            elif sp['method'] == 'upi':
+                online_amount += amt
+    else:
+        if payment_method == 'cash':
+            cash_amount = amount_paid
+        elif payment_method == 'card':
+            card_amount = amount_paid
+        elif payment_method == 'upi':
+            online_amount = amount_paid
+    
+    bill = Billing.objects.create(
+        sale_type=sale_type,
+        customer_id=customer_id,
+        agent_id=agent_id,
+        billed_by=request.user,
+        subtotal=subtotal,
+        item_discount=item_discount_total,
+        overall_discount=overall_discount_amount,
+        total=total,
+        cash_amount=cash_amount,
+        card_amount=card_amount,
+        online_amount=online_amount,
+        amount_paid=cash_amount + card_amount + online_amount,
+        payment_status=payment_status,
+    )
+    
+    for item in bill_items:
+        BillingItem.objects.create(
+            billing=bill,
+            product=item['product'],
+            product_name=item['product'].name,
+            product_sku=item['product'].sku,
+            unit_price=item['price'],
+            quantity=item['qty'],
+            discount=item['discount'],
+        )
+        StockEntry.objects.create(
+            product=item['product'],
+            entry_type='sale',
+            quantity_change=-item['qty'],
+            unit_price=item['price'],
+            note=f'Bill #{bill.bill_number}',
+        )
+    
+    return JsonResponse({'bill_number': bill.bill_number, 'bill_id': bill.pk})
+
+
+
+
+# ── Package Management ────────────────────────────────────────────────────────
+
+@login_required(login_url='panel_login')
+@permission_required('packages', 'view')
+def panel_packages(request):
+    packages = Package.objects.all().order_by('-created_at')
+    return render(request, 'panel/packages.html', {'packages': packages})
+
+
+@login_required(login_url='panel_login')
+@permission_required('packages', 'create')
+def panel_package_add(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        sku = request.POST.get('sku')
+        description = request.POST.get('description', '')
+        overall_discount = request.POST.get('overall_discount', 0)
+        selling_price = request.POST.get('selling_price')
+        
+        package = Package.objects.create(
+            name=name, sku=sku, description=description,
+            overall_discount=overall_discount, selling_price=selling_price
+        )
+        
+        # Add items
+        product_ids = request.POST.getlist('product_id[]')
+        quantities = request.POST.getlist('quantity[]')
+        item_discounts = request.POST.getlist('item_discount[]')
+        
+        for pid, qty, disc in zip(product_ids, quantities, item_discounts):
+            if pid and qty:
+                PackageItem.objects.create(
+                    package=package,
+                    product_id=pid,
+                    quantity=int(qty),
+                    item_discount=float(disc or 0)
+                )
+        
+        messages.success(request, f'Package "{name}" created successfully!')
+        return redirect('panel_packages')
+    
+    products = Product.objects.filter(is_active=True).order_by('name')
+    return render(request, 'panel/package_form.html', {'products': products})
+
+
+@login_required(login_url='panel_login')
+@permission_required('packages', 'edit')
+def panel_package_edit(request, pk):
+    package = get_object_or_404(Package, pk=pk)
+    
+    if request.method == 'POST':
+        package.name = request.POST.get('name')
+        package.sku = request.POST.get('sku')
+        package.description = request.POST.get('description', '')
+        package.overall_discount = request.POST.get('overall_discount', 0)
+        package.selling_price = request.POST.get('selling_price')
+        package.is_active = request.POST.get('is_active') == 'on'
+        package.save()
+        
+        # Update items
+        package.items.all().delete()
+        product_ids = request.POST.getlist('product_id[]')
+        quantities = request.POST.getlist('quantity[]')
+        item_discounts = request.POST.getlist('item_discount[]')
+        
+        for pid, qty, disc in zip(product_ids, quantities, item_discounts):
+            if pid and qty:
+                PackageItem.objects.create(
+                    package=package,
+                    product_id=pid,
+                    quantity=int(qty),
+                    item_discount=float(disc or 0)
+                )
+        
+        messages.success(request, f'Package "{package.name}" updated successfully!')
+        return redirect('panel_packages')
+    
+    products = Product.objects.filter(is_active=True).order_by('name')
+    return render(request, 'panel/package_form.html', {'package': package, 'products': products})
+
+
+@login_required(login_url='panel_login')
+@permission_required('packages', 'delete')
+def panel_package_delete(request, pk):
+    package = get_object_or_404(Package, pk=pk)
+    package.delete()
+    messages.success(request, 'Package deleted successfully!')
+    return redirect('panel_packages')

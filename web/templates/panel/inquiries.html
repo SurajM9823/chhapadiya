@@ -49,9 +49,13 @@
                 </td>
                 <td class="px-4 py-3 text-gray-500 text-xs max-w-xs">{{ inq.message|truncatechars:100 }}</td>
                 <td class="px-4 py-3">
+                    {% if can_delete %}
                     <form method="post" action="{% url 'panel_inquiry_delete' inq.pk %}" onsubmit="return confirm('Delete this inquiry?')">{% csrf_token %}
                         <button class="text-red-500 hover:underline text-xs">Delete</button>
                     </form>
+                    {% else %}
+                    <span class="text-gray-400 text-xs">No actions</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

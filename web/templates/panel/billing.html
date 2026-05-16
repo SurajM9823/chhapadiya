@@ -1,0 +1,860 @@
+{% extends 'panel/base.html' %}
+{% load static %}
+
+{% block title %}POS Billing{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>POS Billing System</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left: Product Selection -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Products</h5>
+                </div>
+                <div class="card-body">
+                    <input type="text" id="productSearch" class="form-control mb-3" placeholder="Search products...">
+                    <div id="productList" style="max-height: 500px; overflow-y: auto;">
+                        <!-- Products loaded via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Billing Cart -->
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Billing Cart</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Customer Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label>Customer</label>
+                            <select id="customerSelect" class="form-control" style="width: 100%;">
+                                <option value="">Walk-in Customer</option>
+                            </select>
+                            <small class="form-text text-muted">Select existing customer or choose "Walk-in Customer" to enter new details</small>
+                        </div>
+                    </div>
+
+                    <!-- Walk-in Customer Details (Always visible when Walk-in selected) -->
+                    <div id="walkInDetails" class="row mb-3" style="display: none;">
+                        <div class="col-md-3">
+                            <label>Walk-in Name <span class="text-danger">*</span></label>
+                            <input type="text" id="walkInName" class="form-control" placeholder="Enter customer name">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Walk-in Phone</label>
+                            <input type="text" id="walkInPhone" class="form-control" placeholder="Enter phone number">
+                        </div>
+                        <div class="col-md-3">
+                            <label>PAN Number <small class="text-muted">(optional)</small></label>
+                            <input type="text" id="walkInPan" class="form-control" placeholder="ABCDE1234F" maxlength="10" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-sm btn-info btn-block" onclick="saveWalkInCustomer()">
+                                <i class="fa fa-save"></i> Save as Customer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label>Sale Type</label>
+                            <select id="saleType" class="form-control">
+                                <option value="counter">Counter</option>
+                                <option value="agent">Agent</option>
+                                <option value="online">Online</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Agent (Optional)</label>
+                            <select id="agentSelect" class="form-control">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th width="100">Price</th>
+                                    <th width="80">Qty</th>
+                                    <th width="80">Disc%</th>
+                                    <th width="100">Total</th>
+                                    <th width="50"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartItems">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No items in cart</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label>Overall Discount (%)</label>
+                            <input type="number" id="overallDiscount" class="form-control" value="0" min="0" max="100" step="0.1">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Subtotal:</span>
+                                    <strong id="subtotal">₹0.00</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Discount:</span>
+                                    <strong id="discountAmount" class="text-danger">₹0.00</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Tax:</span>
+                                    <strong id="taxAmount">₹0.00</strong>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Total to Pay:</strong></span>
+                                    <strong id="totalToPay" class="text-success" style="font-size: 1.2rem;">₹0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment -->
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <label>Amount Paid</label>
+                            <input type="number" id="amountPaid" class="form-control" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label>Payment Method</label>
+                            <select id="paymentMethod" class="form-control">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="upi">UPI</option>
+                                <option value="split">Split Payment</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Payment Status</label>
+                            <select id="paymentStatus" class="form-control">
+                                <option value="paid">Paid</option>
+                                <option value="partial">Partial</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Split Payment Section -->
+                    <div id="splitPaymentSection" class="mt-3" style="display: none;">
+                        <div class="border p-3 bg-light rounded">
+                            <h6>Split Payment Details</h6>
+                            <div id="splitPayments">
+                                <div class="row mb-2 split-payment-row">
+                                    <div class="col-md-5">
+                                        <select class="form-control split-method">
+                                            <option value="cash">Cash</option>
+                                            <option value="card">Card</option>
+                                            <option value="upi">UPI</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="number" class="form-control split-amount" placeholder="Amount" step="0.01" min="0">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-sm btn-danger remove-split">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" id="addSplitPayment" class="btn btn-sm btn-secondary">+ Add Payment</button>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-3">
+                        <button id="completeBilling" class="btn btn-success btn-lg btn-block">Complete Billing</button>
+                        <button id="clearCart" class="btn btn-outline-danger btn-block">Clear Cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Billing History -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Billing History</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label class="small">Start Date</label>
+                            <input type="date" id="filterStartDate" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small">End Date</label>
+                            <input type="date" id="filterEndDate" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small">Sale Type</label>
+                            <select id="filterSaleType" class="form-control form-control-sm">
+                                <option value="">All Types</option>
+                                <option value="counter">Counter</option>
+                                <option value="agent">Agent</option>
+                                <option value="online">Online</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small">Payment Status</label>
+                            <select id="filterPaymentStatus" class="form-control form-control-sm">
+                                <option value="">All Status</option>
+                                <option value="paid">Paid</option>
+                                <option value="partial">Partial</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small">Show</label>
+                            <select id="limitSelect" class="form-control form-control-sm">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small">&nbsp;</label>
+                            <button id="resetFilters" class="btn btn-sm btn-secondary btn-block">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Row -->
+                    <div class="row mb-3 py-2 bg-light border rounded">
+                        <div class="col-md-3 text-center border-right">
+                            <small class="text-muted d-block">Total Bills</small>
+                            <strong id="statTotalBills" class="h5 text-primary">0</strong>
+                        </div>
+                        <div class="col-md-3 text-center border-right">
+                            <small class="text-muted d-block">Total Revenue</small>
+                            <strong id="statTotalRevenue" class="h5 text-success">₹0</strong>
+                        </div>
+                        <div class="col-md-3 text-center border-right">
+                            <small class="text-muted d-block">Pending Amount</small>
+                            <strong id="statPendingAmount" class="h5 text-warning">₹0</strong>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <small class="text-muted d-block">Total Discount</small>
+                            <strong id="statTotalDiscount" class="h5 text-info">₹0</strong>
+                        </div>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Bill #</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Sale Type</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Paid</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="billingHistory">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <small class="text-muted">Showing <span id="showingCount">0</span> entries</small>
+                        </div>
+                        <div id="pagination"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let cart = [];
+let products = [];
+let customers = [];
+let agents = [];
+let currentOffset = 0;
+let currentLimit = 10;
+
+// Load initial data
+$(document).ready(function() {
+    // Initialize Select2 for customer dropdown
+    $('#customerSelect').select2({
+        placeholder: 'Select a customer or choose Walk-in',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    loadProducts();
+    loadCustomers();
+    loadAgents();
+    loadBillingHistory();
+    
+    // Show walk-in fields by default since Walk-in is selected
+    $('#walkInDetails').show();
+    
+    // Show/hide walk-in customer fields
+    $('#customerSelect').on('change', function() {
+        if ($(this).val() === '' || $(this).val() === null) {
+            $('#walkInDetails').show();
+        } else {
+            $('#walkInDetails').hide();
+            $('#walkInName').val('');
+            $('#walkInPhone').val('');
+        }
+    });
+    
+    // Auto-fill amount paid with total
+    $('#paymentStatus').on('change', function() {
+        if ($(this).val() === 'paid') {
+            const total = parseFloat($('#totalToPay').text().replace('₹', '').replace(',', '')) || 0;
+            $('#amountPaid').val(total.toFixed(2));
+        }
+    });
+
+    // Show/hide split payment section
+    $('#paymentMethod').on('change', function() {
+        if ($(this).val() === 'split') {
+            $('#splitPaymentSection').show();
+        } else {
+            $('#splitPaymentSection').hide();
+        }
+    });
+
+    // Add split payment row
+    $('#addSplitPayment').on('click', function() {
+        const row = `
+            <div class="row mb-2 split-payment-row">
+                <div class="col-md-5">
+                    <select class="form-control split-method">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="upi">UPI</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="number" class="form-control split-amount" placeholder="Amount" step="0.01" min="0">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm btn-danger remove-split">×</button>
+                </div>
+            </div>
+        `;
+        $('#splitPayments').append(row);
+    });
+
+    // Remove split payment row
+    $(document).on('click', '.remove-split', function() {
+        if ($('.split-payment-row').length > 1) {
+            $(this).closest('.split-payment-row').remove();
+        }
+    });
+
+    // Overall discount change
+    $('#overallDiscount').on('input', function() {
+        updateTotals();
+    });
+
+    // Complete billing
+    $('#completeBilling').on('click', completeBilling);
+
+    // Clear cart
+    $('#clearCart').on('click', function() {
+        if (confirm('Clear all items from cart?')) {
+            cart = [];
+            renderCart();
+        }
+    });
+
+    // Product search
+    $('#productSearch').on('input', function() {
+        const query = $(this).val().toLowerCase();
+        $('.product-item').each(function() {
+            const name = $(this).data('name').toLowerCase();
+            const sku = $(this).data('sku').toLowerCase();
+            if (name.includes(query) || sku.includes(query)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+
+    // Pagination
+    $('#limitSelect').on('change', function() {
+        currentLimit = parseInt($(this).val());
+        currentOffset = 0;
+        loadBillingHistory();
+    });
+
+    // Filters
+    $('#filterStartDate, #filterEndDate, #filterSaleType, #filterPaymentStatus').on('change', function() {
+        currentOffset = 0;
+        loadBillingHistory();
+    });
+
+    $('#resetFilters').on('click', function() {
+        $('#filterStartDate').val('');
+        $('#filterEndDate').val('');
+        $('#filterSaleType').val('');
+        $('#filterPaymentStatus').val('');
+        currentOffset = 0;
+        loadBillingHistory();
+    });
+});
+
+function loadProducts() {
+    $.get('/panel/api/products/', function(data) {
+        // Filter out products with zero stock
+        products = (data.results || data).filter(p => p.stock > 0);
+        renderProducts();
+    });
+}
+
+function renderProducts() {
+    if (products.length === 0) {
+        $('#productList').html('<div class="text-center text-muted p-3">No products in stock</div>');
+        return;
+    }
+    
+    const html = products.map(p => `
+        <div class="product-item border-bottom p-2" data-name="${p.name}" data-sku="${p.sku}" style="cursor: pointer;" onclick="addToCart(${p.id})">
+            <div class="d-flex align-items-center">
+                <div class="mr-2" style="width: 50px; height: 50px; flex-shrink: 0;">
+                    ${p.image ? 
+                        `<img src="${p.image}" alt="${p.name}" class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">` : 
+                        `<div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="fa fa-image text-white"></i>
+                        </div>`
+                    }
+                </div>
+                <div class="flex-grow-1">
+                    <strong style="font-size: 0.9rem;">${p.name}</strong><br>
+                    <small class="text-muted">SKU: ${p.sku}</small>
+                    <span class="badge badge-${p.stock < 10 ? 'warning' : 'success'} badge-sm ml-2">Stock: ${p.stock}</span>
+                </div>
+                <div class="text-right ml-2">
+                    <strong class="text-success">₹${parseFloat(p.mrp).toFixed(2)}</strong>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    $('#productList').html(html);
+}
+
+function loadCustomers() {
+    $.get('/panel/api/customers/', function(data) {
+        customers = data;
+        // Build options with Walk-in as first option
+        let options = '<option value="" selected>Walk-in Customer (Enter details below)</option>';
+        options += data.map(c => {
+            const displayName = c.name + (c.phone ? ' - ' + c.phone : '') + (c.tier_name ? ' (' + c.tier_name + ')' : '');
+            return `<option value="${c.id}" data-tier="${c.tier_id}">${displayName}</option>`;
+        }).join('');
+        $('#customerSelect').html(options);
+        
+        // Reinitialize Select2 after updating options
+        $('#customerSelect').select2({
+            placeholder: 'Select a customer or choose Walk-in',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+}
+
+function saveWalkInCustomer() {
+    const name = $('#walkInName').val().trim();
+    const phone = $('#walkInPhone').val().trim();
+    const pan = $('#walkInPan').val().trim().toUpperCase();
+    
+    if (!name) {
+        alert('Please enter customer name!');
+        return;
+    }
+    
+    if (confirm('Save this walk-in customer as a permanent customer?')) {
+        $.ajax({
+            url: '/panel/api/customers/create/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                name: name,
+                phone: phone,
+                pan_number: pan,
+                email: phone ? phone + '@walkin.local' : 'walkin' + Date.now() + '@walkin.local'
+            }),
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                alert('Customer saved successfully!');
+                loadCustomers();
+                // Select the newly created customer
+                setTimeout(function() {
+                    $('#customerSelect').val(response.id).trigger('change');
+                }, 500);
+            },
+            error: function(xhr) {
+                alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save customer'));
+            }
+        });
+    }
+}
+
+function loadAgents() {
+    $.get('/panel/api/agents/', function(data) {
+        agents = data;
+        const options = '<option value="">None</option>' + 
+            data.map(a => `<option value="${a.id}">${a.username}</option>`).join('');
+        $('#agentSelect').html(options);
+    });
+}
+
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    if (product.stock <= 0) {
+        alert('Product out of stock!');
+        return;
+    }
+
+    // Get customer tier
+    const customerSelect = $('#customerSelect');
+    const tierId = customerSelect.find(':selected').data('tier');
+    
+    // Get tier price
+    let price = product.mrp;
+    if (tierId && product.tier_prices) {
+        const tierPrice = product.tier_prices.find(tp => tp.tier_id == tierId);
+        if (tierPrice) price = tierPrice.price;
+    }
+
+    // Check if already in cart
+    const existing = cart.find(item => item.product_id === productId);
+    if (existing) {
+        if (existing.quantity < product.stock) {
+            existing.quantity++;
+        } else {
+            alert('Cannot add more than available stock!');
+        }
+    } else {
+        cart.push({
+            product_id: productId,
+            name: product.name,
+            sku: product.sku,
+            price: price,
+            quantity: 1,
+            discount: 0,
+            max_stock: product.stock
+        });
+    }
+    renderCart();
+}
+
+function renderCart() {
+    if (cart.length === 0) {
+        $('#cartItems').html('<tr><td colspan="6" class="text-center text-muted">No items in cart</td></tr>');
+        updateTotals();
+        return;
+    }
+
+    const html = cart.map((item, index) => `
+        <tr>
+            <td>${item.name}<br><small class="text-muted">${item.sku}</small></td>
+            <td><input type="number" class="form-control form-control-sm" value="${item.price}" step="0.01" min="0" onchange="updateItemPrice(${index}, this.value)"></td>
+            <td><input type="number" class="form-control form-control-sm" value="${item.quantity}" min="1" max="${item.max_stock}" onchange="updateItemQty(${index}, this.value)"></td>
+            <td><input type="number" class="form-control form-control-sm" value="${item.discount}" min="0" max="100" step="0.1" onchange="updateItemDiscount(${index}, this.value)"></td>
+            <td>₹${calculateItemTotal(item).toFixed(2)}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">×</button></td>
+        </tr>
+    `).join('');
+    $('#cartItems').html(html);
+    updateTotals();
+}
+
+function calculateItemTotal(item) {
+    const subtotal = item.price * item.quantity;
+    const discount = subtotal * (item.discount / 100);
+    return subtotal - discount;
+}
+
+function updateItemPrice(index, value) {
+    cart[index].price = parseFloat(value) || 0;
+    renderCart();
+}
+
+function updateItemQty(index, value) {
+    const qty = parseInt(value) || 1;
+    if (qty > cart[index].max_stock) {
+        alert('Cannot exceed available stock!');
+        cart[index].quantity = cart[index].max_stock;
+    } else {
+        cart[index].quantity = qty;
+    }
+    renderCart();
+}
+
+function updateItemDiscount(index, value) {
+    cart[index].discount = parseFloat(value) || 0;
+    renderCart();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderCart();
+}
+
+function updateTotals() {
+    let subtotal = 0;
+    cart.forEach(item => {
+        subtotal += calculateItemTotal(item);
+    });
+
+    const overallDiscount = parseFloat($('#overallDiscount').val()) || 0;
+    const discountAmount = subtotal * (overallDiscount / 100);
+    const afterDiscount = subtotal - discountAmount;
+    const taxAmount = 0; // Add tax logic if needed
+    const total = afterDiscount + taxAmount;
+
+    $('#subtotal').text('₹' + subtotal.toFixed(2));
+    $('#discountAmount').text('₹' + discountAmount.toFixed(2));
+    $('#taxAmount').text('₹' + taxAmount.toFixed(2));
+    $('#totalToPay').text('₹' + total.toFixed(2));
+
+    // Auto-fill paid amount if status is paid
+    if ($('#paymentStatus').val() === 'paid') {
+        $('#amountPaid').val(total.toFixed(2));
+    }
+}
+
+function completeBilling() {
+    if (cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+    }
+
+    const customerId = $('#customerSelect').val() || null;
+    const walkInName = $('#walkInName').val().trim();
+    const walkInPhone = $('#walkInPhone').val().trim();
+    const saleType = $('#saleType').val();
+    const agentId = $('#agentSelect').val() || null;
+    const paymentMethod = $('#paymentMethod').val();
+    const paymentStatus = $('#paymentStatus').val();
+    const amountPaid = parseFloat($('#amountPaid').val()) || 0;
+    const overallDiscount = parseFloat($('#overallDiscount').val()) || 0;
+
+    // Validate walk-in customer if no customer selected
+    if (!customerId && !walkInName) {
+        alert('Please select a customer or enter walk-in customer name!');
+        return;
+    }
+
+    let splitPayments = null;
+    if (paymentMethod === 'split') {
+        splitPayments = [];
+        $('.split-payment-row').each(function() {
+            const method = $(this).find('.split-method').val();
+            const amount = parseFloat($(this).find('.split-amount').val()) || 0;
+            if (amount > 0) {
+                splitPayments.push({ method, amount });
+            }
+        });
+        if (splitPayments.length === 0) {
+            alert('Please add split payment details!');
+            return;
+        }
+    }
+
+    const data = {
+        customer_id: customerId,
+        walk_in_name: walkInName,
+        walk_in_phone: walkInPhone,
+        sale_type: saleType,
+        agent_id: agentId,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        amount_paid: amountPaid,
+        overall_discount: overallDiscount,
+        items: cart,
+        split_payments: splitPayments
+    };
+
+    $.ajax({
+        url: '/panel/api/billing/create/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        success: function(response) {
+            alert('Billing completed successfully! Bill #' + response.bill_number);
+            cart = [];
+            renderCart();
+            $('#customerSelect').val('').trigger('change');
+            $('#walkInName').val('');
+            $('#walkInPhone').val('');
+            $('#walkInPan').val('');
+            $('#agentSelect').val('');
+            $('#overallDiscount').val(0);
+            $('#amountPaid').val('');
+            $('#walkInDetails').hide();
+            loadBillingHistory();
+            loadProducts(); // Refresh stock
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete billing'));
+        }
+    });
+}
+
+function loadBillingHistory() {
+    const startDate = $('#filterStartDate').val();
+    const endDate = $('#filterEndDate').val();
+    const saleType = $('#filterSaleType').val();
+    const paymentStatus = $('#filterPaymentStatus').val();
+    
+    const params = new URLSearchParams({
+        limit: currentLimit,
+        offset: currentOffset,
+        start_date: startDate,
+        end_date: endDate,
+        sale_type: saleType,
+        payment_status: paymentStatus
+    });
+
+    $.get('/panel/api/billing/?' + params.toString(), function(data) {
+        renderBillingHistory(data.results);
+        renderPagination(data.count);
+        updateStatistics(data.statistics);
+        
+        // Update showing count
+        const start = currentOffset + 1;
+        const end = Math.min(currentOffset + currentLimit, data.count);
+        $('#showingCount').text(`${start}-${end} of ${data.count}`);
+    });
+}
+
+function renderBillingHistory(bills) {
+    if (bills.length === 0) {
+        $('#billingHistory').html('<tr><td colspan="9" class="text-center text-muted">No billing records found</td></tr>');
+        return;
+    }
+
+    const html = bills.map(b => `
+        <tr>
+            <td>${b.bill_number}</td>
+            <td>${new Date(b.created_at).toLocaleString()}</td>
+            <td>${b.customer_name || 'Walk-in'}</td>
+            <td><span class="badge badge-info">${b.sale_type}</span></td>
+            <td>${b.items_count}</td>
+            <td>₹${b.total.toFixed(2)}</td>
+            <td>₹${b.amount_paid.toFixed(2)}</td>
+            <td><span class="badge badge-${b.payment_status === 'paid' ? 'success' : b.payment_status === 'partial' ? 'warning' : 'danger'}">${b.payment_status}</span></td>
+            <td><button class="btn btn-sm btn-info" onclick="viewBill(${b.id})">View</button></td>
+        </tr>
+    `).join('');
+    $('#billingHistory').html(html);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / currentLimit);
+    const currentPage = Math.floor(currentOffset / currentLimit) + 1;
+    
+    let html = '<nav><ul class="pagination pagination-sm mb-0">';
+    
+    if (currentPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Previous</a></li>`;
+    }
+    
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        html += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a></li>`;
+    }
+    
+    if (currentPage < totalPages) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a></li>`;
+    }
+    
+    html += '</ul></nav>';
+    $('#pagination').html(html);
+}
+
+function changePage(page) {
+    currentOffset = (page - 1) * currentLimit;
+    loadBillingHistory();
+}
+
+function updateStatistics(stats) {
+    $('#statTotalBills').text(stats.total_bills);
+    $('#statTotalRevenue').text('₹' + stats.total_revenue.toFixed(2));
+    $('#statPendingAmount').text('₹' + stats.pending_amount.toFixed(2));
+    $('#statTotalDiscount').text('₹' + stats.total_discount.toFixed(2));
+}
+
+function viewBill(billId) {
+    window.open('/panel/billing/' + billId + '/view/', '_blank');
+}
+</script>
+
+<style>
+.product-item:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.2s;
+}
+.product-item {
+    border-left: 3px solid transparent;
+    min-height: 60px;
+}
+.product-item:hover {
+    border-left-color: #28a745;
+}
+.product-item img {
+    border: 1px solid #dee2e6;
+}
+.select2-container .select2-selection--single {
+    height: 38px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
+}
+</style>
+{% endblock %}

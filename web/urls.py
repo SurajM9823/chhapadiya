@@ -16,6 +16,7 @@ urlpatterns = [
 
     # Carousel
     path('panel/', panel_views.panel_dashboard, name='panel_dashboard'),
+    path('panel/carousel/', panel_views.panel_carousel, name='panel_carousel'),
     path('panel/carousel/add/', panel_views.panel_carousel_add, name='panel_carousel_add'),
     path('panel/carousel/<int:pk>/edit/', panel_views.panel_carousel_edit, name='panel_carousel_edit'),
     path('panel/carousel/<int:pk>/delete/', panel_views.panel_carousel_delete, name='panel_carousel_delete'),
@@ -51,6 +52,12 @@ urlpatterns = [
     path('panel/tiers/<int:pk>/edit/', panel_views.panel_tier_edit, name='panel_tier_edit'),
     path('panel/tiers/<int:pk>/delete/', panel_views.panel_tier_delete, name='panel_tier_delete'),
 
+    # Delivery Time Tiers
+    path('panel/delivery-times/', panel_views.panel_delivery_times, name='panel_delivery_times'),
+    path('panel/delivery-times/add/', panel_views.panel_delivery_time_add, name='panel_delivery_time_add'),
+    path('panel/delivery-times/<int:pk>/edit/', panel_views.panel_delivery_time_edit, name='panel_delivery_time_edit'),
+    path('panel/delivery-times/<int:pk>/delete/', panel_views.panel_delivery_time_delete, name='panel_delivery_time_delete'),
+
     # Customers
     path('panel/customers/', panel_views.panel_customers, name='panel_customers'),
     path('panel/customers/add/', panel_views.panel_customer_add, name='panel_customer_add'),
@@ -65,6 +72,11 @@ urlpatterns = [
     path('panel/products/<int:pk>/delete/', panel_views.panel_product_delete, name='panel_product_delete'),
     path('panel/products/<int:pk>/detail/', panel_views.panel_product_detail, name='panel_product_detail'),
     path('panel/products/<int:pk>/stock/', panel_views.panel_stock, name='panel_stock'),
+    # Packages
+    path('panel/packages/', panel_views.panel_packages, name='panel_packages'),
+    path('panel/packages/add/', panel_views.panel_package_add, name='panel_package_add'),
+    path('panel/packages/<int:pk>/edit/', panel_views.panel_package_edit, name='panel_package_edit'),
+    path('panel/packages/<int:pk>/delete/', panel_views.panel_package_delete, name='panel_package_delete'),
     # Services CMS
     path('panel/services/', panel_views.panel_services, name='panel_services'),
     path('panel/services/add/', panel_views.panel_service_add, name='panel_service_add'),
@@ -110,6 +122,7 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),
     path('buy/<slug:slug>/', views.buy_now, name='buy_now'),
     path('place-order/', views.place_order, name='place_order'),
+    path('profile/', views.my_profile, name='my_profile'),
     path('orders/', views.my_orders, name='my_orders'),
     path('orders/<str:order_number>/', views.order_detail, name='order_detail'),
     path('orders/<str:order_number>/update-location/', views.update_order_location, name='update_order_location'),
@@ -123,12 +136,33 @@ urlpatterns = [
     path('panel/quotes/<int:pk>/update/', panel_views.panel_quote_update, name='panel_quote_update'),
     path('panel/quotes/<int:pk>/delete/', panel_views.panel_quote_delete, name='panel_quote_delete'),
     path('panel/quotes/<int:pk>/create-customer/', panel_views.panel_quote_create_customer, name='panel_quote_create_customer'),
+    path('panel/billing/', panel_views.panel_billing, name='panel_billing'),
+    path('panel/billing/<int:pk>/detail/', panel_views.panel_billing_detail, name='panel_billing_detail'),
+    path('panel/billing/<int:pk>/view/', panel_views.panel_billing_view, name='panel_billing_view'),
+    path('panel/api/products/', panel_views.api_billing_products, name='api_products'),
+    path('panel/api/customers/', panel_views.api_customers, name='api_customers'),
+    path('panel/api/customers/create/', panel_views.api_customer_create, name='api_customer_create'),
+    path('panel/api/agents/', panel_views.api_agents, name='api_agents'),
+    path('panel/api/billing/', panel_views.api_billing_list, name='api_billing_list'),
+    path('panel/api/billing/create/', panel_views.api_billing_create, name='api_billing_create'),
     path('panel/orders/', panel_views.panel_orders, name='panel_orders'),
     path('panel/orders/<int:pk>/', panel_views.panel_order_detail, name='panel_order_detail'),
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
+
     path('my-quotes/', views.my_quotes, name='my_quotes'),
     path('my-quotes/<int:pk>/pdf/', views.quotation_pdf, name='quotation_pdf'),
+
+    # User Management
+    path('panel/users/', panel_views.panel_users, name='panel_users'),
+    path('panel/users/add/', panel_views.panel_user_add, name='panel_user_add'),
+    path('panel/users/<int:pk>/edit/', panel_views.panel_user_edit, name='panel_user_edit'),
+    path('panel/users/<int:pk>/delete/', panel_views.panel_user_delete, name='panel_user_delete'),
+    path('api/user/<int:pk>/', panel_views.api_user_get, name='api_user_get'),
+    path('panel/roles/', panel_views.panel_roles, name='panel_roles'),
+    path('panel/roles/<int:pk>/edit/', panel_views.panel_role_edit, name='panel_role_edit'),
     path('b2b-request/', views.b2b_request, name='b2b_request'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     path('terms-conditions/', views.terms_conditions, name='terms_conditions'),
+    path('review/save/', views.product_review_save, name='product_review_save'),
+    path('review/delete/', views.product_review_delete, name='product_review_delete'),
 ]

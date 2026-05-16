@@ -1,0 +1,245 @@
+{% extends 'panel/base.html' %}
+{% block title %} - {% if package %}Edit{% else %}Add{% endif %} Package{% endblock %}
+{% block nav_packages %}bg-gray-700 text-white{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold">{% if package %}Edit{% else %}Add{% endif %} Package</h1>
+</div>
+
+<form method="post" class="bg-white rounded shadow p-6">
+    {% csrf_token %}
+    
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div>
+            <label class="block text-sm font-medium mb-1">Package Name *</label>
+            <input type="text" name="name" value="{{ package.name|default:'' }}" required class="w-full border rounded px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">SKU *</label>
+            <input type="text" name="sku" value="{{ package.sku|default:'' }}" required class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="col-span-2">
+            <label class="block text-sm font-medium mb-1">Description</label>
+            <input type="text" name="description" value="{{ package.description|default:'' }}" class="w-full border rounded px-3 py-2">
+        </div>
+    </div>
+
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-semibold">Package Items</h3>
+            <button type="button" onclick="addItem()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">+ Add Item</button>
+        </div>
+        
+        <div id="items-container" class="space-y-3">
+            {% if package %}
+                {% for item in package.items.all %}
+                <div class="item-row grid grid-cols-4 gap-3 border p-3 rounded bg-gray-50">
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Product</label>
+                        <div class="product-search-wrapper relative">
+                            <input type="text" class="product-search w-full border rounded px-2 py-2 text-sm" placeholder="Search product..." value="{{ item.product.name }}" autocomplete="off">
+                            <input type="hidden" name="product_id[]" value="{{ item.product.id }}" data-price="{{ item.product.mrp }}" required>
+                            <div class="search-results absolute z-10 w-full bg-white border rounded shadow-lg mt-1 hidden max-h-60 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Quantity</label>
+                        <input type="number" name="quantity[]" value="{{ item.quantity }}" min="1" required class="w-full border rounded px-2 py-2 text-sm" onchange="updateItemTotal(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Item Discount (₹)</label>
+                        <input type="number" name="item_discount[]" value="{{ item.item_discount }}" min="0" step="0.01" class="w-full border rounded px-2 py-2 text-sm" onchange="updateItemTotal(this)">
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium mb-1">Item Total</label>
+                            <input type="text" class="item-total w-full border rounded px-2 py-2 text-sm bg-gray-100 font-semibold" readonly value="₹{{ item.item_total }}">
+                        </div>
+                        <button type="button" onclick="removeItem(this)" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap">Remove</button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-6 p-4 bg-blue-50 rounded">
+        <div>
+            <label class="block text-sm font-medium mb-1">Total MRP (Auto)</label>
+            <input type="text" id="total-mrp" readonly class="w-full border rounded px-3 py-2 bg-gray-100 font-semibold text-lg" value="₹0.00">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Overall Discount (₹)</label>
+            <input type="number" name="overall_discount" id="overall-discount" value="{{ package.overall_discount|default:0 }}" min="0" step="0.01" class="w-full border rounded px-3 py-2" onchange="calculateFinal()">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Selling Price * (Auto-calculated)</label>
+            <input type="number" name="selling_price" id="selling-price" value="{{ package.selling_price|default:'' }}" min="0" step="0.01" required class="w-full border rounded px-3 py-2 font-semibold text-green-700 text-lg" readonly>
+        </div>
+    </div>
+
+
+
+    {% if package %}
+    <div class="mb-6">
+        <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_active" {% if package.is_active %}checked{% endif %} class="rounded">
+            <span class="text-sm font-medium">Active</span>
+        </label>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-3">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">Save Package</button>
+        <a href="{% url 'panel_packages' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded">Cancel</a>
+    </div>
+</form>
+
+<script>
+const products = [
+    {% for p in products %}
+    {id: {{ p.id }}, name: "{{ p.name|escapejs }}", price: {{ p.mrp }}, sku: "{{ p.sku|escapejs }}", image: "{% if p.primary_image %}{{ p.primary_image.image.url }}{% endif %}" },
+    {% endfor %}
+];
+
+function addItem() {
+    const container = document.getElementById('items-container');
+    const div = document.createElement('div');
+    div.className = 'item-row grid grid-cols-4 gap-3 border p-3 rounded bg-gray-50';
+    div.innerHTML = `
+        <div>
+            <label class="block text-xs font-medium mb-1">Product</label>
+            <div class="product-search-wrapper relative">
+                <input type="text" class="product-search w-full border rounded px-2 py-2 text-sm" placeholder="Search product..." autocomplete="off">
+                <input type="hidden" name="product_id[]" required>
+                <div class="search-results absolute z-10 w-full bg-white border rounded shadow-lg mt-1 hidden max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1">Quantity</label>
+            <input type="number" name="quantity[]" value="1" min="1" required class="w-full border rounded px-2 py-2 text-sm" onchange="updateItemTotal(this)">
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1">Item Discount (₹)</label>
+            <input type="number" name="item_discount[]" value="0" min="0" step="0.01" class="w-full border rounded px-2 py-2 text-sm" onchange="updateItemTotal(this)">
+        </div>
+        <div class="flex items-end gap-2">
+            <div class="flex-1">
+                <label class="block text-xs font-medium mb-1">Item Total</label>
+                <input type="text" class="item-total w-full border rounded px-2 py-2 text-sm bg-gray-100 font-semibold" readonly value="₹0.00">
+            </div>
+            <button type="button" onclick="removeItem(this)" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap">Remove</button>
+        </div>
+    `;
+    container.appendChild(div);
+    initProductSearch(div.querySelector('.product-search'));
+}
+
+function removeItem(btn) {
+    btn.closest('.item-row').remove();
+    calculateTotal();
+}
+
+function updateItemTotal(elem) {
+    const row = elem.closest('.item-row');
+    const hiddenInput = row.querySelector('input[name="product_id[]"]');
+    const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+    const discount = parseFloat(row.querySelector('input[name="item_discount[]"]').value) || 0;
+    const price = parseFloat(hiddenInput.dataset.price) || 0;
+    
+    const total = (price * qty) - discount;
+    row.querySelector('.item-total').value = '₹' + total.toFixed(2);
+    
+    calculateTotal();
+}
+
+function calculateTotal() {
+    let totalMrp = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+        const hiddenInput = row.querySelector('input[name="product_id[]"]');
+        const qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+        const discount = parseFloat(row.querySelector('input[name="item_discount[]"]').value) || 0;
+        const price = parseFloat(hiddenInput.dataset.price) || 0;
+        totalMrp += (price * qty) - discount;
+    });
+    
+    document.getElementById('total-mrp').value = '₹' + totalMrp.toFixed(2);
+    calculateFinal();
+}
+
+function calculateFinal() {
+    const totalMrp = parseFloat(document.getElementById('total-mrp').value.replace('₹', '')) || 0;
+    const overallDiscount = parseFloat(document.getElementById('overall-discount').value) || 0;
+    const sellingPrice = totalMrp - overallDiscount;
+    
+    document.getElementById('selling-price').value = sellingPrice.toFixed(2);
+}
+
+// Product search functionality
+function initProductSearch(input) {
+    const wrapper = input.closest('.product-search-wrapper');
+    const resultsDiv = wrapper.querySelector('.search-results');
+    const hiddenInput = wrapper.querySelector('input[name="product_id[]"]');
+    
+    input.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 1) {
+            resultsDiv.classList.add('hidden');
+            return;
+        }
+        
+        const filtered = products.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            p.sku.toLowerCase().includes(query)
+        ).slice(0, 10);
+        
+        if (filtered.length === 0) {
+            resultsDiv.innerHTML = '<div class="p-3 text-sm text-gray-500">No products found</div>';
+            resultsDiv.classList.remove('hidden');
+            return;
+        }
+        
+        resultsDiv.innerHTML = filtered.map(p => `
+            <div class="product-result flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0" data-id="${p.id}" data-price="${p.price}" data-name="${p.name}">
+                ${p.image ? `<img src="${p.image}" class="w-12 h-12 object-cover rounded border">` : '<div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">No img</div>'}
+                <div class="flex-1 min-w-0">
+                    <div class="font-medium text-sm truncate">${p.name}</div>
+                    <div class="text-xs text-gray-500">SKU: ${p.sku} | <span class="text-green-600 font-semibold">₹${p.price}</span></div>
+                </div>
+            </div>
+        `).join('');
+        
+        resultsDiv.classList.remove('hidden');
+        
+        // Add click handlers
+        resultsDiv.querySelectorAll('.product-result').forEach(result => {
+            result.addEventListener('click', function() {
+                input.value = this.dataset.name;
+                hiddenInput.value = this.dataset.id;
+                hiddenInput.dataset.price = this.dataset.price;
+                resultsDiv.classList.add('hidden');
+                updateItemTotal(input);
+            });
+        });
+    });
+    
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) {
+            resultsDiv.classList.add('hidden');
+        }
+    });
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize existing search inputs
+    document.querySelectorAll('.product-search').forEach(input => {
+        initProductSearch(input);
+    });
+    calculateTotal();
+});
+</script>
+{% endblock %}

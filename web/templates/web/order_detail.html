@@ -59,6 +59,54 @@
             <p class="text-xs text-gray-400 mt-3">Placed on {{ order.created_at|date:"d M Y, H:i" }}</p>
         </div>
 
+        <!-- Reviews Section (for delivered orders) -->
+        {% if order.status == 'delivered' %}
+        <div class="bg-white rounded-xl shadow p-5 mb-5">
+            <h2 class="font-semibold text-gray-800 mb-4">Rate & Review Products</h2>
+            <div class="space-y-4">
+                {% for data in items_with_reviews %}
+                {% with item=data.item review=data.review %}
+                {% if item.product %}
+                <div class="flex items-start gap-4 pb-4 {% if not forloop.last %}border-b border-gray-100{% endif %}">
+                    {% with img=item.product.primary_image %}
+                    {% if img %}<img src="{{ img.image.url }}" class="w-16 h-16 object-contain rounded border border-gray-100 flex-shrink-0">{% endif %}
+                    {% endwith %}
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-800 mb-1">{{ item.product_name }}</p>
+                        {% if review %}
+                        <div class="bg-gray-50 rounded-lg p-3 mt-2">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-1">
+                                    {% for i in "12345" %}
+                                    <span class="material-symbols-outlined text-sm {% if forloop.counter <= review.rating %}text-yellow-500{% else %}text-gray-300{% endif %}">star</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="editReview({{ item.product.id }}, {{ review.rating }}, '{{ review.review|escapejs }}', {{ review.id }})" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-sm">edit</span> Edit
+                                    </button>
+                                    <button onclick="deleteReview({{ review.id }})" class="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-sm">delete</span> Delete
+                                    </button>
+                                </div>
+                            </div>
+                            {% if review.review %}<p class="text-sm text-gray-700">{{ review.review }}</p>{% endif %}
+                            <p class="text-xs text-gray-400 mt-2">Reviewed on {{ review.created_at|date:"d M Y" }}</p>
+                        </div>
+                        {% else %}
+                        <button onclick="openReviewModal({{ item.product.id }}, '{{ item.product_name|escapejs }}')" class="mt-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+                            <span class="material-symbols-outlined text-base">rate_review</span> Write a Review
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="grid md:grid-cols-3 gap-5 mb-5">
             <!-- Delivery Info -->
             <div class="bg-white rounded-xl shadow p-5 md:col-span-2">
@@ -71,9 +119,15 @@
                         <button onclick="shareDeliveryDetails()" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1" title="Share delivery details">
                             <span class="material-symbols-outlined text-sm">share</span> Share
                         </button>
+                        {% if order.status == 'pending' %}
                         <button onclick="toggleEditLocation()" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
                             <span class="material-symbols-outlined text-sm">edit</span> Edit Location
                         </button>
+                        {% else %}
+                        <span class="text-xs text-gray-400 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">lock</span> Location locked
+                        </span>
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -83,6 +137,16 @@
                     <p class="text-sm text-gray-600">{{ order.phone }}</p>
                     {% if order.email %}<p class="text-sm text-gray-600">{{ order.email }}</p>{% endif %}
                     <p class="text-sm text-gray-600 mt-1">{{ order.address }}{% if order.city %}, {{ order.city }}{% endif %}</p>
+                    {% if order.billing_address or order.billing_city %}
+                    {% if order.billing_address == order.address and order.billing_city == order.city %}
+                    <p class="text-xs text-gray-400 mt-2">Billing address: same as shipping</p>
+                    {% else %}
+                    <div class="mt-2 pt-2 border-t border-gray-100">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Billing Address</p>
+                        <p class="text-sm text-gray-600">{{ order.billing_address }}{% if order.billing_city %}, {{ order.billing_city }}{% endif %}</p>
+                    </div>
+                    {% endif %}
+                    {% endif %}
                     {% else %}
                     <p class="text-sm text-gray-600">You will pick up from our store.</p>
                     <p class="text-sm text-gray-700 font-medium mt-1">{{ order.full_name }} — {{ order.phone }}</p>
@@ -145,31 +209,164 @@
                 <h2 class="font-semibold text-gray-800">Items Ordered</h2>
             </div>
             <div class="divide-y">
-                {% for item in order.items.all %}
-                <div class="flex items-center gap-4 px-5 py-4">
-                    {% if item.product %}
-                    {% with img=item.product.primary_image %}
-                    {% if img %}<img src="{{ img.image.url }}" class="w-14 h-14 object-contain rounded border border-gray-100 flex-shrink-0">{% endif %}
-                    {% endwith %}
-                    {% else %}
-                    <div class="w-14 h-14 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                        <span class="material-symbols-outlined text-gray-300">image_not_supported</span>
+                {% for data in items_with_reviews %}
+                {% with item=data.item review=data.review %}
+                <div class="px-5 py-4">
+                    <div class="flex items-center gap-4">
+                        {% if item.product %}
+                        {% with img=item.product.primary_image %}
+                        {% if img %}<img src="{{ img.image.url }}" class="w-14 h-14 object-contain rounded border border-gray-100 flex-shrink-0">{% endif %}
+                        {% endwith %}
+                        {% else %}
+                        <div class="w-14 h-14 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-gray-300">image_not_supported</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-800">{{ item.product_name }}</p>
+                            {% if item.product_sku %}<p class="text-xs text-gray-400">SKU: {{ item.product_sku }}</p>{% endif %}
+                            <p class="text-xs text-gray-500 mt-0.5">Rs. {{ item.unit_price }} × {{ item.quantity }}</p>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-800 flex-shrink-0">Rs. {{ item.subtotal }}</p>
                     </div>
-                    {% endif %}
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-800">{{ item.product_name }}</p>
-                        {% if item.product_sku %}<p class="text-xs text-gray-400">SKU: {{ item.product_sku }}</p>{% endif %}
-                        <p class="text-xs text-gray-500 mt-0.5">Rs. {{ item.unit_price }} × {{ item.quantity }}</p>
-                    </div>
-                    <p class="text-sm font-semibold text-gray-800 flex-shrink-0">Rs. {{ item.subtotal }}</p>
                 </div>
+                {% endwith %}
                 {% endfor %}
             </div>
         </div>
     </div>
 </section>
 
+<!-- Review Modal -->
+<div id="reviewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800" id="reviewModalTitle">Write a Review</h3>
+            <button onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form id="reviewForm" onsubmit="submitReview(event)">
+            <input type="hidden" id="reviewProductId" name="product_id">
+            <input type="hidden" id="reviewId" name="review_id">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                <div class="flex gap-2">
+                    {% for i in "12345" %}
+                    <button type="button" onclick="setRating({{ forloop.counter }})" class="rating-star text-3xl text-gray-300 hover:text-yellow-500 transition-colors">
+                        <span class="material-symbols-outlined">star</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" id="reviewRating" name="rating" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Review (Optional)</label>
+                <textarea id="reviewText" name="review" rows="4" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="Share your experience with this product..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">Submit Review</button>
+                <button type="button" onclick="closeReviewModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg text-sm transition-colors">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+let currentRating = 0;
+
+function openReviewModal(productId, productName) {
+    document.getElementById('reviewModalTitle').textContent = `Review: ${productName}`;
+    document.getElementById('reviewProductId').value = productId;
+    document.getElementById('reviewId').value = '';
+    document.getElementById('reviewRating').value = '';
+    document.getElementById('reviewText').value = '';
+    currentRating = 0;
+    updateStars();
+    document.getElementById('reviewModal').classList.remove('hidden');
+}
+
+function editReview(productId, rating, reviewText, reviewId) {
+    document.getElementById('reviewModalTitle').textContent = 'Edit Review';
+    document.getElementById('reviewProductId').value = productId;
+    document.getElementById('reviewId').value = reviewId;
+    document.getElementById('reviewRating').value = rating;
+    document.getElementById('reviewText').value = reviewText;
+    currentRating = rating;
+    updateStars();
+    document.getElementById('reviewModal').classList.remove('hidden');
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').classList.add('hidden');
+}
+
+function setRating(rating) {
+    currentRating = rating;
+    document.getElementById('reviewRating').value = rating;
+    updateStars();
+}
+
+function updateStars() {
+    const stars = document.querySelectorAll('.rating-star');
+    stars.forEach((star, index) => {
+        if (index < currentRating) {
+            star.classList.remove('text-gray-300');
+            star.classList.add('text-yellow-500');
+        } else {
+            star.classList.remove('text-yellow-500');
+            star.classList.add('text-gray-300');
+        }
+    });
+}
+
+function submitReview(event) {
+    event.preventDefault();
+    
+    const rating = document.getElementById('reviewRating').value;
+    if (!rating) {
+        alert('Please select a rating');
+        return;
+    }
+    
+    const data = new FormData();
+    data.append('order_id', '{{ order.id }}');
+    data.append('product_id', document.getElementById('reviewProductId').value);
+    data.append('rating', rating);
+    data.append('review', document.getElementById('reviewText').value);
+    data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    
+    fetch('/review/save/', {
+        method: 'POST',
+        body: data
+    }).then(r => r.json()).then(json => {
+        if (json.ok) {
+            location.reload();
+        } else {
+            alert(json.error || 'Failed to submit review');
+        }
+    }).catch(err => alert('Error submitting review'));
+}
+
+function deleteReview(reviewId) {
+    if (!confirm('Are you sure you want to delete this review?')) return;
+    
+    const data = new FormData();
+    data.append('review_id', reviewId);
+    data.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+    
+    fetch('/review/delete/', {
+        method: 'POST',
+        body: data
+    }).then(r => r.json()).then(json => {
+        if (json.ok) {
+            location.reload();
+        } else {
+            alert(json.error || 'Failed to delete review');
+        }
+    }).catch(err => alert('Error deleting review'));
+}
+
 let orderMap, orderMarker;
 const orderLat = {{ order.lat|default:27.7172 }};
 const orderLng = {{ order.lng|default:85.3240 }};

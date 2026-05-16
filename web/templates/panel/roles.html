@@ -1,0 +1,59 @@
+{% extends 'panel/base.html' %}
+
+{% block title %} - Roles {% endblock %}
+{% block nav_user_parent %}bg-gray-700 text-white{% endblock %}
+{% block nav_user_arrow %}rotate-180{% endblock %}
+{% block nav_user_open %}{% endblock %}
+{% block nav_roles %}bg-gray-600{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-900">Roles & Permissions</h1>
+    </div>
+
+    <div class="grid gap-6">
+        {% for role in roles %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">{{ role.get_name_display }}</h2>
+                    {% if role.description %}
+                    <p class="text-sm text-gray-600 mt-1">{{ role.description }}</p>
+                    {% endif %}
+                </div>
+                {% if can_edit %}
+                <a href="{% url 'panel_role_edit' role.id %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">
+                    Edit Permissions
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Permissions Grid -->
+            <div class="mt-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Permissions:</h3>
+                {% if role.permissions.all %}
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {% for perm in role.permissions.all %}
+                    <div class="bg-gray-50 px-3 py-2 rounded text-xs">
+                        <span class="font-medium text-gray-900">{{ perm.get_module_display }}</span>
+                        <span class="text-gray-600">- {{ perm.get_action_display }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-500">No permissions assigned</p>
+                {% endif %}
+            </div>
+
+            <!-- User Count -->
+            <div class="mt-4 pt-4 border-t">
+                <p class="text-xs text-gray-600">
+                    <strong>{{ role.users.count }}</strong> user{{ role.users.count|pluralize }} assigned
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

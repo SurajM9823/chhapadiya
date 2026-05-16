@@ -1,0 +1,77 @@
+{% extends "panel/base.html" %}
+{% block title %} — Carousel Slides{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_carousel %}text-white bg-gray-700{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-800">Carousel Slides</h1>
+        <p class="text-xs text-gray-500 mt-1">Manage homepage carousel slides</p>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'panel_carousel_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">
+        Add Slide
+    </a>
+    {% endif %}
+</div>
+
+{% if slides %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Preview</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Title</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Order</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for slide in slides %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    <img src="{{ slide.image.url }}" alt="{{ slide.title }}" class="h-12 w-20 object-cover rounded">
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800">{{ slide.title }}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">{{ slide.order }}</td>
+                <td class="px-4 py-3">
+                    {% if slide.is_active %}
+                    <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">Active</span>
+                    {% else %}
+                    <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    {% if can_edit %}
+                    <a href="{% url 'panel_carousel_edit' slide.id %}" class="text-blue-600 hover:text-blue-800 text-sm">Edit</a>
+                    {% endif %}
+                    {% if can_delete %}
+                    <a href="{% url 'panel_carousel_delete' slide.id %}" onclick="return confirm('Delete this slide?')" class="text-red-600 hover:text-red-800 text-sm">Delete</a>
+                    {% endif %}
+                    {% if not can_edit and not can_delete %}
+                    <span class="text-gray-400 text-sm">No actions</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-8 text-center">
+    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </svg>
+    <p class="text-gray-500 text-sm mb-4">No carousel slides yet</p>
+    {% if can_create %}
+    <a href="{% url 'panel_carousel_add' %}" class="inline-block bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">
+        Add First Slide
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

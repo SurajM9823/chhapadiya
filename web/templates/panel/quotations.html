@@ -84,6 +84,7 @@
                 </span>
 
                 <!-- Update status + note -->
+                {% if can_edit %}
                 <form method="post" action="{% url 'panel_quote_update' q.pk %}" class="space-y-2">
                     {% csrf_token %}
                     <select name="status" class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400">
@@ -96,8 +97,10 @@
                         class="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400">
                     <button type="submit" class="w-full bg-gray-900 text-white text-xs py-1.5 rounded hover:bg-gray-700">Update Status</button>
                 </form>
+                {% endif %}
 
                 <!-- Create / Assign Customer -->
+                {% if can_edit %}
                 <div class="border-t pt-3">
                     <button onclick="toggleCustomerForm('cf-{{ q.pk }}')"
                         class="w-full flex items-center justify-center gap-1 border border-emerald-500 text-emerald-600 text-xs py-1.5 rounded hover:bg-emerald-50 transition-colors">
@@ -128,12 +131,19 @@
                         </form>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Delete -->
+                {% if can_delete %}
                 <form method="post" action="{% url 'panel_quote_delete' q.pk %}" onsubmit="return confirm('Delete this quotation?')">
                     {% csrf_token %}
                     <button type="submit" class="w-full border border-red-200 text-red-400 text-xs py-1.5 rounded hover:bg-red-50">Delete Quotation</button>
                 </form>
+                {% endif %}
+                
+                {% if not can_edit and not can_delete %}
+                <span class="text-gray-400 text-xs text-center block">No actions available</span>
+                {% endif %}
             </div>
         </div>
     </div>

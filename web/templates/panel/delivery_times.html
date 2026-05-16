@@ -1,0 +1,70 @@
+{% extends 'panel/base.html' %}
+
+{% block title %} - Delivery Time Tiers {% endblock %}
+{% block nav_settings_parent %}bg-gray-700 text-white{% endblock %}
+{% block nav_settings_arrow %}rotate-180{% endblock %}
+{% block nav_settings_open %}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-900">Delivery Time Tiers</h1>
+        {% if can_create %}
+        <a href="{% url 'panel_delivery_time_add' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">
+            + Add Delivery Time
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Time Range</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Order</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                {% for dt in delivery_times %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ dt.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">
+                        <span class="font-medium">{{ dt.min_time }} {{ dt.get_min_unit_display }}</span>
+                        <span class="text-gray-400">to</span>
+                        <span class="font-medium">{{ dt.max_time }} {{ dt.get_max_unit_display }}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ dt.description|truncatewords:10 }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ dt.order }}</td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if dt.is_active %}
+                        <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Active</span>
+                        {% else %}
+                        <span class="inline-block bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm space-x-2">
+                        {% if can_edit %}
+                        <a href="{% url 'panel_delivery_time_edit' dt.id %}" class="text-blue-600 hover:text-blue-800 font-medium">Edit</a>
+                        {% endif %}
+                        {% if can_delete %}
+                        <a href="{% url 'panel_delivery_time_delete' dt.id %}" onclick="return confirm('Delete this delivery time tier?')" class="text-red-600 hover:text-red-800 font-medium">Delete</a>
+                        {% endif %}
+                        {% if not can_edit and not can_delete %}
+                        <span class="text-gray-400 text-xs">No actions</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">No delivery time tiers found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

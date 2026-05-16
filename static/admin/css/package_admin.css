@@ -1,0 +1,32 @@
+/* Package Admin Styling */
+.field-get_final_calculation {
+    margin-top: 20px;
+}
+
+.field-get_final_calculation table {
+    font-size: 14px;
+}
+
+.field-get_final_calculation td {
+    padding: 8px 0;
+}
+
+/* Inline package items styling */
+#packageitem_set-group .tabular tr.has_original td {
+    background-color: #f0f8ff;
+}
+
+#packageitem_set-group .tabular input[type="number"] {
+    width: 80px;
+}
+
+/* Highlight calculated fields */
+.field-get_item_total {
+    font-weight: bold;
+    color: #28a745;
+}
+
+/* Make product search more prominent */
+.select2-container {
+    min-width: 300px !important;
+}

@@ -1,12 +1,51 @@
+{% load permissions %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel{% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Select2 custom styling */
+        .select2-container--default .select2-selection--single {
+            height: 34px !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 32px !important;
+            font-size: 0.75rem !important;
+            color: #374151 !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 32px !important;
+        }
+        .select2-dropdown {
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+            font-size: 0.75rem !important;
+        }
+        .select2-results__option {
+            padding: 8px 12px !important;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #059669 !important;
+        }
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+            padding: 6px 8px !important;
+            font-size: 0.75rem !important;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -28,13 +67,6 @@
 <aside id="sidebar" class="fixed top-14 left-0 bottom-0 w-56 bg-gray-800 text-gray-300 flex flex-col z-20 transition-transform duration-200 -translate-x-full lg:translate-x-0 overflow-y-auto">
     <nav class="py-4 px-2 space-y-1">
 
-        <!-- Site Settings -->
-        <a href="{% url 'panel_settings' %}"
-           class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_settings %}{% endblock %}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Site Settings
-        </a>
-
         <!-- Dashboard -->
         <a href="{% url 'panel_dashboard' %}"
            class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_dashboard %}{% endblock %}">
@@ -42,7 +74,23 @@
             Dashboard
         </a>
 
+        <!-- Site Settings -->
+        {% if user.is_superuser or user|has_perm:"settings.view" %}
+        <button onclick="toggleMenu('settings-menu')" class="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_settings_parent %}{% endblock %}">
+            <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Settings
+            </span>
+            <svg id="settings-menu-arrow" class="w-3 h-3 transition-transform {% block nav_settings_arrow %}{% endblock %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="settings-menu" class="ml-6 space-y-1 {% block nav_settings_open %}hidden{% endblock %}">
+            <a href="{% url 'panel_settings' %}" class="block px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white">Site Settings</a>
+            <a href="{% url 'panel_delivery_times' %}" class="block px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white">Delivery Times</a>
+        </div>
+        {% endif %}
+
         <!-- Content Management -->
+        {% if user.is_superuser or user|has_perm:"content.view" %}
         <button onclick="toggleMenu('content-menu')" class="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_content_parent %}{% endblock %}">
             <span class="flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
@@ -51,7 +99,7 @@
             <svg id="content-menu-arrow" class="w-3 h-3 transition-transform {% block nav_content_arrow %}{% endblock %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div id="content-menu" class="ml-4 space-y-1 {% block nav_content_open %}hidden{% endblock %}">
-            <a href="{% url 'panel_dashboard' %}" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs hover:bg-gray-700 hover:text-white {% block nav_carousel %}{% endblock %}">
+            <a href="{% url 'panel_carousel' %}" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs hover:bg-gray-700 hover:text-white {% block nav_carousel %}{% endblock %}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Carousel
             </a>
@@ -76,8 +124,10 @@
                 Inquiries
             </a>
         </div>
+        {% endif %}
 
         <!-- Customers -->
+        {% if user.is_superuser or user|has_perm:"customers.view" %}
         <button onclick="toggleMenu('customer-menu')" class="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_customer_parent %}{% endblock %}">
             <span class="flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -99,15 +149,24 @@
                 Quote Requests
             </a>
         </div>
+        {% endif %}
 
         <!-- Orders -->
+        {% if user.is_superuser or user|has_perm:"orders.view" %}
         <a href="{% url 'panel_orders' %}"
            class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_orders %}{% endblock %}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
             Orders
         </a>
+        <a href="{% url 'panel_billing' %}"
+           class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_billing %}{% endblock %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M9 7h6m-3 4v4m-2-2h4"/></svg>
+            POS / Billing
+        </a>
+        {% endif %}
 
         <!-- Products -->
+        {% if user.is_superuser or user|has_perm:"products.view" %}
         <button onclick="toggleMenu('product-menu')" class="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_product_parent %}{% endblock %}">
             <span class="flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
@@ -125,6 +184,37 @@
                 Countries
             </a>
         </div>
+        {% endif %}
+
+        <!-- Packages -->
+        {% if user.is_superuser or user|has_perm:"packages.view" %}
+        <a href="{% url 'panel_packages' %}"
+           class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_packages %}{% endblock %}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12l8-4M12 12v10M12 12L4 8"/></svg>
+            Packages
+        </a>
+        {% endif %}
+
+        <!-- User Management -->
+        {% if user.is_superuser or user|has_perm:"users.view" %}
+        <button onclick="toggleMenu('user-menu')" class="w-full flex items-center justify-between px-3 py-2 rounded text-sm hover:bg-gray-700 hover:text-white {% block nav_user_parent %}{% endblock %}">
+            <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 8.048M12 4.354L8.646 7.708m6.708 0L15.354 7.708M9 20h6a2 2 0 002-2v-1a6 6 0 00-12 0v1a2 2 0 002 2z"/></svg>
+                User Management
+            </span>
+            <svg id="user-menu-arrow" class="w-3 h-3 transition-transform {% block nav_user_arrow %}{% endblock %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="user-menu" class="ml-4 space-y-1 {% block nav_user_open %}hidden{% endblock %}">
+            <a href="{% url 'panel_users' %}" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs hover:bg-gray-700 hover:text-white {% block nav_users %}{% endblock %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                All Users
+            </a>
+            <a href="{% url 'panel_roles' %}" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs hover:bg-gray-700 hover:text-white {% block nav_roles %}{% endblock %}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Roles & Permissions
+            </a>
+        </div>
+        {% endif %}
 
     </nav>
 </aside>

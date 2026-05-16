@@ -206,6 +206,7 @@ async function fetchWishlistedProducts() {
 
 function createProductCard(product) {
     const isWishlisted = wishlistedProducts.has(product.id);
+    const ratingHtml = product.avg_rating ? `<span class="flex items-center gap-1 text-xs text-gray-600"><span class="material-symbols-outlined text-sm text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>${product.avg_rating}</span>` : '';
     return `
     <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
         <div class="absolute top-2 right-2 z-10 flex flex-row gap-1.5">
@@ -223,8 +224,14 @@ function createProductCard(product) {
         </a>
         <span class="text-[10px] font-semibold text-emerald-600 uppercase mb-1">${product.category_name}</span>
         <a href="/product/${product.slug}/" class="block font-medium text-xs md:text-sm text-gray-800 line-clamp-2 mb-2 hover:text-emerald-600 transition-colors">${product.name}</a>
-        ${product.brand ? `<p class="text-xs text-gray-400 mb-2">${product.brand}</p>` : ''}
-        <span class="text-sm md:text-base font-bold text-gray-900 mb-3">Rs. ${product.mrp.toFixed(2)}</span>
+        <div class="flex items-center justify-between text-xs text-gray-400 mb-2 min-h-[20px]">
+            ${product.brand ? `<span>${product.brand}</span>` : '<span></span>'}
+            ${product.delivery_time ? `<span class="flex items-center gap-0.5 text-gray-600"><span class="material-symbols-outlined text-xs">local_shipping</span>${product.delivery_time}</span>` : ''}
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${product.mrp.toFixed(2)}</span>
+            ${ratingHtml}
+        </div>
         <div class="flex flex-col gap-2 mt-auto">
             <div class="flex gap-2">
                 <button onclick="addToCart('${product.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">

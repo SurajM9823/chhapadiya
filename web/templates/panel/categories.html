@@ -7,7 +7,9 @@
 {% block content %}
 <div class="flex justify-between items-center mb-6">
     <div><p class="text-xs text-gray-500 mb-1">Content Management</p><h1 class="text-xl font-semibold text-gray-800">Categories</h1></div>
+    {% if can_create %}
     <a href="{% url 'panel_category_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Category</a>
+    {% endif %}
 </div>
 {% if categories %}
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -44,10 +46,17 @@
                 <td class="px-4 py-3">
                     <div class="flex gap-3">
                         <a href="{% url 'panel_subcategories' cat.pk %}" class="text-gray-500 hover:underline text-xs">Subs</a>
+                        {% if can_edit %}
                         <a href="{% url 'panel_category_edit' cat.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                        {% endif %}
+                        {% if can_delete %}
                         <form method="post" action="{% url 'panel_category_delete' cat.pk %}" onsubmit="return confirm('Delete category and all its sub-categories?')">{% csrf_token %}
                             <button class="text-red-500 hover:underline text-xs">Delete</button>
                         </form>
+                        {% endif %}
+                        {% if not can_edit and not can_delete %}
+                        <span class="text-gray-400 text-xs">No actions</span>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -56,6 +65,6 @@
     </table>
 </div>
 {% else %}
-<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No categories yet. <a href="{% url 'panel_category_add' %}" class="text-blue-600 hover:underline">Add one</a>.</div>
+<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No categories yet. {% if can_create %}<a href="{% url 'panel_category_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,283 @@
+{% extends 'panel/base.html' %}
+
+{% block title %} - Users {% endblock %}
+{% block nav_user_parent %}bg-gray-700 text-white{% endblock %}
+{% block nav_user_arrow %}rotate-180{% endblock %}
+{% block nav_user_open %}{% endblock %}
+{% block nav_users %}bg-gray-600{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-900">Users</h1>
+        {% if can_create %}
+        <button onclick="openUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">
+            + Add User
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <form method="get" class="flex gap-3 flex-wrap">
+            <input type="text" name="search" placeholder="Search by username or email..." value="{{ search }}" class="flex-1 min-w-48 px-3 py-2 border border-gray-300 rounded text-sm">
+            <select name="role" class="px-3 py-2 border border-gray-300 rounded text-sm">
+                <option value="">All Roles</option>
+                {% for role in roles %}
+                <option value="{{ role.id }}" {% if role.id|stringformat:"s" == role_id %}selected{% endif %}>{{ role.get_name_display }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium">Search</button>
+        </form>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Role</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Joined</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                {% for user in users %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ user.username }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ user.email }}</td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if user.role %}
+                        <span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">{{ user.role.get_name_display }}</span>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if user.is_active %}
+                        <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Active</span>
+                        {% else %}
+                        <span class="inline-block bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ user.date_joined|date:"M d, Y" }}</td>
+                    <td class="px-6 py-4 text-sm space-x-2">
+                        {% if can_edit %}
+                        <button onclick="editUser({{ user.id }})" class="text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                        {% endif %}
+                        {% if can_delete %}
+                        <a href="{% url 'panel_user_delete' user.id %}" onclick="return confirm('Delete this user?')" class="text-red-600 hover:text-red-800 font-medium">Delete</a>
+                        {% endif %}
+                        {% if not can_edit and not can_delete %}
+                        <span class="text-gray-400 text-xs">No actions</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">No users found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if users.has_other_pages %}
+    <div class="flex justify-center gap-2">
+        {% if users.has_previous %}
+        <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_id %}&role={{ role_id }}{% endif %}" class="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50">First</a>
+        <a href="?page={{ users.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_id %}&role={{ role_id }}{% endif %}" class="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50">Previous</a>
+        {% endif %}
+        
+        <span class="px-3 py-2 text-sm text-gray-600">Page {{ users.number }} of {{ users.paginator.num_pages }}</span>
+        
+        {% if users.has_next %}
+        <a href="?page={{ users.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_id %}&role={{ role_id }}{% endif %}" class="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50">Next</a>
+        <a href="?page={{ users.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_id %}&role={{ role_id }}{% endif %}" class="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50">Last</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="text-sm text-gray-600">Total: {{ total_count }} users</div>
+</div>
+
+<!-- User Modal -->
+<div id="userModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl">
+        <!-- Modal Header -->
+        <div class="bg-white border-b p-4 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900" id="modalTitle">Add User</h2>
+            <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+
+        <!-- Modal Body -->
+        <form method="post" id="userForm" class="p-6">
+            {% csrf_token %}
+            <input type="hidden" id="userId" name="user_id" value="">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
+                    <input type="text" id="username" name="username" placeholder="john_doe" required class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                    <input type="email" id="email" name="email" placeholder="user@example.com" required class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="John" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Doe" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+977-98XXXXXXXX" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select id="role" name="role" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="">Select Role</option>
+                        {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.get_name_display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500" id="passwordRequired">*</span></label>
+                    <input type="password" id="password" name="password" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div id="confirmPasswordDiv" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
+                    <input type="password" id="password_confirm" name="password_confirm" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+                <label class="flex items-center">
+                    <input type="checkbox" id="is_active" name="is_active" checked class="w-4 h-4 text-blue-600 rounded">
+                    <span class="ml-2 text-sm text-gray-700">Active Account</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="is_staff" name="is_staff" class="w-4 h-4 text-blue-600 rounded">
+                    <span class="ml-2 text-sm text-gray-700">Staff Member <span class="text-xs text-gray-500">(Optional - Role is sufficient for access)</span></span>
+                </label>
+            </div>
+        </form>
+
+        <!-- Modal Footer -->
+        <div class="bg-gray-50 border-t p-4 flex justify-end gap-2">
+            <button type="button" onclick="closeUserModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded text-sm font-medium">
+                Cancel
+            </button>
+            <button type="submit" form="userForm" id="saveBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center gap-2">
+                <span id="saveBtnText">Save</span>
+                <svg id="saveBtnSpinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openUserModal() {
+    document.getElementById('userModal').classList.remove('hidden');
+    document.getElementById('modalTitle').textContent = 'Add User';
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+    document.getElementById('username').disabled = false;
+    document.getElementById('confirmPasswordDiv').classList.remove('hidden');
+    document.getElementById('passwordRequired').textContent = '*';
+    document.getElementById('password').required = true;
+    document.getElementById('password_confirm').required = true;
+    document.getElementById('is_active').checked = true;
+    document.getElementById('is_staff').checked = false;
+}
+
+function closeUserModal() {
+    document.getElementById('userModal').classList.add('hidden');
+}
+
+function editUser(userId) {
+    fetch('/api/user/' + userId + '/')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userId').value = userId;
+            document.getElementById('username').value = data.username;
+            document.getElementById('username').disabled = true;
+            document.getElementById('email').value = data.email;
+            document.getElementById('first_name').value = data.first_name || '';
+            document.getElementById('last_name').value = data.last_name || '';
+            document.getElementById('phone').value = data.phone || '';
+            document.getElementById('role').value = data.role_id || '';
+            document.getElementById('is_active').checked = data.is_active;
+            document.getElementById('is_staff').checked = data.is_staff;
+            document.getElementById('password').value = '';
+            document.getElementById('password').required = false;
+            document.getElementById('password_confirm').required = false;
+            document.getElementById('confirmPasswordDiv').classList.add('hidden');
+            document.getElementById('passwordRequired').textContent = '';
+            document.getElementById('userModal').classList.remove('hidden');
+        })
+        .catch(err => alert('Error loading user data'));
+}
+
+document.getElementById('userForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const saveBtn = document.getElementById('saveBtn');
+    const saveBtnText = document.getElementById('saveBtnText');
+    const saveBtnSpinner = document.getElementById('saveBtnSpinner');
+    
+    saveBtn.disabled = true;
+    saveBtnText.textContent = 'Saving';
+    saveBtnSpinner.classList.remove('hidden');
+    
+    const userId = document.getElementById('userId').value;
+    const url = userId ? '/panel/users/' + userId + '/edit/' : '/panel/users/add/';
+    
+    const formData = new FormData(this);
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => {
+        if (r.ok) {
+            location.reload();
+        } else {
+            alert('Error saving user');
+            saveBtn.disabled = false;
+            saveBtnText.textContent = 'Save';
+            saveBtnSpinner.classList.add('hidden');
+        }
+    })
+    .catch(err => {
+        alert('Error: ' + err);
+        saveBtn.disabled = false;
+        saveBtnText.textContent = 'Save';
+        saveBtnSpinner.classList.add('hidden');
+    });
+});
+
+window.onclick = function(e) {
+    const modal = document.getElementById('userModal');
+    if (e.target === modal) closeUserModal();
+}
+</script>
+{% endblock %}
