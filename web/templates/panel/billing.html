@@ -209,31 +209,38 @@
                     <div class="row mb-3">
                         <div class="col-md-2">
                             <label class="small">Start Date</label>
-                            <input type="date" id="filterStartDate" class="form-control form-control-sm">
+                            <input type="date" id="filterStartDate" class="form-control form-control-sm" value="{{ f_date_from }}">
                         </div>
                         <div class="col-md-2">
                             <label class="small">End Date</label>
-                            <input type="date" id="filterEndDate" class="form-control form-control-sm">
+                            <input type="date" id="filterEndDate" class="form-control form-control-sm" value="{{ f_date_to }}">
                         </div>
                         <div class="col-md-2">
                             <label class="small">Sale Type</label>
                             <select id="filterSaleType" class="form-control form-control-sm">
                                 <option value="">All Types</option>
-                                <option value="counter">Counter</option>
-                                <option value="agent">Agent</option>
-                                <option value="online">Online</option>
+                                <option value="counter" {% if f_sale_type == 'counter' %}selected{% endif %}>Counter</option>
+                                <option value="agent" {% if f_sale_type == 'agent' %}selected{% endif %}>Agent</option>
+                                <option value="online" {% if f_sale_type == 'online' %}selected{% endif %}>Online</option>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="small">Payment Status</label>
                             <select id="filterPaymentStatus" class="form-control form-control-sm">
                                 <option value="">All Status</option>
-                                <option value="paid">Paid</option>
-                                <option value="partial">Partial</option>
-                                <option value="pending">Pending</option>
+                                <option value="paid" {% if f_pay_status == 'paid' %}selected{% endif %}>Paid</option>
+                                <option value="partial" {% if f_pay_status == 'partial' %}selected{% endif %}>Partial</option>
+                                <option value="pending" {% if f_pay_status == 'pending' %}selected{% endif %}>Pending</option>
                             </select>
                         </div>
                         <div class="col-md-2">
+                            <label class="small">Agent</label>
+                            <select id="filterAgent" class="form-control form-control-sm">
+                                <option value="">All Agents</option>
+                                <!-- Populated via JS -->
+                            </select>
+                        </div>
+                        <div class="col-md-1">
                             <label class="small">Show</label>
                             <select id="limitSelect" class="form-control form-control-sm">
                                 <option value="10">10</option>
@@ -242,9 +249,9 @@
                                 <option value="100">100</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label class="small">&nbsp;</label>
-                            <button id="resetFilters" class="btn btn-sm btn-secondary btn-block">Reset Filters</button>
+                            <button id="resetFilters" class="btn btn-sm btn-secondary btn-block">Reset</button>
                         </div>
                     </div>
 
@@ -252,15 +259,15 @@
                     <div class="row mb-3 py-2 bg-light border rounded">
                         <div class="col-md-3 text-center border-right">
                             <small class="text-muted d-block">Total Bills</small>
-                            <strong id="statTotalBills" class="h5 text-primary">0</strong>
+                            <strong id="statTotalBills" class="h5 text-primary">{{ stats.total_bills|default:0 }}</strong>
                         </div>
                         <div class="col-md-3 text-center border-right">
                             <small class="text-muted d-block">Total Revenue</small>
-                            <strong id="statTotalRevenue" class="h5 text-success">₹0</strong>
+                            <strong id="statTotalRevenue" class="h5 text-success">₹{{ stats.total_revenue|default:0|floatformat:2 }}</strong>
                         </div>
                         <div class="col-md-3 text-center border-right">
                             <small class="text-muted d-block">Pending Amount</small>
-                            <strong id="statPendingAmount" class="h5 text-warning">₹0</strong>
+                            <strong id="statPendingAmount" class="h5 text-warning">₹{{ actual_pending|floatformat:2 }}</strong>
                         </div>
                         <div class="col-md-3 text-center">
                             <small class="text-muted d-block">Total Discount</small>
@@ -311,6 +318,18 @@ let agents = [];
 let currentOffset = 0;
 let currentLimit = 10;
 
+// Check if we have order data to auto-populate
+const orderDataRaw = '{{ order_data|escapejs }}';
+let orderData = null;
+if (orderDataRaw && orderDataRaw !== 'None') {
+    try {
+        orderData = JSON.parse(orderDataRaw);
+        console.log('Order data loaded:', orderData);
+    } catch(e) {
+        console.error('Failed to parse order data:', e);
+    }
+}
+
 // Load initial data
 $(document).ready(function() {
     // Initialize Select2 for customer dropdown
@@ -324,6 +343,13 @@ $(document).ready(function() {
     loadCustomers();
     loadAgents();
     loadBillingHistory();
+    
+    // Auto-populate from order if order_data exists
+    if (orderData) {
+        setTimeout(function() {
+            autoPopulateFromOrder(orderData);
+        }, 1000); // Wait for products and customers to load
+    }
     
     // Show walk-in fields by default since Walk-in is selected
     $('#walkInDetails').show();
@@ -423,7 +449,7 @@ $(document).ready(function() {
     });
 
     // Filters
-    $('#filterStartDate, #filterEndDate, #filterSaleType, #filterPaymentStatus').on('change', function() {
+    $('#filterStartDate, #filterEndDate, #filterSaleType, #filterPaymentStatus, #filterAgent').on('change', function() {
         currentOffset = 0;
         loadBillingHistory();
     });
@@ -433,6 +459,7 @@ $(document).ready(function() {
         $('#filterEndDate').val('');
         $('#filterSaleType').val('');
         $('#filterPaymentStatus').val('');
+        $('#filterAgent').val('');
         currentOffset = 0;
         loadBillingHistory();
     });
@@ -542,6 +569,11 @@ function loadAgents() {
         const options = '<option value="">None</option>' + 
             data.map(a => `<option value="${a.id}">${a.username}</option>`).join('');
         $('#agentSelect').html(options);
+        
+        // Populate filter dropdown
+        const filterOptions = '<option value="">All Agents</option>' + 
+            data.map(a => `<option value="${a.id}" ${a.id == '{{ f_agent }}' ? 'selected' : ''}>${a.name}</option>`).join('');
+        $('#filterAgent').html(filterOptions);
     });
 }
 
@@ -712,7 +744,8 @@ function completeBilling() {
         amount_paid: amountPaid,
         overall_discount: overallDiscount,
         items: cart,
-        split_payments: splitPayments
+        split_payments: splitPayments,
+        order_id: orderData ? orderData.order_id : null
     };
 
     $.ajax({
@@ -737,6 +770,13 @@ function completeBilling() {
             $('#walkInDetails').hide();
             loadBillingHistory();
             loadProducts(); // Refresh stock
+            
+            // Redirect to order detail if came from order
+            if (orderData && orderData.order_id) {
+                setTimeout(function() {
+                    window.location.href = '/panel/orders/' + orderData.order_id + '/';
+                }, 1500);
+            }
         },
         error: function(xhr) {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete billing'));
@@ -749,6 +789,7 @@ function loadBillingHistory() {
     const endDate = $('#filterEndDate').val();
     const saleType = $('#filterSaleType').val();
     const paymentStatus = $('#filterPaymentStatus').val();
+    const agentId = $('#filterAgent').val();
     
     const params = new URLSearchParams({
         limit: currentLimit,
@@ -756,7 +797,8 @@ function loadBillingHistory() {
         start_date: startDate,
         end_date: endDate,
         sale_type: saleType,
-        payment_status: paymentStatus
+        payment_status: paymentStatus,
+        agent: agentId
     });
 
     $.get('/panel/api/billing/?' + params.toString(), function(data) {
@@ -829,6 +871,70 @@ function updateStatistics(stats) {
 
 function viewBill(billId) {
     window.open('/panel/billing/' + billId + '/view/', '_blank');
+}
+
+// Auto-populate form from order data
+function autoPopulateFromOrder(orderData) {
+    console.log('Auto-populating from order:', orderData);
+    
+    // Set walk-in customer details
+    $('#walkInName').val(orderData.customer_name || '');
+    $('#walkInPhone').val(orderData.customer_phone || '');
+    $('#walkInDetails').show();
+    
+    // Add items to cart
+    cart = [];
+    
+    if (orderData.is_package_order) {
+        // For package orders, calculate proportional pricing
+        const packageTotal = parseFloat(orderData.total);
+        let itemsTotal = 0;
+        
+        // First pass: calculate total of all items at MRP
+        orderData.items.forEach(function(item) {
+            itemsTotal += parseFloat(item.unit_price) * parseInt(item.quantity);
+        });
+        
+        // Second pass: add items with proportional package pricing
+        orderData.items.forEach(function(item) {
+            const product = products.find(p => p.id === item.product_id);
+            const itemMrpTotal = parseFloat(item.unit_price) * parseInt(item.quantity);
+            const proportionalPrice = itemsTotal > 0 ? (itemMrpTotal / itemsTotal) * packageTotal / parseInt(item.quantity) : parseFloat(item.unit_price);
+            
+            cart.push({
+                product_id: item.product_id,
+                name: item.product_name,
+                sku: item.product_sku,
+                price: proportionalPrice.toFixed(2),
+                quantity: item.quantity,
+                discount: 0,
+                max_stock: product ? product.stock : 999
+            });
+        });
+        
+        alert('Package Order Loaded: "' + orderData.package_name + '"\n\n' + 
+              orderData.items.length + ' items added to cart\n' +
+              'Package Total: ₹' + packageTotal.toFixed(2) + '\n\n' +
+              'Note: Package pricing has been applied proportionally to all items.');
+    } else {
+        // For normal orders, use regular pricing
+        orderData.items.forEach(function(item) {
+            const product = products.find(p => p.id === item.product_id);
+            cart.push({
+                product_id: item.product_id,
+                name: item.product_name,
+                sku: item.product_sku,
+                price: item.unit_price,
+                quantity: item.quantity,
+                discount: 0,
+                max_stock: product ? product.stock : 999
+            });
+        });
+        
+        alert('Order #' + orderData.order_number + ' loaded with ' + orderData.items.length + ' items.');
+    }
+    
+    renderCart();
 }
 </script>
 

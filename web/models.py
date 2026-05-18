@@ -181,8 +181,17 @@ class Order(models.Model):
         ('online', 'Online Payment'),
         ('pickup', 'Pay at Store'),
     ]
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid',  'Unpaid'),
+        ('partial', 'Partially Paid'),
+        ('paid',    'Paid'),
+    ]
     user            = models.ForeignKey(CustomerUser, on_delete=models.SET_NULL, null=True, related_name='orders')
     order_number    = models.CharField(max_length=20, unique=True)
+    is_package_order = models.BooleanField(default=False, help_text='Is this a package order?')
+    package_name    = models.CharField(max_length=300, blank=True, help_text='Package name if package order')
+    agent_referral_code = models.CharField(max_length=9, blank=True, help_text='Agent referral code')
+    referred_agent  = models.ForeignKey(CustomerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_orders', limit_choices_to={'user_type': 'agent'})
     status          = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     delivery_type   = models.CharField(max_length=20, choices=DELIVERY_CHOICES, default='delivery')
     full_name       = models.CharField(max_length=200)
@@ -196,6 +205,7 @@ class Order(models.Model):
     billing_city    = models.CharField(max_length=100, blank=True)
     note            = models.TextField(blank=True)
     payment_method  = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cod')
+    payment_status  = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
     subtotal        = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     delivery_charge = models.DecimalField(max_digits=8,  decimal_places=2, default=0)
     total           = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -232,6 +242,28 @@ class OrderItem(models.Model):
         return self.unit_price * self.quantity
 
 
+class OrderPayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('upi', 'UPI / Online'),
+        ('cheque', 'Cheque'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
+    note = models.TextField(blank=True)
+    recorded_by = models.ForeignKey('CustomerUser', on_delete=models.SET_NULL, null=True, related_name='recorded_payments')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Payment Rs.{self.amount} for Order #{self.order.order_number}"
+
+
 class ProductReview(models.Model):
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, related_name='reviews')
@@ -260,6 +292,7 @@ class SiteSettings(models.Model):
     address = models.TextField(blank=True)
     facebook = models.URLField(blank=True)
     instagram = models.URLField(blank=True)
+    youtube = models.URLField(blank=True)
     whatsapp = models.CharField(max_length=30, blank=True)
     tiktok = models.URLField(blank=True)
     linkedin = models.URLField(blank=True)

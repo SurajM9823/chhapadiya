@@ -91,7 +91,7 @@
                 </div>
 
                 <!-- Social Media -->
-                {% if settings.facebook or settings.instagram or settings.whatsapp or settings.tiktok or settings.linkedin or settings.twitter %}
+                {% if settings.facebook or settings.instagram or settings.youtube or settings.whatsapp or settings.tiktok or settings.linkedin or settings.twitter %}
                 <div>
                     <h2 class="font-['Work_Sans'] text-2xl font-bold text-primary mb-5">Follow Us</h2>
                     <div class="grid grid-cols-2 gap-3">
@@ -116,6 +116,18 @@
                             <div>
                                 <p class="text-xs font-semibold text-primary">Instagram</p>
                                 <p class="text-xs text-outline truncate max-w-[100px]">{{ settings.instagram|cut:"https://"|cut:"http://"|cut:"www." }}</p>
+                            </div>
+                        </a>
+                        {% endif %}
+
+                        {% if settings.youtube %}
+                        <a href="{{ settings.youtube }}" target="_blank" class="flex items-center gap-3 p-3 bg-white border border-outline-variant hover:border-emerald-400 hover:shadow-sm transition-all">
+                            <div class="w-9 h-9 bg-[#FF0000] rounded flex items-center justify-center flex-shrink-0">
+                                <i class="fa-brands fa-youtube text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-primary">YouTube</p>
+                                <p class="text-xs text-outline truncate max-w-[100px]">{{ settings.youtube|cut:"https://"|cut:"http://"|cut:"www." }}</p>
                             </div>
                         </a>
                         {% endif %}

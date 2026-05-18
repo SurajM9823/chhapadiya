@@ -11,8 +11,16 @@
             <a href="{% url 'order_detail' order.order_number %}" class="block bg-white rounded-xl shadow hover:shadow-md transition-shadow p-5">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p class="font-semibold text-gray-800">#{{ order.order_number }}</p>
+                        <div class="flex items-center gap-2">
+                            <p class="font-semibold text-gray-800">#{{ order.order_number }}</p>
+                            {% if order.is_package_order %}
+                            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold">📦 Package</span>
+                            {% endif %}
+                        </div>
                         <p class="text-xs text-gray-400 mt-0.5">{{ order.created_at|date:"d M Y, H:i" }}</p>
+                        {% if order.referred_agent %}
+                        <p class="text-xs text-emerald-600 mt-1">👤 Agent: {{ order.referred_agent.get_full_name|default:order.referred_agent.email }}</p>
+                        {% endif %}
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-semibold text-gray-800">Rs. {{ order.total }}</span>

@@ -7,8 +7,16 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Order #{{ order.order_number }}</h1>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-bold text-gray-800">Order #{{ order.order_number }}</h1>
+                {% if order.is_package_order %}
+                <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-semibold">📦 Package Order</span>
+                {% endif %}
+            </div>
             <p class="text-gray-500 text-sm mt-1">Placed on {{ order.created_at|date:"d M Y, H:i" }}</p>
+            {% if order.is_package_order %}
+            <p class="text-emerald-600 text-sm font-semibold mt-1">Package: {{ order.package_name }}</p>
+            {% endif %}
         </div>
         <a href="{% url 'panel_orders' %}" class="text-blue-600 hover:text-blue-800 font-medium">← Back to Orders</a>
     </div>
@@ -62,6 +70,12 @@
                 {% endif %}
                 {% endif %}
                 <div><span class="text-gray-500">Charge:</span> <span class="font-medium">Rs. {{ order.delivery_charge }}</span></div>
+                {% if order.referred_agent %}
+                <div class="pt-2 border-t border-gray-100">
+                    <div><span class="text-gray-500">Referred By:</span> <span class="font-medium text-emerald-600">{{ order.referred_agent.get_full_name|default:order.referred_agent.email }}</span></div>
+                    <div><span class="text-gray-500">Agent Code:</span> <span class="font-mono font-semibold">{{ order.agent_referral_code }}</span></div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -72,7 +86,60 @@
                 <div><span class="text-gray-500">Method:</span> <span class="font-medium">{{ order.get_payment_method_display }}</span></div>
                 <div><span class="text-gray-500">Subtotal:</span> <span class="font-medium">Rs. {{ order.subtotal }}</span></div>
                 <div><span class="text-gray-500">Total:</span> <span class="font-bold text-lg">Rs. {{ order.total }}</span></div>
+                <div class="pt-2 border-t border-gray-100">
+                    <span class="text-gray-500">Payment Status:</span> 
+                    {% if order.payment_status == 'paid' %}
+                    <span class="font-medium text-green-600">✓ Paid</span>
+                    {% elif order.payment_status == 'partial' %}
+                    <span class="font-medium text-yellow-600">⚠ Partially Paid</span>
+                    {% else %}
+                    <span class="font-medium text-red-600">✗ Unpaid</span>
+                    {% endif %}
+                </div>
+                {% if order.payment_status == 'paid' or order.payment_status == 'partial' %}
+                <div class="pt-2 border-t border-gray-100 mt-2">
+                    <div class="text-xs space-y-1">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Amount Paid:</span>
+                            <span class="font-semibold text-green-600">Rs. {{ total_paid_amount|floatformat:2 }}</span>
+                        </div>
+                        {% if remaining_amount > 0 %}
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Remaining:</span>
+                            <span class="font-semibold text-red-600">Rs. {{ remaining_amount|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if related_bills %}
+                        <div class="mt-2 pt-2 border-t border-gray-100">
+                            <span class="text-gray-500">Bills:</span>
+                            {% for bill in related_bills %}
+                            <a href="{% url 'panel_billing_view' bill.pk %}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs ml-2">
+                                #{{ bill.bill_number }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
+            {% if order.payment_status != 'paid' %}
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                {% if related_bills %}
+                    <!-- If billing already exists, show Make Payment button -->
+                    <button onclick="openPaymentModal()" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
+                        Make Payment
+                    </button>
+                    <p class="text-xs text-gray-400 text-center mt-2">Record additional payment for this order</p>
+                {% else %}
+                    <!-- If no billing exists, show Create Sale button -->
+                    <a href="{% url 'panel_billing' %}?order_id={{ order.id }}" class="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
+                        Create Sale / Invoice
+                    </a>
+                    <p class="text-xs text-gray-400 text-center mt-2">Generate POS billing for this order</p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -98,16 +165,28 @@
     <!-- Order Items -->
     <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800">Order Items</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-800">Order Items</h2>
+                {% if order.is_package_order %}
+                <span class="text-sm text-emerald-600 font-semibold">📦 Package: {{ order.package_name }}</span>
+                {% endif %}
+            </div>
+            {% if order.is_package_order %}
+            <p class="text-xs text-emerald-600 mt-2">Package deal price applied - Rs. {{ order.total }}</p>
+            {% endif %}
         </div>
         <table class="w-full">
             <thead class="bg-gray-50 border-b">
                 <tr>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Product</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">SKU</th>
+                    {% if not order.is_package_order %}
                     <th class="px-6 py-3 text-right text-sm font-semibold text-gray-700">Unit Price</th>
+                    {% endif %}
                     <th class="px-6 py-3 text-right text-sm font-semibold text-gray-700">Quantity</th>
+                    {% if not order.is_package_order %}
                     <th class="px-6 py-3 text-right text-sm font-semibold text-gray-700">Subtotal</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody class="divide-y">
@@ -116,9 +195,13 @@
                 <tr>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ item.product_name }}</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ item.product_sku }}</td>
+                    {% if not order.is_package_order %}
                     <td class="px-6 py-4 text-sm text-right text-gray-900">Rs. {{ item.unit_price }}</td>
+                    {% endif %}
                     <td class="px-6 py-4 text-sm text-right text-gray-900">{{ item.quantity }}</td>
+                    {% if not order.is_package_order %}
                     <td class="px-6 py-4 text-sm text-right font-semibold text-gray-900">Rs. {{ item.subtotal }}</td>
+                    {% endif %}
                 </tr>
                 {% endwith %}
                 {% endfor %}
@@ -181,6 +264,39 @@
     </div>
     {% endif %}
 
+    <!-- Payment History -->
+    {% if order_payments %}
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment History</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date & Time</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Amount</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Method</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Recorded By</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Note</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for payment in order_payments %}
+                    <tr>
+                        <td class="px-4 py-3 text-sm text-gray-900">{{ payment.created_at|date:"d M Y, H:i" }}</td>
+                        <td class="px-4 py-3 text-sm font-semibold text-green-600">Rs. {{ payment.amount }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">{{ payment.get_payment_method_display }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900">{{ payment.recorded_by.username }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ payment.note|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Order Notes -->
     {% if order.note %}
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -228,5 +344,110 @@ function shareDeliveryDetails() {
         setTimeout(() => toast.remove(), 2000);
     }
 }
+
+function openPaymentModal() {
+    const modal = document.getElementById('paymentModal');
+    modal.style.display = 'flex';
+}
+
+function closePaymentModal() {
+    const modal = document.getElementById('paymentModal');
+    modal.style.display = 'none';
+    document.getElementById('paymentForm').reset();
+}
+
+function submitPayment() {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const method = document.getElementById('paymentMethodSelect').value;
+    const note = document.getElementById('paymentNote').value;
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid payment amount!');
+        return;
+    }
+    
+    const remaining = parseFloat('{{ remaining_amount|floatformat:2 }}');
+    if (amount > remaining) {
+        if (!confirm(`Payment amount (Rs. ${amount}) exceeds remaining balance (Rs. ${remaining}). Continue?`)) {
+            return;
+        }
+    }
+    
+    fetch('{% url "record_order_payment" order.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            amount: amount,
+            payment_method: method,
+            note: note
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment recorded successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to record payment'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
 </script>
+
+<!-- Payment Modal -->
+<div id="paymentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="bg-white rounded-lg shadow-xl" style="width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-xl font-semibold text-gray-800">Record Payment</h3>
+            <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form id="paymentForm" class="px-6 py-4">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Order Total</label>
+                <div class="text-2xl font-bold text-gray-800">Rs. {{ order.total }}</div>
+            </div>
+            <div class="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Already Paid</label>
+                    <div class="text-lg font-semibold text-green-600">Rs. {{ total_paid_amount|floatformat:2 }}</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remaining</label>
+                    <div class="text-lg font-semibold text-red-600">Rs. {{ remaining_amount|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Payment Amount <span class="text-red-500">*</span></label>
+                <input type="number" id="paymentAmount" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Enter amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method <span class="text-red-500">*</span></label>
+                <select id="paymentMethodSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="upi">UPI / Online</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Note (Optional)</label>
+                <textarea id="paymentNote" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" rows="3" placeholder="Add payment note..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closePaymentModal()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Cancel</button>
+                <button type="button" onclick="submitPayment()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Record Payment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}

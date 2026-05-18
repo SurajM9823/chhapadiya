@@ -33,12 +33,25 @@
             <tbody class="divide-y">
                 {% for order in orders %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ order.order_number }}</td>
+                    <td class="px-6 py-4 text-sm">
+                        <div class="font-medium text-gray-900">{{ order.order_number }}</div>
+                        {% if order.is_package_order %}
+                        <div class="text-xs text-emerald-600 font-semibold mt-1">📦 Package: {{ order.package_name }}</div>
+                        {% endif %}
+                        {% if order.referred_agent %}
+                        <div class="text-xs text-blue-600 mt-1">👤 Agent: {{ order.referred_agent.get_full_name|default:order.referred_agent.email }}</div>
+                        {% endif %}
+                    </td>
                     <td class="px-6 py-4 text-sm text-gray-600">
                         <div>{{ order.full_name }}</div>
                         <div class="text-xs text-gray-400">{{ order.email }}</div>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ order.items.count }} item(s)</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">
+                        {{ order.items.count }} item(s)
+                        {% if order.is_package_order %}
+                        <span class="text-xs text-emerald-600">(Package)</span>
+                        {% endif %}
+                    </td>
                     <td class="px-6 py-4 text-sm font-semibold text-gray-900">Rs. {{ order.total }}</td>
                     <td class="px-6 py-4 text-sm">
                         {% if order.status == 'pending' %}

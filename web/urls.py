@@ -67,6 +67,7 @@ urlpatterns = [
     # Products
     path('panel/products/', panel_views.panel_products, name='panel_products'),
     path('panel/products/import/', panel_views.panel_products_import, name='panel_products_import'),
+    path('panel/products/export/', panel_views.panel_products_export, name='panel_products_export'),
     path('panel/products/add/', panel_views.panel_product_add, name='panel_product_add'),
     path('panel/products/<int:pk>/edit/', panel_views.panel_product_edit, name='panel_product_edit'),
     path('panel/products/<int:pk>/delete/', panel_views.panel_product_delete, name='panel_product_delete'),
@@ -121,7 +122,9 @@ urlpatterns = [
     # Checkout & Orders
     path('checkout/', views.checkout, name='checkout'),
     path('buy/<slug:slug>/', views.buy_now, name='buy_now'),
+    path('buy-package/<int:package_id>/', views.buy_package, name='buy_package'),
     path('place-order/', views.place_order, name='place_order'),
+    path('place-package-order/', views.place_package_order, name='place_package_order'),
     path('profile/', views.my_profile, name='my_profile'),
     path('orders/', views.my_orders, name='my_orders'),
     path('orders/<str:order_number>/', views.order_detail, name='order_detail'),
@@ -148,6 +151,7 @@ urlpatterns = [
     path('panel/orders/', panel_views.panel_orders, name='panel_orders'),
     path('panel/orders/<int:pk>/', panel_views.panel_order_detail, name='panel_order_detail'),
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
+    path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),
 
     path('my-quotes/', views.my_quotes, name='my_quotes'),
     path('my-quotes/<int:pk>/pdf/', views.quotation_pdf, name='quotation_pdf'),
@@ -165,4 +169,5 @@ urlpatterns = [
     path('terms-conditions/', views.terms_conditions, name='terms_conditions'),
     path('review/save/', views.product_review_save, name='product_review_save'),
     path('review/delete/', views.product_review_delete, name='product_review_delete'),
+    path('api/validate-agent-code/', views.validate_agent_code, name='validate_agent_code'),
 ]

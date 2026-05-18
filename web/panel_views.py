@@ -187,6 +187,7 @@ def panel_settings(request):
         s.address = request.POST.get('address', '')
         s.facebook = request.POST.get('facebook', '')
         s.instagram = request.POST.get('instagram', '')
+        s.youtube = request.POST.get('youtube', '')
         s.whatsapp = request.POST.get('whatsapp', '')
         s.tiktok = request.POST.get('tiktok', '')
         s.linkedin = request.POST.get('linkedin', '')
@@ -754,6 +755,7 @@ def panel_products(request):
     can_create = request.user.is_superuser or check_permission(request.user, 'products', 'create')
     can_edit = request.user.is_superuser or check_permission(request.user, 'products', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'products', 'delete')
+    can_export = request.user.is_superuser or check_permission(request.user, 'products', 'view')
     
     return render(request, 'panel/products.html', {
         'products': products,
@@ -766,6 +768,7 @@ def panel_products(request):
         'can_create': can_create,
         'can_edit': can_edit,
         'can_delete': can_delete,
+        'can_export': can_export,
     })
 
 @login_required(login_url='panel_login')
@@ -872,6 +875,173 @@ def panel_product_delete(request, pk):
     get_object_or_404(Product, pk=pk).delete()
     messages.success(request, 'Product deleted.')
     return redirect('panel_products')
+
+
+@login_required(login_url='panel_login')
+@permission_required('products', 'view')
+def panel_products_export(request):
+    from django.http import HttpResponse
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.db.models import Q
+    
+    # Get filter parameters
+    search = request.GET.get('search', '').strip()
+    category_id = request.GET.get('category', '').strip()
+    status = request.GET.get('status', '').strip()
+    
+    qs = Product.objects.select_related('category', 'sub_category', 'origin', 'delivery_time', 'linked_package').prefetch_related('tier_prices__tier', 'images').all()
+    
+    if search:
+        qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search) | Q(brand__icontains=search))
+    
+    if category_id:
+        try:
+            qs = qs.filter(category_id=int(category_id))
+        except:
+            pass
+    
+    if status:
+        if status == 'active':
+            qs = qs.filter(is_active=True)
+        elif status == 'inactive':
+            qs = qs.filter(is_active=False)
+        elif status == 'featured':
+            qs = qs.filter(is_featured=True)
+    
+    qs = qs.order_by('name')
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Products'
+    
+    # Styles
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    border = Border(
+        left=Side(style='thin', color='D0D0D0'),
+        right=Side(style='thin', color='D0D0D0'),
+        top=Side(style='thin', color='D0D0D0'),
+        bottom=Side(style='thin', color='D0D0D0')
+    )
+    
+    # Headers
+    headers = [
+        'SKU', 'Product Code', 'Name', 'Brand', 'Category', 'Sub-Category', 
+        'Origin Country', 'MRP (Rs.)', 'Tax Included', 'Tax %', 
+        'Stock Quantity', 'Delivery Time', 'Linked Package',
+        'Short Description', 'Full Description', 'Specifications',
+        'Status', 'Featured', 'Primary Image URL', 'All Image URLs',
+        'Tier Prices', 'Created Date', 'Updated Date'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+    
+    # Data rows
+    for row_num, product in enumerate(qs, 2):
+        # Basic Info
+        ws.cell(row=row_num, column=1, value=product.sku)
+        ws.cell(row=row_num, column=2, value=product.product_code)
+        ws.cell(row=row_num, column=3, value=product.name)
+        ws.cell(row=row_num, column=4, value=product.brand)
+        ws.cell(row=row_num, column=5, value=product.category.name if product.category else '')
+        ws.cell(row=row_num, column=6, value=product.sub_category.name if product.sub_category else '')
+        ws.cell(row=row_num, column=7, value=product.origin.name if product.origin else '')
+        
+        # Pricing
+        ws.cell(row=row_num, column=8, value=float(product.mrp))
+        ws.cell(row=row_num, column=9, value='Yes' if product.tax_included else 'No')
+        ws.cell(row=row_num, column=10, value=float(product.tax_percent))
+        
+        # Stock & Delivery
+        ws.cell(row=row_num, column=11, value=product.stock_quantity)
+        ws.cell(row=row_num, column=12, value=str(product.delivery_time) if product.delivery_time else '')
+        ws.cell(row=row_num, column=13, value=product.linked_package.name if product.linked_package else '')
+        
+        # Descriptions
+        ws.cell(row=row_num, column=14, value=product.short_description)
+        ws.cell(row=row_num, column=15, value=product.full_description)
+        ws.cell(row=row_num, column=16, value=product.specifications)
+        
+        # Status
+        ws.cell(row=row_num, column=17, value='Active' if product.is_active else 'Inactive')
+        ws.cell(row=row_num, column=18, value='Yes' if product.is_featured else 'No')
+        
+        # Images
+        primary_img = product.primary_image
+        if primary_img:
+            ws.cell(row=row_num, column=19, value=request.build_absolute_uri(primary_img.image.url))
+        
+        all_images = product.images.all()
+        if all_images:
+            image_urls = ', '.join([request.build_absolute_uri(img.image.url) for img in all_images])
+            ws.cell(row=row_num, column=20, value=image_urls)
+        
+        # Tier Prices
+        tier_prices = product.tier_prices.all()
+        if tier_prices:
+            tier_price_text = ', '.join([f"{tp.tier.name}: Rs.{tp.price}" for tp in tier_prices])
+            ws.cell(row=row_num, column=21, value=tier_price_text)
+        
+        # Dates
+        ws.cell(row=row_num, column=22, value=product.created_at.strftime('%Y-%m-%d %H:%M:%S'))
+        ws.cell(row=row_num, column=23, value=product.updated_at.strftime('%Y-%m-%d %H:%M:%S'))
+        
+        # Apply borders to all cells in row
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_num, column=col).border = border
+            ws.cell(row=row_num, column=col).alignment = Alignment(vertical='top', wrap_text=True)
+    
+    # Adjust column widths
+    column_widths = {
+        'A': 15,  # SKU
+        'B': 15,  # Product Code
+        'C': 40,  # Name
+        'D': 20,  # Brand
+        'E': 20,  # Category
+        'F': 20,  # Sub-Category
+        'G': 15,  # Origin
+        'H': 12,  # MRP
+        'I': 12,  # Tax Included
+        'J': 10,  # Tax %
+        'K': 12,  # Stock
+        'L': 25,  # Delivery Time
+        'M': 25,  # Linked Package
+        'N': 50,  # Short Description
+        'O': 60,  # Full Description
+        'P': 50,  # Specifications
+        'Q': 12,  # Status
+        'R': 12,  # Featured
+        'S': 60,  # Primary Image
+        'T': 80,  # All Images
+        'U': 40,  # Tier Prices
+        'V': 20,  # Created Date
+        'W': 20,  # Updated Date
+    }
+    
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
+    
+    # Set row height for header
+    ws.row_dimensions[1].height = 30
+    
+    # Create response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=products_detailed_export.xlsx'
+    wb.save(response)
+    
+    return response
 
 
 @login_required(login_url='panel_login')
@@ -1401,7 +1571,7 @@ def panel_quote_delete(request, pk):
 @permission_required('orders', 'view')
 def panel_orders(request):
     from django.core.paginator import Paginator
-    orders_list = Order.objects.select_related('user').prefetch_related('items').order_by('-created_at')
+    orders_list = Order.objects.select_related('user', 'referred_agent').prefetch_related('items').order_by('-created_at')
     paginator = Paginator(orders_list, 20)
     page_number = request.GET.get('page', 1)
     orders = paginator.get_page(page_number)
@@ -1418,8 +1588,50 @@ def panel_orders(request):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'edit')
 def panel_order_detail(request, pk):
-    from .models import ProductReview
-    order = get_object_or_404(Order.objects.select_related('user').prefetch_related('items__product'), pk=pk)
+    from .models import ProductReview, OrderPayment
+    order = get_object_or_404(Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product', 'payments').order_by('-created_at'), pk=pk)
+    
+    # Get billing records for this order
+    from django.db.models import Sum
+    order_billings = Billing.objects.filter(
+        items__product__in=[item.product for item in order.items.all() if item.product]
+    ).distinct()
+    
+    # Calculate total paid from billings linked to this order
+    total_paid_amount = 0
+    related_bills = []
+    
+    # Better approach: Check billings created after this order with matching items
+    for billing in Billing.objects.filter(created_at__gte=order.created_at).order_by('created_at'):
+        # Check if billing items match order items
+        billing_product_ids = set(billing.items.values_list('product_id', flat=True))
+        order_product_ids = set(order.items.values_list('product_id', flat=True))
+        
+        # If there's significant overlap, consider it related
+        if billing_product_ids & order_product_ids:  # Intersection
+            related_bills.append(billing)
+            total_paid_amount += float(billing.amount_paid)
+    
+    # Add payments from OrderPayment model
+    order_payments = order.payments.all()
+    for payment in order_payments:
+        total_paid_amount += float(payment.amount)
+    
+    # Recalculate and update payment status based on actual total paid
+    order_total = float(order.total)
+    if total_paid_amount >= order_total:
+        if order.payment_status != 'paid':
+            order.payment_status = 'paid'
+            order.save()
+    elif total_paid_amount > 0:
+        if order.payment_status != 'partial':
+            order.payment_status = 'partial'
+            order.save()
+    else:
+        if order.payment_status != 'unpaid':
+            order.payment_status = 'unpaid'
+            order.save()
+    
     if request.method == 'POST':
         old_status = order.status
         new_status = request.POST.get('status', order.status)
@@ -1455,6 +1667,10 @@ def panel_order_detail(request, pk):
         'items_with_reviews': items_with_reviews,
         'can_edit': can_edit,
         'can_delete': can_delete,
+        'total_paid_amount': total_paid_amount,
+        'remaining_amount': max(0, order_total - total_paid_amount),
+        'related_bills': related_bills,
+        'order_payments': order_payments,
     })
 
 @login_required(login_url='panel_login')
@@ -1467,6 +1683,70 @@ def panel_order_delete(request, pk):
     return redirect('panel_orders')
 
 
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def record_order_payment(request, pk):
+    import json as _json
+    from .models import OrderPayment
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    order = get_object_or_404(Order, pk=pk)
+    
+    try:
+        data = _json.loads(request.body)
+    except:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    
+    amount = float(data.get('amount', 0))
+    payment_method = data.get('payment_method', 'cash')
+    note = data.get('note', '').strip()
+    
+    if amount <= 0:
+        return JsonResponse({'error': 'Invalid amount'}, status=400)
+    
+    # Create payment record
+    payment = OrderPayment.objects.create(
+        order=order,
+        amount=amount,
+        payment_method=payment_method,
+        note=note,
+        recorded_by=request.user
+    )
+    
+    # Calculate total paid from OrderPayment records
+    from django.db.models import Sum
+    total_paid_from_payments = order.payments.aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Also check billings
+    total_paid_from_billings = 0
+    for billing in Billing.objects.filter(created_at__gte=order.created_at).order_by('created_at'):
+        billing_product_ids = set(billing.items.values_list('product_id', flat=True))
+        order_product_ids = set(order.items.values_list('product_id', flat=True))
+        if billing_product_ids & order_product_ids:
+            total_paid_from_billings += float(billing.amount_paid)
+    
+    total_paid = float(total_paid_from_payments) + float(total_paid_from_billings)
+    
+    # Update order payment status
+    order_total = float(order.total)
+    if total_paid >= order_total:
+        order.payment_status = 'paid'
+    elif total_paid > 0:
+        order.payment_status = 'partial'
+    else:
+        order.payment_status = 'unpaid'
+    order.save()
+    
+    return JsonResponse({
+        'success': True,
+        'payment_id': payment.pk,
+        'total_paid': float(total_paid),
+        'payment_status': order.payment_status
+    })
+
+
 # â”€â”€ User Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
@@ -1475,9 +1755,11 @@ def panel_users(request):
     from django.core.paginator import Paginator
     search = request.GET.get('search', '').strip()
     role_id = request.GET.get('role', '').strip()
+    user_type = request.GET.get('user_type', '').strip()
     page = request.GET.get('page', 1)
     
-    qs = CustomerUser.objects.select_related('role').filter(is_staff=True)
+    # Show all users (staff and non-staff) to see agents and customers
+    qs = CustomerUser.objects.select_related('role').all()
     
     if search:
         qs = qs.filter(username__icontains=search) | qs.filter(email__icontains=search)
@@ -1487,6 +1769,9 @@ def panel_users(request):
             qs = qs.filter(role_id=int(role_id))
         except:
             pass
+    
+    if user_type:
+        qs = qs.filter(user_type=user_type)
     
     qs = qs.order_by('-date_joined')
     
@@ -1503,6 +1788,7 @@ def panel_users(request):
         'roles': list(roles),
         'search': search,
         'role_id': role_id,
+        'user_type': user_type,
         'total_count': paginator.count,
         'can_create': can_create,
         'can_edit': can_edit,
@@ -1556,7 +1842,7 @@ def panel_user_add(request):
 @login_required(login_url='panel_login')
 @permission_required('users', 'edit')
 def panel_user_edit(request, pk):
-    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    user = get_object_or_404(CustomerUser, pk=pk)
     roles = Role.objects.all()
     
     if request.method == 'POST':
@@ -1582,7 +1868,7 @@ def panel_user_edit(request, pk):
 @login_required(login_url='panel_login')
 @permission_required('users', 'delete')
 def panel_user_delete(request, pk):
-    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    user = get_object_or_404(CustomerUser, pk=pk)
     username = user.username
     user.delete()
     messages.success(request, f'User "{username}" deleted.')
@@ -1650,6 +1936,31 @@ def panel_billing(request):
     from django.db.models import Sum, Count, Q
     from django.core.paginator import Paginator
 
+    # Check if coming from order detail page
+    order_id = request.GET.get('order_id')
+    order_data = None
+    if order_id:
+        order = Order.objects.filter(pk=order_id).select_related('user').prefetch_related('items__product__images').first()
+        if order:
+            order_data = {
+                'order_id': order.pk,
+                'order_number': order.order_number,
+                'customer_name': order.full_name,
+                'customer_phone': order.phone,
+                'customer_email': order.user.email if order.user else order.email,
+                'is_package_order': order.is_package_order,
+                'package_name': order.package_name if order.is_package_order else '',
+                'total': float(order.total),
+                'items': [{
+                    'product_id': item.product_id,
+                    'product_name': item.product_name,
+                    'product_sku': item.product_sku,
+                    'quantity': item.quantity,
+                    'unit_price': float(item.unit_price),
+                    'image': item.product.primary_image.image.url if item.product and item.product.primary_image else '',
+                } for item in order.items.all()]
+            }
+
     # ── POST: create a bill ──────────────────────────────────────────────────
     if request.method == 'POST':
         try:
@@ -1667,10 +1978,34 @@ def panel_billing(request):
         walk_in_phone    = data.get('walk_in_phone', '').strip()
         agent_id         = data.get('agent_id') or None
         overall_discount = abs(float(data.get('overall_discount', 0)))
-        cash_amount      = abs(float(data.get('cash_amount', 0)))
-        card_amount      = abs(float(data.get('card_amount', 0)))
-        online_amount    = abs(float(data.get('online_amount', 0)))
+        payment_method   = data.get('payment_method', 'cash')
+        amount_paid      = abs(float(data.get('amount_paid', 0)))
+        split_payments   = data.get('split_payments')
         note             = data.get('note', '').strip()
+        linked_order_id  = data.get('order_id') or None
+
+        # Calculate payment amounts based on method
+        cash_amount = 0
+        card_amount = 0
+        online_amount = 0
+        
+        if payment_method == 'split' and split_payments:
+            for sp in split_payments:
+                amt = abs(float(sp.get('amount', 0)))
+                method = sp.get('method', 'cash')
+                if method == 'cash':
+                    cash_amount += amt
+                elif method == 'card':
+                    card_amount += amt
+                elif method == 'upi':
+                    online_amount += amt
+        else:
+            if payment_method == 'cash':
+                cash_amount = amount_paid
+            elif payment_method == 'card':
+                card_amount = amount_paid
+            elif payment_method == 'upi':
+                online_amount = amount_paid
 
         subtotal = 0
         item_discount_total = 0
@@ -1738,6 +2073,19 @@ def panel_billing(request):
                 note=f'POS Bill #{bill.bill_number}',
             )
 
+        # Update order payment status if linked
+        if linked_order_id:
+            order = Order.objects.filter(pk=linked_order_id).first()
+            if order:
+                # Update payment status based on amount paid vs total
+                if amount_paid >= order.total:
+                    order.payment_status = 'paid'
+                elif amount_paid > 0:
+                    order.payment_status = 'partial'
+                else:
+                    order.payment_status = 'unpaid'
+                order.save()
+
         return JsonResponse({'ok': True, 'bill_number': bill.bill_number, 'bill_id': bill.pk})
 
     # ── GET: render POS page ─────────────────────────────────────────────────
@@ -1777,6 +2125,7 @@ def panel_billing(request):
     f_search      = request.GET.get('search', '').strip()
     f_sale_type   = request.GET.get('sale_type', '').strip()
     f_pay_status  = request.GET.get('pay_status', '').strip()
+    f_agent       = request.GET.get('agent', '').strip()
     f_date_from   = request.GET.get('date_from', '').strip()
     f_date_to     = request.GET.get('date_to', '').strip()
     page          = request.GET.get('page', 1)
@@ -1792,6 +2141,8 @@ def panel_billing(request):
         bills_qs = bills_qs.filter(sale_type=f_sale_type)
     if f_pay_status:
         bills_qs = bills_qs.filter(payment_status=f_pay_status)
+    if f_agent:
+        bills_qs = bills_qs.filter(agent_id=f_agent)
     if f_date_from:
         bills_qs = bills_qs.filter(created_at__date__gte=f_date_from)
     if f_date_to:
@@ -1801,11 +2152,21 @@ def panel_billing(request):
     bills_page  = paginator.get_page(page)
 
     # ── Stats (unfiltered totals) ─────────────────────────────────────────────
+    from decimal import Decimal
     stats = Billing.objects.aggregate(
         total_bills=Count('id'),
         total_revenue=Sum('total'),
         total_paid=Sum('amount_paid'),
     )
+    
+    # Calculate actual pending amount considering OrderPayments
+    from .models import OrderPayment
+    total_order_payments = OrderPayment.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    # Pending amount = Total Revenue - (Billing Payments + Order Payments)
+    total_billed_paid = stats['total_paid'] or Decimal('0')
+    total_revenue = stats['total_revenue'] or Decimal('0')
+    actual_pending = total_revenue - total_billed_paid - total_order_payments
 
     return render(request, 'panel/billing.html', {
         'products_json':  _json.dumps(products_data),
@@ -1815,12 +2176,15 @@ def panel_billing(request):
         'bills':          bills_page,
         'paginator':      paginator,
         'stats':          stats,
+        'actual_pending': actual_pending,
         'f_search':       f_search,
         'f_sale_type':    f_sale_type,
         'f_pay_status':   f_pay_status,
+        'f_agent':        f_agent,
         'f_date_from':    f_date_from,
         'f_date_to':      f_date_to,
         'limit':          limit,
+        'order_data':     _json.dumps(order_data) if order_data else None,
     })
 
 
@@ -1908,7 +2272,7 @@ def api_billing_products(request):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'view')
 def api_user_get(request, pk):
-    user = get_object_or_404(CustomerUser, pk=pk, is_staff=True)
+    user = get_object_or_404(CustomerUser, pk=pk)
     return JsonResponse({
         'id': user.id,
         'username': user.username,
@@ -1986,14 +2350,16 @@ def api_agents(request):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'view')
 def api_billing_list(request):
-    from django.db.models import Count, F, Value
+    from django.db.models import Count, F, Value, Sum
     from django.db.models.functions import Coalesce
+    from decimal import Decimal
     limit = int(request.GET.get('limit', 10))
     offset = int(request.GET.get('offset', 0))
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
     sale_type = request.GET.get('sale_type', '').strip()
     payment_status = request.GET.get('payment_status', '').strip()
+    agent_id = request.GET.get('agent', '').strip()
     
     qs = Billing.objects.select_related('customer', 'agent').prefetch_related('items')
     
@@ -2006,17 +2372,26 @@ def api_billing_list(request):
         qs = qs.filter(sale_type=sale_type)
     if payment_status:
         qs = qs.filter(payment_status=payment_status)
+    if agent_id:
+        qs = qs.filter(agent_id=agent_id)
     
     qs = qs.order_by('-created_at')
     count = qs.count()
     bills = qs[offset:offset+limit]
     
     # Calculate stats based on filtered queryset
+    from decimal import Decimal
+    from .models import OrderPayment
     filtered_bills = qs.all()
     total_bills = filtered_bills.count()
-    total_revenue = sum(b.total for b in filtered_bills)
-    pending_amount = sum(b.balance_due for b in filtered_bills)
-    total_discount = sum(b.overall_discount + b.item_discount for b in filtered_bills)
+    total_revenue = sum(b.total for b in filtered_bills) or Decimal('0')
+    
+    # Calculate pending considering OrderPayments
+    total_order_payments = OrderPayment.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    total_billed_paid = sum(b.amount_paid for b in filtered_bills) or Decimal('0')
+    pending_amount = total_revenue - total_billed_paid - total_order_payments
+    
+    total_discount = sum(b.overall_discount + b.item_discount for b in filtered_bills) or Decimal('0')
     
     return JsonResponse({
         'count': count,
@@ -2057,6 +2432,8 @@ def api_billing_create(request):
         return JsonResponse({'error': 'No items'}, status=400)
     
     customer_id = data.get('customer_id')
+    walk_in_name = data.get('walk_in_name', '').strip()
+    walk_in_phone = data.get('walk_in_phone', '').strip()
     sale_type = data.get('sale_type', 'counter')
     agent_id = data.get('agent_id')
     payment_method = data.get('payment_method', 'cash')
@@ -2064,6 +2441,7 @@ def api_billing_create(request):
     amount_paid = float(data.get('amount_paid', 0))
     overall_discount = float(data.get('overall_discount', 0))
     split_payments = data.get('split_payments')
+    order_id = data.get('order_id')
     
     subtotal = 0
     item_discount_total = 0
@@ -2115,9 +2493,13 @@ def api_billing_create(request):
         elif payment_method == 'upi':
             online_amount = amount_paid
     
+    total_paid = cash_amount + card_amount + online_amount
+    
     bill = Billing.objects.create(
         sale_type=sale_type,
         customer_id=customer_id,
+        walk_in_name=walk_in_name,
+        walk_in_phone=walk_in_phone,
         agent_id=agent_id,
         billed_by=request.user,
         subtotal=subtotal,
@@ -2127,7 +2509,7 @@ def api_billing_create(request):
         cash_amount=cash_amount,
         card_amount=card_amount,
         online_amount=online_amount,
-        amount_paid=cash_amount + card_amount + online_amount,
+        amount_paid=total_paid,
         payment_status=payment_status,
     )
     
@@ -2148,6 +2530,35 @@ def api_billing_create(request):
             unit_price=item['price'],
             note=f'Bill #{bill.bill_number}',
         )
+    
+    # Update order payment status if linked
+    if order_id:
+        order = Order.objects.filter(pk=order_id).first()
+        if order:
+            # Calculate total paid from billings
+            total_paid_from_billings = 0
+            for billing in Billing.objects.filter(created_at__gte=order.created_at).order_by('created_at'):
+                billing_product_ids = set(billing.items.values_list('product_id', flat=True))
+                order_product_ids = set(order.items.values_list('product_id', flat=True))
+                if billing_product_ids & order_product_ids:
+                    total_paid_from_billings += float(billing.amount_paid)
+            
+            # Calculate total paid from OrderPayment records
+            from django.db.models import Sum
+            from .models import OrderPayment
+            total_paid_from_payments = order.payments.aggregate(total=Sum('amount'))['total'] or 0
+            
+            total_paid_combined = float(total_paid_from_billings) + float(total_paid_from_payments)
+            order_total = float(order.total)
+            
+            # Update payment status based on total paid vs order total
+            if total_paid_combined >= order_total:
+                order.payment_status = 'paid'
+            elif total_paid_combined > 0:
+                order.payment_status = 'partial'
+            else:
+                order.payment_status = 'unpaid'
+            order.save()
     
     return JsonResponse({'bill_number': bill.bill_number, 'bill_id': bill.pk})
 

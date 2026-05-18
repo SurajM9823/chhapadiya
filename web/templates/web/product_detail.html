@@ -312,7 +312,7 @@
                         </div>
                     </div>
 
-                    <button onclick="alert('Package purchase coming soon!')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 text-sm rounded transition-colors flex items-center justify-center gap-2">
+                    <button onclick="window.location.href='{% url 'buy_package' product.linked_package.pk %}'" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 text-sm rounded transition-colors flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined">shopping_bag</span>
                         Buy This Package
                     </button>

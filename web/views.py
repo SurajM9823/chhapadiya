@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview
+from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview, Package
 from .email_utils import send_order_confirmation_email
 
 def base_context():
@@ -294,7 +294,7 @@ def checkout(request):
     s = SiteSettings.get()
     return render(request, 'web/checkout.html', {
         **base_context(), 'items': items, 'subtotal': subtotal,
-        'delivery_charge': DELIVERY_CHARGE, 'settings': s, 'source': 'cart',
+        'settings': s, 'source': 'cart',
         'selected_items': None,
     })
 
@@ -310,8 +310,23 @@ def buy_now(request, slug):
     s = SiteSettings.get()
     return render(request, 'web/checkout.html', {
         **base_context(), 'buy_product': product, 'buy_qty': qty,
-        'subtotal': subtotal, 'delivery_charge': DELIVERY_CHARGE,
+        'subtotal': subtotal,
         'settings': s, 'source': 'buy_now',
+    })
+
+
+def buy_package(request, package_id):
+    """Buy a package directly."""
+    if not request.user.is_authenticated:
+        request.session['pending_buy_package'] = package_id
+        return redirect('index')
+    package = get_object_or_404(Package.objects.prefetch_related('items__product__images'), pk=package_id, is_active=True)
+    subtotal = package.selling_price
+    s = SiteSettings.get()
+    return render(request, 'web/checkout.html', {
+        **base_context(), 'buy_package': package,
+        'subtotal': subtotal,
+        'settings': s, 'source': 'buy_package',
     })
 
 
@@ -331,22 +346,25 @@ def place_order(request):
     payment_method = request.POST.get('payment_method', 'cod')
     source         = request.POST.get('source', 'cart')
     receipt        = request.FILES.get('payment_receipt')
-
-    charge = DELIVERY_CHARGE if delivery_type == 'delivery' else 0
+    agent_code     = request.POST.get('agent_referral_code', '').strip()
+    referred_agent = None
+    if agent_code and len(agent_code) == 9:
+        referred_agent = CustomerUser.objects.filter(user_type='agent', referral_code=agent_code).first()
 
     if source == 'buy_now':
         product_id = request.POST.get('product_id')
         qty        = int(request.POST.get('qty', 1))
         product    = get_object_or_404(Product, pk=product_id, is_active=True)
         subtotal   = product.mrp * qty
-        total      = subtotal + charge
+        total      = subtotal
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
             billing_address=billing_address, billing_city=billing_city, note=note,
             payment_method=payment_method,
-            subtotal=subtotal, delivery_charge=charge, total=total,
+            agent_referral_code=agent_code, referred_agent=referred_agent,
+            subtotal=subtotal, delivery_charge=0, total=total,
         )
         if receipt: order.payment_receipt = receipt; order.save()
         OrderItem.objects.create(
@@ -370,14 +388,15 @@ def place_order(request):
         if not cart_items.exists():
             return redirect('cart')
         subtotal = sum(ci.subtotal for ci in cart_items)
-        total    = subtotal + charge
+        total    = subtotal
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
             billing_address=billing_address, billing_city=billing_city, note=note,
             payment_method=payment_method,
-            subtotal=subtotal, delivery_charge=charge, total=total,
+            agent_referral_code=agent_code, referred_agent=referred_agent,
+            subtotal=subtotal, delivery_charge=0, total=total,
         )
         if receipt: order.payment_receipt = receipt; order.save()
         for ci in cart_items:
@@ -387,6 +406,54 @@ def place_order(request):
                 unit_price=ci.product.mrp, quantity=ci.quantity,
             )
         cart_items.delete()
+
+    send_order_confirmation_email(order)
+    return redirect('order_success', order_number=order.order_number)
+
+
+def place_package_order(request):
+    if request.method != 'POST' or not request.user.is_authenticated:
+        return redirect('index')
+
+    delivery_type  = request.POST.get('delivery_type', 'delivery')
+    full_name      = request.POST.get('full_name', '').strip()
+    phone          = request.POST.get('phone', '').strip()
+    email          = request.POST.get('email', '').strip()
+    address        = request.POST.get('address', '').strip()
+    city           = request.POST.get('city', '').strip()
+    billing_address = request.POST.get('billing_address', '').strip()
+    billing_city    = request.POST.get('billing_city', '').strip()
+    note           = request.POST.get('note', '').strip()
+    payment_method = request.POST.get('payment_method', 'cod')
+    receipt        = request.FILES.get('payment_receipt')
+    package_id     = request.POST.get('package_id')
+    agent_code     = request.POST.get('agent_referral_code', '').strip()
+    referred_agent = None
+    if agent_code and len(agent_code) == 9:
+        referred_agent = CustomerUser.objects.filter(user_type='agent', referral_code=agent_code).first()
+
+    package = get_object_or_404(Package.objects.prefetch_related('items__product'), pk=package_id, is_active=True)
+    subtotal = package.selling_price
+    total = subtotal
+
+    order = Order.objects.create(
+        user=request.user, status='pending',
+        is_package_order=True, package_name=package.name,
+        delivery_type=delivery_type, full_name=full_name, phone=phone,
+        email=email, address=address, city=city,
+        billing_address=billing_address, billing_city=billing_city, note=note,
+        payment_method=payment_method,
+        agent_referral_code=agent_code, referred_agent=referred_agent,
+        subtotal=subtotal, delivery_charge=0, total=total,
+    )
+    if receipt: order.payment_receipt = receipt; order.save()
+
+    for item in package.items.all():
+        OrderItem.objects.create(
+            order=order, product=item.product,
+            product_name=item.product.name, product_sku=item.product.sku,
+            unit_price=item.product.mrp, quantity=item.quantity,
+        )
 
     send_order_confirmation_email(order)
     return redirect('order_success', order_number=order.order_number)
@@ -863,3 +930,15 @@ def product_review_delete(request):
     review.delete()
     
     return JsonResponse({'ok': True})
+
+
+def validate_agent_code(request):
+    if request.method != 'POST':
+        return JsonResponse({'valid': False})
+    code = request.POST.get('code', '').strip()
+    if not code or len(code) != 9:
+        return JsonResponse({'valid': False})
+    agent = CustomerUser.objects.filter(user_type='agent', referral_code=code).first()
+    if agent:
+        return JsonResponse({'valid': True, 'agent_name': agent.get_full_name() or agent.email})
+    return JsonResponse({'valid': False})
