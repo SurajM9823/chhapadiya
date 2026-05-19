@@ -1090,23 +1090,27 @@
     <div id="favToast" class="fixed bottom-36 right-6 z-[200] bg-red-500 text-white text-sm px-4 py-2 rounded-lg shadow-lg transition-all duration-300 translate-y-20 opacity-0"></div>
 
     <!-- Compare Sheet Footer -->
-    <div id="compareSheet" class="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t border-gray-200 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-32">
-        <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-emerald-600 text-2xl">compare</span>
-                <div>
-                    <p class="text-sm font-semibold text-gray-800">Compare Products</p>
-                    <p id="compareCount" class="text-xs text-gray-500">0 products selected</p>
+    <div id="compareSheet" class="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t-2 border-gray-200 shadow-2xl transform translate-y-full transition-transform duration-300">
+        <div class="max-w-7xl mx-auto px-3 md:px-8 py-3 md:py-4">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-emerald-600 text-2xl">compare</span>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Compare Products</p>
+                        <p id="compareCount" class="text-xs text-gray-500">0 products selected</p>
+                    </div>
                 </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <div id="compareItems" class="flex gap-2 mr-4"></div>
-                <button onclick="compareProducts()" id="compareBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Compare
-                </button>
-                <button onclick="clearCompare()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors">
-                    Clear
-                </button>
+                <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
+                    <div id="compareItems" class="flex flex-wrap gap-2"></div>
+                    <div class="flex gap-2">
+                        <button onclick="compareProducts()" id="compareBtn" class="flex-1 md:flex-none px-4 py-2.5 md:py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Compare Now
+                        </button>
+                        <button onclick="clearCompare()" class="flex-1 md:flex-none px-4 py-2.5 md:py-2 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                            Clear
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1281,9 +1285,13 @@
             _compareList = _compareList.filter(p => p.slug !== slug);
             showFavToast('Removed from compare');
         } else {
-            if (_compareList.length >= 2) _compareList.shift();
+            if (_compareList.length >= 2) {
+                _compareList.shift();
+                showFavToast('Replaced oldest — pick 2 to compare');
+            } else {
+                showFavToast(_compareList.length < 1 ? 'Added — pick one more to compare' : 'Ready to compare!');
+            }
             _compareList.push({slug, name});
-            showFavToast(_compareList.length < 2 ? 'Added — pick one more to compare' : 'Ready to compare!');
         }
         localStorage.setItem('compareList', JSON.stringify(_compareList));
         updateCompareSheet();
@@ -1296,10 +1304,10 @@
         
         count.textContent = `${_compareList.length} product${_compareList.length !== 1 ? 's' : ''} selected`;
         items.innerHTML = _compareList.map(p => `
-            <div class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-lg">
-                <span class="text-xs text-gray-700 truncate max-w-xs">${p.name}</span>
-                <button onclick="removeFromCompare('${p.slug}')" class="text-gray-400 hover:text-red-500">
-                    <span class="material-symbols-outlined text-sm">close</span>
+            <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                <span class="text-xs text-gray-700 truncate max-w-[120px] md:max-w-xs">${p.name}</span>
+                <button onclick="removeFromCompare('${p.slug}')" class="text-gray-400 hover:text-red-500 active:text-red-600 flex-shrink-0">
+                    <span class="material-symbols-outlined text-base">close</span>
                 </button>
             </div>
         `).join('');
