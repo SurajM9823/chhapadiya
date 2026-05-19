@@ -159,11 +159,12 @@
                     <button onclick="resetFilters()" class="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Clear all filters</button>
                 </div>
 
-                <div id="loadingIndicator" class="hidden text-center py-8">
+                <div id="loadingIndicator" class="text-center py-8">
                     <div class="inline-block">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                     </div>
                 </div>
+                <div id="scrollSentinel" class="h-1"></div>
             </div>
         </div>
     </div>
@@ -319,11 +320,13 @@ function renderProducts(productsToRender) {
     const grid = document.getElementById('productsGrid');
     const noResults = document.getElementById('noResults');
     const productCount = document.getElementById('productCount');
+    const loadingIndicator = document.getElementById('loadingIndicator');
 
     if (productsToRender.length === 0) {
         grid.innerHTML = '';
         noResults.classList.remove('hidden');
         productCount.textContent = 'No products found';
+        loadingIndicator.classList.add('hidden');
         return;
     }
 
@@ -333,6 +336,13 @@ function renderProducts(productsToRender) {
     const firstPage = productsToRender.slice(0, PAGE_SIZE);
     grid.innerHTML = firstPage.map(product => createProductCard(product)).join('');
     currentPage = 1;
+    
+    // Show loading indicator if there are more products to load
+    if (productsToRender.length > PAGE_SIZE) {
+        loadingIndicator.classList.remove('hidden');
+    } else {
+        loadingIndicator.classList.add('hidden');
+    }
 }
 
 function loadMoreProducts() {
@@ -341,10 +351,15 @@ function loadMoreProducts() {
     const start = currentPage * PAGE_SIZE;
     const end = nextPage * PAGE_SIZE;
     const batch = filteredProducts.slice(start, end);
-    if (batch.length === 0) return;
+    
+    if (batch.length === 0) {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+        return;
+    }
 
     isLoading = true;
-    document.getElementById('loadingIndicator').classList.remove('hidden');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    loadingIndicator.classList.remove('hidden');
 
     requestAnimationFrame(() => {
         const grid = document.getElementById('productsGrid');
@@ -352,7 +367,12 @@ function loadMoreProducts() {
         currentPage = nextPage;
         const shown = Math.min((nextPage) * PAGE_SIZE, filteredProducts.length);
         document.getElementById('productCount').textContent = `Showing ${shown} of ${filteredProducts.length} products`;
-        document.getElementById('loadingIndicator').classList.add('hidden');
+        
+        // Hide loading indicator if no more products
+        if (shown >= filteredProducts.length) {
+            loadingIndicator.classList.add('hidden');
+        }
+        
         isLoading = false;
     });
 }
@@ -436,11 +456,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     applyFilters();
 
-    const sentinel = document.getElementById('loadingIndicator');
+    const sentinel = document.getElementById('scrollSentinel');
     const observer = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting) loadMoreProducts();
+        if (entries[0].isIntersecting && !isLoading) {
+            loadMoreProducts();
+        }
     }, { rootMargin: '200px' });
     observer.observe(sentinel);
+    
+    // Hide loading indicator initially
+    document.getElementById('loadingIndicator').classList.add('hidden');
 });
 </script>
 {% endblock %}
