@@ -6,22 +6,26 @@
 {% block content %}
 <!-- Hero Section -->
 <section class="relative w-full bg-surface overflow-hidden">
-    <div id="hero-carousel" class="flex transition-transform duration-700 ease-in-out h-auto max-h-[65vh] md:h-[65vh]">
+    <div id="hero-carousel" class="flex transition-transform duration-700 ease-in-out h-auto max-h-[50vh] md:max-h-[65vh] md:h-[65vh]">
         {% if slides %}
             {% for slide in slides %}
             <div class="w-full flex-shrink-0">
-                <img alt="{{ slide.title }}" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{{ slide.image.url }}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+                <img alt="{{ slide.title }}" class="w-full h-full object-contain md:object-fill carousel-img" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}" src="{{ slide.image.url }}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s"/>
+                <div class="absolute inset-0 bg-gray-200 animate-pulse" style="z-index:-1"></div>
             </div>
             {% endfor %}
         {% else %}
-        <div class="w-full flex-shrink-0">
-            <img alt="Banner 1" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/chhadipya.jpg' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        <div class="w-full flex-shrink-0 relative">
+            <img alt="Banner 1" class="w-full h-full object-contain md:object-fill carousel-img" loading="eager" src="{% static 'images/chhadipya.jpg' %}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s"/>
+            <div class="absolute inset-0 bg-gray-200 animate-pulse" style="z-index:-1"></div>
         </div>
-        <div class="w-full flex-shrink-0">
-            <img alt="Banner 2" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/car1.png' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        <div class="w-full flex-shrink-0 relative">
+            <img alt="Banner 2" class="w-full h-full object-contain md:object-fill carousel-img" loading="lazy" src="{% static 'images/car1.png' %}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s"/>
+            <div class="absolute inset-0 bg-gray-200 animate-pulse" style="z-index:-1"></div>
         </div>
-        <div class="w-full flex-shrink-0">
-            <img alt="Banner 3" class="w-full h-full object-contain md:object-fill carousel-img" data-src="{% static 'images/car2.png' %}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"/>
+        <div class="w-full flex-shrink-0 relative">
+            <img alt="Banner 3" class="w-full h-full object-contain md:object-fill carousel-img" loading="lazy" src="{% static 'images/car2.png' %}" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s"/>
+            <div class="absolute inset-0 bg-gray-200 animate-pulse" style="z-index:-1"></div>
         </div>
         {% endif %}
     </div>
@@ -38,6 +42,12 @@
     <div class="w-full px-2 md:px-4">
         <div id="reelsContainer" class="flex overflow-x-auto gap-3 pb-2 snap-x hide-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
             <style>.hide-scrollbar::-webkit-scrollbar { display: none; }</style>
+            <!-- Skeleton loaders for reels -->
+            <div class="reel-skeleton w-28 h-48 md:w-36 md:h-64 flex-shrink-0 bg-gray-200 animate-pulse rounded-lg"></div>
+            <div class="reel-skeleton w-28 h-48 md:w-36 md:h-64 flex-shrink-0 bg-gray-200 animate-pulse rounded-lg"></div>
+            <div class="reel-skeleton w-28 h-48 md:w-36 md:h-64 flex-shrink-0 bg-gray-200 animate-pulse rounded-lg"></div>
+            <div class="reel-skeleton w-28 h-48 md:w-36 md:h-64 flex-shrink-0 bg-gray-200 animate-pulse rounded-lg"></div>
+            <div class="reel-skeleton w-28 h-48 md:w-36 md:h-64 flex-shrink-0 bg-gray-200 animate-pulse rounded-lg hidden md:block"></div>
         </div>
         <div id="reelsLoadingIndicator" class="hidden text-center py-4">
             <div class="inline-block">
@@ -52,17 +62,51 @@
 <section class="py-2 bg-surface">
     <div class="max-w-7xl mx-auto px-4 md:px-8">
         <h2 class="font-['Work_Sans'] text-2xl font-medium text-gray-800 mb-6">Categories</h2>
-        <div class="bg-gray-200 border border-gray-200 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-[1px]">
+        <div id="categoriesGrid" class="bg-gray-200 border border-gray-200 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-[1px]">
+            {% if categories %}
             {% for cat in categories %}
             <a href="{{ cat.safe_link }}" class="bg-white p-4 flex flex-col items-center hover:bg-gray-50 transition-colors group">
                 <div class="w-16 h-16 md:w-20 md:h-20 mb-3 flex items-center justify-center">
-                    <img src="{{ cat.icon.url }}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform" alt="{{ cat.name }}">
+                    <img src="{{ cat.icon.url }}" class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform" alt="{{ cat.name }}" loading="lazy" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s">
                 </div>
                 <span class="text-center text-xs text-gray-600 leading-snug">{{ cat.name }}</span>
             </a>
-            {% empty %}
-            <p class="col-span-8 text-center text-gray-400 py-8 text-sm">No categories yet.</p>
             {% endfor %}
+            {% else %}
+            <!-- Skeleton loaders for categories -->
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse hidden sm:block">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse hidden md:block">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse hidden md:block">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            <div class="bg-white p-4 flex flex-col items-center animate-pulse hidden lg:block">
+                <div class="w-16 h-16 md:w-20 md:h-20 mb-3 bg-gray-200 rounded"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -134,7 +178,6 @@
 </section>
 
 <script>
-const imageCache = new Map();
 let currentPage = 0;
 let isLoading = false;
 let hasMore = true;
@@ -144,23 +187,6 @@ let reelsPage = 0;
 let reelsLoading = false;
 let reelsHasMore = true;
 
-function loadCarouselImages() {
-    const slides = document.querySelectorAll('.carousel-img');
-    slides.forEach((img, idx) => {
-        const src = img.dataset.src;
-        if (imageCache.has(src)) {
-            img.src = imageCache.get(src);
-        } else {
-            const tempImg = new Image();
-            tempImg.onload = () => {
-                img.src = src;
-                imageCache.set(src, src);
-            };
-            tempImg.src = src;
-        }
-    });
-}
-
 function preloadAdjacentCarouselImages() {
     const slides = document.querySelectorAll('.carousel-img');
     const nextIdx = (carouselIndex + 1) % slides.length;
@@ -168,11 +194,9 @@ function preloadAdjacentCarouselImages() {
     
     [nextIdx, prevIdx].forEach(idx => {
         const img = slides[idx];
-        const src = img.dataset.src;
-        if (!imageCache.has(src) && !img.src.includes('data:')) {
+        if (img && !img.complete) {
             const tempImg = new Image();
-            tempImg.onload = () => imageCache.set(src, src);
-            tempImg.src = src;
+            tempImg.src = img.src;
         }
     });
 }
@@ -183,7 +207,7 @@ function createReelCard(reel) {
         const videoId = reel.embed_url.split('/embed/')[1];
         cardHtml = `
         <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer" onclick="event.stopPropagation(); showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
-            <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" class="w-full h-full object-cover" alt="${reel.title}">
+            <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" loading="lazy" class="w-full h-full object-cover" alt="${reel.title}">
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3 pointer-events-none">
                 <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
             </div>
@@ -213,7 +237,7 @@ function createReelCard(reel) {
     } else {
         cardHtml = `
         <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-200 reel-card overflow-hidden rounded-lg cursor-pointer" onclick="event.stopPropagation(); showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
-            <video style="width:100%;height:100%;object-fit:cover;" autoplay muted playsinline loop><source src="${reel.video_url}" type="video/mp4"></video>
+            <video style="width:100%;height:100%;object-fit:cover;" preload="none" muted playsinline loop><source src="${reel.video_url}" type="video/mp4"></video>
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3 pointer-events-none">
                 <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
             </div>
@@ -224,27 +248,21 @@ function createReelCard(reel) {
 }
 
 function initYouTubeAutoplay() {
-    // YouTube autoplay in small containers is not supported due to browser policies
-    // Videos will autoplay in full-screen modal when clicked
-}
-
-function loadReelThumbnails() {
-    const thumbnails = document.querySelectorAll('.reel-thumbnail');
-    thumbnails.forEach(img => {
-        if (img.src.includes('data:') && img.dataset.src) {
-            const src = img.dataset.src;
-            if (imageCache.has(src)) {
-                img.src = imageCache.get(src);
-            } else {
-                const tempImg = new Image();
-                tempImg.onload = () => {
-                    img.src = src;
-                    imageCache.set(src, src);
-                };
-                tempImg.src = src;
+    const reelCards = document.querySelectorAll('.reel-card');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const video = entry.target.querySelector('video');
+            if (video) {
+                if (entry.isIntersecting) {
+                    video.play().catch(() => {});
+                } else {
+                    video.pause();
+                }
             }
-        }
-    });
+        });
+    }, { threshold: 0.5 });
+    
+    reelCards.forEach(card => observer.observe(card));
 }
 
 async function loadMoreReels() {
@@ -261,6 +279,8 @@ async function loadMoreReels() {
             const container = document.getElementById('reelsContainer');
             
             if (reelsPage === 0) {
+                // Remove skeleton loaders
+                document.querySelectorAll('.reel-skeleton').forEach(el => el.remove());
                 container.innerHTML = '';
             }
             
@@ -422,7 +442,6 @@ function stopAutoplay() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    loadCarouselImages();
     preloadAdjacentCarouselImages();
     startAutoplay();
     
