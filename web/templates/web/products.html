@@ -235,15 +235,12 @@ function createProductCard(product) {
         <div class="flex flex-col gap-2 mt-auto">
             <div class="flex gap-2">
                 <button onclick="addToCart('${product.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
-                    <span class="material-symbols-outlined text-[14px]">shopping_cart</span> Add to Cart
+                    <span class="material-symbols-outlined text-[14px]">shopping_cart</span> <span class="hidden md:inline">Add to Cart</span><span class="md:hidden">Cart</span>
                 </button>
                 <button onclick="handleBuyNow('/buy/${product.slug}/')" class="flex-1 bg-gray-900 hover:bg-gray-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
-                    <span class="material-symbols-outlined text-[14px]">payments</span> Buy
+                    <span class="material-symbols-outlined text-[14px]">payments</span> <span class="hidden md:inline">Buy</span><span class="md:hidden">Buy</span>
                 </button>
             </div>
-            <button onclick="openQuoteModal('${product.id}', '${product.name.replace(/'/g, "\\'")}')" class="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
-                <span class="material-symbols-outlined text-[14px]">request_quote</span> Request Quote
-            </button>
         </div>
     </div>
     `;
