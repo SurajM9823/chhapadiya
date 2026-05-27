@@ -278,6 +278,7 @@ function preloadAdjacentCarouselImages() {
 }
 
 // ==================== REELS ====================
+// ==================== REELS ====================
 function createReelCard(reel) {
     let cardHtml = '';
 
@@ -300,20 +301,21 @@ function createReelCard(reel) {
         cardHtml = `
         <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer"
              onclick="event.stopPropagation(); showReelLoader?.(); openReelModal?.('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
-            <video style="width:100%;height:100%;object-fit:cover;" preload="none" muted playsinline loop>
+            <video class="w-full h-full object-cover reel-video" autoplay muted playsinline loop preload="auto">
                 <source src="${reel.video_url}" type="video/mp4">
             </video>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3 pointer-events-none">
                 <span class="text-white text-xs font-semibold line-clamp-2">${reel.title}</span>
             </div>
         </div>`;
     }
+
     return cardHtml;
 }
 
 async function loadMoreReels() {
     if (reelsLoading || !reelsHasMore) return;
-    
+
     reelsLoading = true;
     document.getElementById('reelsLoadingIndicator').classList.remove('hidden');
 
@@ -324,13 +326,18 @@ async function loadMoreReels() {
         const data = await res.json();
         const container = document.getElementById('reelsContainer');
 
-        // Remove skeletons only on first load
         if (reelsPage === 0) {
             container.innerHTML = '';
         }
 
         data.reels.forEach(reel => {
             container.innerHTML += createReelCard(reel);
+        });
+
+        // Force-play all videos after DOM insert
+        container.querySelectorAll('.reel-video').forEach(v => {
+            v.muted = true;
+            v.play().catch(() => {});
         });
 
         reelsPage++;
