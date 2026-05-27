@@ -2,10 +2,11 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent,ProductAlliance
 from .email_utils import send_order_status_update_email
 from .permissions import permission_required, check_permission
 import json
+from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
@@ -649,43 +650,96 @@ def panel_delivery_time_delete(request, pk):
 
 # â”€â”€ Customers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+
+# Main View
 @login_required(login_url='panel_login')
 @permission_required('customers', 'view')
 def panel_customers(request):
     can_create = request.user.is_superuser or check_permission(request.user, 'customers', 'create')
     can_edit = request.user.is_superuser or check_permission(request.user, 'customers', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'customers', 'delete')
-    
+
+    customers = Customer.objects.select_related('tier').order_by('-created_at')
+
     return render(request, 'panel/customers.html', {
-        'customers': Customer.objects.select_related('tier').all(),
+        'customers': customers,
         'can_create': can_create,
         'can_edit': can_edit,
         'can_delete': can_delete,
     })
 
+
+# AJAX Search View
+@login_required(login_url='panel_login')
+def panel_customers_search(request):
+    query = request.GET.get('search', '').strip()
+    
+    customers = Customer.objects.select_related('tier').order_by('-created_at')
+
+    if query:
+        customers = customers.filter(
+            Q(name__icontains=query) |
+            Q(email__icontains=query) |
+            Q(phone__icontains=query) |
+            Q(company__icontains=query)
+        )
+
+    data = []
+    for c in customers[:100]:
+        data.append({
+            'id': c.id,
+            'name': c.name,
+            'email': c.email,
+            'phone': c.phone or '—',
+            'customer_type': c.get_customer_type_display() or c.customer_type.title(),
+            'company': c.company or '—',
+            'tier': c.tier.name if c.tier else 'Normal',
+            'is_active': c.is_active,
+        })
+
+    return JsonResponse({'customers': data})
+
 @login_required(login_url='panel_login')
 @permission_required('customers', 'create')
 def panel_customer_add(request):
     tiers = CustomerTier.objects.filter(is_active=True)
+    
     if request.method == 'POST':
         Customer.objects.create(
-            name=request.POST['name'], email=request.POST['email'],
-            phone=request.POST.get('phone', ''), 
+            name=request.POST['name'],
+            email=request.POST['email'],
+            phone=request.POST.get('phone', ''),
             pan_number=request.POST.get('pan_number', '').upper(),
             company=request.POST.get('company', ''),
             address=request.POST.get('address', ''),
+            customer_type=request.POST.get('customer_type', 'retailer'),  # ← Added
             tier_id=request.POST.get('tier') or None,
             is_active=request.POST.get('is_active') == 'on',
         )
-        messages.success(request, 'Customer added.')
+        messages.success(request, 'Customer added successfully.')
         return redirect('panel_customers')
-    return render(request, 'panel/customer_form.html', {'action': 'Add', 'tiers': tiers})
+
+    return render(request, 'panel/customer_form.html', {
+        'action': 'Add',
+        'tiers': tiers,
+        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ← Pass choices
+    })
+
 
 @login_required(login_url='panel_login')
 @permission_required('customers', 'edit')
 def panel_customer_edit(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     tiers = CustomerTier.objects.filter(is_active=True)
+
     if request.method == 'POST':
         customer.name = request.POST['name']
         customer.email = request.POST['email']
@@ -693,12 +747,20 @@ def panel_customer_edit(request, pk):
         customer.pan_number = request.POST.get('pan_number', '').upper()
         customer.company = request.POST.get('company', '')
         customer.address = request.POST.get('address', '')
+        customer.customer_type = request.POST.get('customer_type', 'retailer')   # ← Added
         customer.tier_id = request.POST.get('tier') or None
         customer.is_active = request.POST.get('is_active') == 'on'
         customer.save()
-        messages.success(request, 'Customer updated.')
+        
+        messages.success(request, 'Customer updated successfully.')
         return redirect('panel_customers')
-    return render(request, 'panel/customer_form.html', {'action': 'Edit', 'customer': customer, 'tiers': tiers})
+
+    return render(request, 'panel/customer_form.html', {
+        'action': 'Edit',
+        'customer': customer,
+        'tiers': tiers,
+        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ← Pass choices
+    })
 
 @login_required(login_url='panel_login')
 @permission_required('customers', 'delete')
@@ -882,6 +944,95 @@ def panel_product_edit(request, pk):
         'action': 'Edit', 'product': product, 'categories': categories,
         'tiers': tiers, 'tier_prices': tier_prices, 'all_products': all_products, 'countries': countries, 'delivery_times': delivery_times, 'packages': packages,
     })
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+import json
+
+@login_required(login_url='panel_login')
+@permission_required('products', 'edit')
+def panel_product_alliance(request, pk):
+    """GET: fetch current alliances + searchable product list. POST: add. DELETE: remove."""
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == 'GET':
+        search = request.GET.get('q', '').strip()
+        
+        # Current alliances for this product
+        alliances = ProductAlliance.objects.filter(
+            product=product, is_active=True
+        ).select_related('alliance_product').order_by('priority', '-created_at')
+        
+        alliance_data = [
+            {
+                'id': a.id,
+                'product_id': a.alliance_product.pk,
+                'name': a.alliance_product.name,
+                'sku': a.alliance_product.sku,
+                'discount_percent': str(a.discount_percent),
+                'priority': a.priority,
+            }
+            for a in alliances
+        ]
+        
+        # Searchable products (exclude self + already allied)
+        allied_ids = [a['product_id'] for a in alliance_data]
+        qs = Product.objects.exclude(pk=pk).exclude(pk__in=allied_ids).filter(is_active=True)
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search) | Q(sku__icontains=search) | Q(brand__icontains=search)
+            )
+        qs = qs.values('id', 'name', 'sku', 'brand')[:20]
+        
+        return JsonResponse({
+            'product': {'id': product.pk, 'name': product.name, 'sku': product.sku},
+            'alliances': alliance_data,
+            'available': list(qs),
+        })
+
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        alliance_product_id = data.get('alliance_product_id')
+        discount_percent = data.get('discount_percent', 0)
+        priority = data.get('priority', 0)
+        
+        alliance_product = get_object_or_404(Product, pk=alliance_product_id)
+        
+        if alliance_product.pk == product.pk:
+            return JsonResponse({'error': 'Cannot ally a product with itself.'}, status=400)
+        
+        alliance, created = ProductAlliance.objects.get_or_create(
+            product=product,
+            alliance_product=alliance_product,
+            defaults={
+                'discount_percent': discount_percent,
+                'priority': priority,
+                'is_active': True,
+            }
+        )
+        if not created:
+            # Reactivate if it was soft-deleted or just update
+            alliance.is_active = True
+            alliance.discount_percent = discount_percent
+            alliance.priority = priority
+            alliance.save()
+        
+        return JsonResponse({
+            'id': alliance.id,
+            'product_id': alliance_product.pk,
+            'name': alliance_product.name,
+            'sku': alliance_product.sku,
+            'discount_percent': str(alliance.discount_percent),
+            'priority': alliance.priority,
+        })
+
+    elif request.method == 'DELETE':
+        data = json.loads(request.body)
+        alliance_id = data.get('alliance_id')
+        ProductAlliance.objects.filter(pk=alliance_id, product=product).delete()
+        return JsonResponse({'deleted': True})
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @login_required(login_url='panel_login')
 @permission_required('products', 'delete')

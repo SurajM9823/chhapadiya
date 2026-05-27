@@ -562,6 +562,14 @@ class DeliveryTimeTier(models.Model):
 # models.py
 class Customer(models.Model):  
     name = models.CharField(max_length=200)
+    user = models.OneToOneField(
+        'CustomerUser',          # or your custom user model
+        on_delete=models.CASCADE,
+        related_name='customer',   # optional but recommended
+        unique=True,
+        null= True,
+        blank=True
+    )
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
     pan_number = models.CharField(max_length=10, blank=True, verbose_name='PAN Number')
@@ -642,7 +650,13 @@ class Product(models.Model):
     delivery_time = models.ForeignKey(DeliveryTimeTier, null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
 
     # Related products (self M2M)
-    related_products = models.ManyToManyField('self', blank=True, symmetrical=False)
+    related_products = models.ManyToManyField(
+        'self', 
+        blank=True, 
+        symmetrical=False,
+        related_name='related_to',           # ← Fixed: Added related_name
+        verbose_name="Related Products"
+    )
 
     # Visibility & status
     is_active = models.BooleanField(default=True, help_text='Show on website')
@@ -650,6 +664,16 @@ class Product(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    alliance_products = models.ManyToManyField(
+        'self',
+        through='ProductAlliance',
+        through_fields=('product', 'alliance_product'),
+        blank=True,
+        symmetrical=False,
+        related_name='alliance_with_products',   # ← Fixed: Added unique related_name
+        verbose_name="Alliance Products",
+        help_text="Other products allied with this product"
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -725,6 +749,47 @@ class ProductTierPrice(models.Model):
     def __str__(self):
         return f"{self.product.name} — {self.tier.name}: {self.price}"
 
+
+class ProductAlliance(models.Model):
+    """Through model for Alliance Products"""
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='product_alliances'      # Main product's alliances
+    )
+    alliance_product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='alliance_with'          # This is fine
+    )
+    
+    discount_percent = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0,
+        help_text="Discount offered when buying together"
+    )
+    
+    priority = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order (lower number = higher priority)"
+    )
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'alliance_product')
+        ordering = ['priority', '-created_at']
+
+    def __str__(self):
+        return f"{self.product.name} ↔ {self.alliance_product.name}"
+
+    def save(self, *args, **kwargs):
+        # Prevent a product from being allied with itself
+        if self.product == self.alliance_product:
+            raise ValueError("A product cannot be allied with itself.")
+        super().save(*args, **kwargs)
 
 # ── Services Page ────────────────────────────────────────────────────────────
 

@@ -4,31 +4,51 @@
 {% block nav_customer_open %}{% endblock %}
 {% block nav_customer_arrow %}rotate-180{% endblock %}
 {% block nav_customers %}text-white bg-gray-600{% endblock %}
+
 {% block content %}
 <div class="flex justify-between items-center mb-6">
-    <div><p class="text-xs text-gray-500 mb-1">Customers</p><h1 class="text-xl font-semibold text-gray-800">All Customers</h1></div>
+    <div>
+        <p class="text-xs text-gray-500 mb-1">Customers</p>
+        <h1 class="text-xl font-semibold text-gray-800">All Customers</h1>
+    </div>
     {% if can_create %}
     <a href="{% url 'panel_customer_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Customer</a>
     {% endif %}
 </div>
-{% if customers %}
+
+<div class="mb-6">
+    <input type="text" id="live-search" 
+           placeholder="Type to search customers..." 
+           class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gray-500">
+    <p class="text-xs text-gray-500 mt-1" id="search-status"></p>
+</div>
+
 <div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full text-sm">
+    <table class="w-full text-sm" id="customers-table">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3 text-left">Name</th>
                 <th class="px-4 py-3 text-left">Email</th>
+                <th class="px-4 py-3 text-left">Phone</th>
+                <th class="px-4 py-3 text-left">Customer Type</th>
                 <th class="px-4 py-3 text-left">Company</th>
                 <th class="px-4 py-3 text-left">Tier</th>
                 <th class="px-4 py-3 text-left">Status</th>
                 <th class="px-4 py-3 text-left">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody id="table-body" class="divide-y">
             {% for c in customers %}
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3 font-medium text-gray-800">{{ c.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ c.email }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ c.phone|default:"—" }}</td>
+                <td class="px-4 py-3">
+                    <span class="inline-block px-3 py-1 text-xs font-medium rounded-full 
+                        {% if c.customer_type == 'dealer' %}bg-purple-100 text-purple-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                        {{ c.get_customer_type_display|default:c.customer_type|title }}
+                    </span>
+                </td>
                 <td class="px-4 py-3 text-gray-500">{{ c.company|default:"—" }}</td>
                 <td class="px-4 py-3">
                     {% if c.tier %}<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">{{ c.tier.name }}</span>
@@ -39,24 +59,101 @@
                     {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
                 </td>
                 <td class="px-4 py-3 flex gap-3">
-                    {% if can_edit %}
-                    <a href="{% url 'panel_customer_edit' c.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
-                    {% endif %}
+                    {% if can_edit %}<a href="{% url 'panel_customer_edit' c.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>{% endif %}
                     {% if can_delete %}
-                    <form method="post" action="{% url 'panel_customer_delete' c.pk %}" onsubmit="return confirm('Delete customer?')">{% csrf_token %}
-                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    <form method="post" action="{% url 'panel_customer_delete' c.pk %}" onsubmit="return confirm('Delete this customer?')">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-500 hover:underline text-xs">Delete</button>
                     </form>
-                    {% endif %}
-                    {% if not can_edit and not can_delete %}
-                    <span class="text-gray-400 text-xs">No actions</span>
                     {% endif %}
                 </td>
             </tr>
+            {% empty %}
+            <tr><td colspan="8" class="py-12 text-center text-gray-400">No customers found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-{% else %}
-<div class="bg-white rounded-xl shadow p-12 text-center text-gray-400">No customers yet. {% if can_create %}<a href="{% url 'panel_customer_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
-{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('live-search');
+    const tableBody = document.getElementById('table-body');
+    const statusEl = document.getElementById('search-status');
+    let timeout;
+
+    function loadCustomers(query = '') {
+        statusEl.textContent = 'Searching...';
+        
+        fetch(`/panel/customers/search/?search=${encodeURIComponent(query)}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Server error');
+                return response.json();
+            })
+            .then(data => {
+                tableBody.innerHTML = '';
+                statusEl.textContent = data.customers.length + ' results found';
+
+                if (data.customers.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                                No matching customers for "<strong>${query}</strong>"
+                            </td>
+                        </tr>`;
+                    return;
+                }
+
+                data.customers.forEach(c => {
+                    const row = `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium text-gray-800">${c.name}</td>
+                            <td class="px-4 py-3 text-gray-500">${c.email}</td>
+                            <td class="px-4 py-3 text-gray-500">${c.phone}</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-block px-3 py-1 text-xs font-medium rounded-full 
+                                    ${c.customer_type.toLowerCase() === 'dealer' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}">
+                                    ${c.customer_type}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-500">${c.company}</td>
+                            <td class="px-4 py-3">${c.tier === 'Normal' ? 
+                                '<span class="text-gray-400 text-xs">Normal</span>' : 
+                                `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">${c.tier}</span>`}</td>
+                            <td class="px-4 py-3">
+                                ${c.is_active ? 
+                                    '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>' : 
+                                    '<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>'}
+                            </td>
+                            <td class="px-4 py-3 flex gap-3">
+                                <a href="{% url 'panel_customer_edit' 0 %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                                <form method="post" action="{% url 'panel_customer_delete' 0 %}" onsubmit="return confirm('Delete?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-red-500 hover:underline text-xs">Delete</button>
+                                </form>
+                            </td>
+                        </tr>`;
+                    tableBody.innerHTML += row.replace(/0/g, c.id);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                statusEl.textContent = 'Error loading search';
+                tableBody.innerHTML = `<tr><td colspan="8" class="py-12 text-center text-red-500">Failed to load results. Check console (F12).</td></tr>`;
+            });
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            loadCustomers(this.value.trim());
+        }, 250);
+    });
+
+    // Load all customers initially
+    loadCustomers('');
+});
+</script>
 {% endblock %}

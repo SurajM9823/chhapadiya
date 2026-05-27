@@ -140,6 +140,11 @@
                             {% if can_edit %}
                             <a href="{% url 'panel_product_edit' p.pk %}" class="text-blue-600 hover:text-blue-800 text-xs hover:underline">Edit</a>
                             <a href="{% url 'panel_stock' p.pk %}" class="text-purple-600 hover:text-purple-800 text-xs hover:underline">Stock</a>
+                            <!-- NEW: Alliance Button -->
+                            <button onclick="openAllianceSidebar({{ p.pk }}, '{{ p.name|escapejs }}')" 
+                                    class="text-amber-600 hover:text-amber-800 text-xs hover:underline font-medium">
+                                Alliance
+                            </button>
                             {% endif %}
                             {% if can_delete %}
                             <form method="post" action="{% url 'panel_product_delete' p.pk %}" onsubmit="return confirm('Delete this product?')" style="display:inline;">{% csrf_token %}
@@ -280,4 +285,262 @@
         }
     });
 </script>
+
+<!-- Alliance Sidebar -->
+<div id="allianceSidebar" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+    
+    <!-- Header -->
+    <div class="p-3 border-b flex items-center justify-between bg-gray-50">
+        <div class="min-w-0">
+            <h2 class="font-semibold text-sm text-gray-800 truncate" id="sidebarProductName"></h2>
+            <p class="text-[11px] text-gray-500 truncate" id="sidebarProductSku"></p>
+        </div>
+
+        <button onclick="closeAllianceSidebar()" 
+                class="text-gray-400 hover:text-gray-700 text-xl leading-none ml-2">
+            ×
+        </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-auto p-3 space-y-4">
+
+        <!-- Current Alliances -->
+        <div>
+            <h3 class="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                Current Alliances
+                <span id="allianceCount"
+                      class="bg-gray-200 text-gray-700 text-[10px] px-1.5 py-0.5 rounded-full">
+                </span>
+            </h3>
+
+            <div id="currentAlliances" class="space-y-2"></div>
+        </div>
+
+        <!-- Add Alliance -->
+        <div>
+            <h3 class="text-xs font-semibold text-gray-700 mb-2">
+                Add New Alliance
+            </h3>
+
+            <!-- Search -->
+            <div class="relative mb-3">
+                <input type="text"
+                       id="allianceSearch"
+                       placeholder="Search product..."
+                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-amber-500">
+
+                <div id="searchResults"
+                     class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-auto hidden">
+                </div>
+            </div>
+
+            <!-- Inputs -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[11px] text-gray-500 mb-1">
+                        Discount %
+                    </label>
+
+                    <input type="number"
+                           id="discountPercent"
+                           value="0"
+                           min="0"
+                           max="100"
+                           step="0.1"
+                           class="w-full px-2 py-2 text-sm border border-gray-300 rounded-md">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] text-gray-500 mb-1">
+                        Priority
+                    </label>
+
+                    <input type="number"
+                           id="priority"
+                           value="0"
+                           min="0"
+                           class="w-full px-2 py-2 text-sm border border-gray-300 rounded-md">
+                </div>
+            </div>
+
+            <!-- Button -->
+            <button onclick="addAlliance()"
+                    class="mt-3 w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-md text-sm font-medium transition">
+                + Add Alliance
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-3 border-t bg-gray-50">
+        <button onclick="closeAllianceSidebar()"
+                class="w-full py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md font-medium">
+            Close
+        </button>
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="sidebarOverlay" onclick="closeAllianceSidebar()" 
+     class="fixed inset-0 bg-black/50 hidden z-40">
+</div>
+
+<script>
+    let currentProductId = null;
+
+function openAllianceSidebar(pk, name) {
+    currentProductId = pk;
+    document.getElementById('sidebarProductName').textContent = name;
+    document.getElementById('sidebarOverlay').classList.remove('hidden');
+    document.getElementById('allianceSidebar').classList.remove('translate-x-full');
+    
+    loadAlliances();
+    
+    // Setup search
+    const searchInput = document.getElementById('allianceSearch');
+    searchInput.value = '';
+    searchInput.focus();
+    searchInput.addEventListener('input', debounce(searchProducts, 300));
+}
+
+function closeAllianceSidebar() {
+    document.getElementById('allianceSidebar').classList.add('translate-x-full');
+    document.getElementById('sidebarOverlay').classList.add('hidden');
+    document.getElementById('searchResults').classList.add('hidden');
+}
+
+async function loadAlliances() {
+    const res = await fetch(`/panel/products/${currentProductId}/alliance/`);
+    const data = await res.json();
+
+    document.getElementById('allianceCount').textContent = data.alliances.length;
+
+    let html = '';
+    data.alliances.forEach(alliance => {
+        html += `
+    <div class="flex items-start justify-between bg-gray-50 p-2 rounded-md">
+        <div class="min-w-0">
+            <div class="font-medium text-sm text-gray-800 truncate">
+                ${alliance.name}
+            </div>
+
+            <div class="text-[11px] text-gray-500 truncate">
+                ${alliance.sku}
+            </div>
+
+            <div class="text-[11px] text-amber-600">
+                ${alliance.discount_percent}% discount
+            </div>
+        </div>
+
+        <button onclick="removeAlliance(${alliance.id})"
+                class="text-red-500 hover:text-red-700 text-xs ml-2">
+            Remove
+        </button>
+    </div>
+`;
+    });
+
+    document.getElementById('currentAlliances').innerHTML = html || 
+        '<p class="text-gray-400 text-sm py-4 text-center">No alliances yet</p>';
+}
+
+async function searchProducts() {
+    const query = document.getElementById('allianceSearch').value.trim();
+    if (query.length < 2) {
+        document.getElementById('searchResults').classList.add('hidden');
+        return;
+    }
+
+    const res = await fetch(`/panel/products/${currentProductId}/alliance/?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    let html = '';
+    data.available.forEach(product => {
+        html += `
+                <div onclick="selectProduct(${product.id}, '${product.name.replace(/'/g, "\\'")}')" 
+                    class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-0">
+
+                    <div class="font-medium text-sm text-gray-800 truncate">
+                        ${product.name}
+                    </div>
+
+                    <div class="text-[11px] text-gray-500 truncate">
+                        ${product.sku} ${product.brand ? `• ${product.brand}` : ''}
+                    </div>
+                </div>
+            `;
+    });
+
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = html;
+    resultsDiv.classList.remove('hidden');
+}
+
+function selectProduct(productId, productName) {
+    document.getElementById('allianceSearch').value = productName;
+    document.getElementById('searchResults').classList.add('hidden');
+    // Store selected ID temporarily
+    window.selectedAllianceProductId = productId;
+}
+
+async function addAlliance() {
+    const productId = window.selectedAllianceProductId;
+    if (!productId) {
+        alert("Please select a product from search results");
+        return;
+    }
+
+    const discount = parseFloat(document.getElementById('discountPercent').value) || 0;
+    const priority = parseInt(document.getElementById('priority').value) || 0;
+
+    const res = await fetch(`/panel/products/${currentProductId}/alliance/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            alliance_product_id: productId,
+            discount_percent: discount,
+            priority: priority
+        })
+    });
+
+    if (res.ok) {
+        loadAlliances();
+        document.getElementById('allianceSearch').value = '';
+        window.selectedAllianceProductId = null;
+    } else {
+        alert("Failed to add alliance");
+    }
+}
+
+async function removeAlliance(allianceId) {
+    if (!confirm("Remove this alliance?")) return;
+
+    await fetch(`/panel/products/${currentProductId}/alliance/`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ alliance_id: allianceId })
+    });
+
+    loadAlliances();
+}
+
+// Debounce helper
+function debounce(func, delay) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => func(...args), delay);
+    };
+}
+</script>
+
 {% endblock %}
+

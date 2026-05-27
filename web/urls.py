@@ -60,12 +60,14 @@ urlpatterns = [
 
     # Customers
     path('panel/customers/', panel_views.panel_customers, name='panel_customers'),
+    path('panel/customers/search/', panel_views.panel_customers_search, name='panel_customers_search'),
     path('panel/customers/add/', panel_views.panel_customer_add, name='panel_customer_add'),
     path('panel/customers/<int:pk>/edit/', panel_views.panel_customer_edit, name='panel_customer_edit'),
     path('panel/customers/<int:pk>/delete/', panel_views.panel_customer_delete, name='panel_customer_delete'),
 
     # Products
     path('panel/products/', panel_views.panel_products, name='panel_products'),
+    path('panel/products/<int:pk>/alliance/', panel_views.panel_product_alliance, name='panel_product_alliance'),
     path('panel/products/import/', panel_views.panel_products_import, name='panel_products_import'),
     path('panel/products/export/', panel_views.panel_products_export, name='panel_products_export'),
     path('panel/products/add/', panel_views.panel_product_add, name='panel_product_add'),

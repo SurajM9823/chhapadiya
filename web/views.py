@@ -6,6 +6,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, Founder, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview, Package, AboutContent
 from .email_utils import send_order_confirmation_email
 from django.db.models import Count
+from django.db.models import Avg, Count
+from decimal import Decimal
 
 def base_context():
     categories = Category.objects.filter(is_active=True).prefetch_related('subcategories').order_by('name')
@@ -125,6 +127,30 @@ def product_detail(request, slug):
     reviews = product.reviews.select_related('user').order_by('-created_at')
     from django.db.models import Avg, Count
     review_stats = reviews.aggregate(avg_rating=Avg('rating'), total_reviews=Count('id'))
+    alliance_products = []
+
+    alliances = product.product_alliances.select_related(
+        'alliance_product',
+        'alliance_product__category'
+    ).prefetch_related(
+        'alliance_product__images'
+    ).order_by('priority')[:12]
+
+    for alliance in alliances:
+        ap = alliance.alliance_product
+
+        discount = alliance.discount_percent or 0
+        discounted_price = ap.mrp
+
+        if discount > 0:
+            discounted_price = ap.mrp - ((ap.mrp * Decimal(str(discount))) / 100)
+
+        alliance_products.append({
+            'product': ap,
+            'discount_percent': discount,
+            'discounted_price': round(discounted_price, 2)
+        })
+
     return render(request, 'web/product_detail.html', {
         **base_context(),
         'product': product,
@@ -135,6 +161,7 @@ def product_detail(request, slug):
         'reviews': reviews,
         'avg_rating': review_stats['avg_rating'] or 0,
         'total_reviews': review_stats['total_reviews'],
+        'alliance_products': alliance_products,
     })
 
 
