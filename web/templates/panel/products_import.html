@@ -5,97 +5,141 @@
 {% block nav_product_arrow %}rotate-180{% endblock %}
 {% block nav_products %}text-white bg-gray-600{% endblock %}
 {% block content %}
-<div class="mb-4"><p class="text-xs text-gray-500 mb-1">Products</p><h1 class="text-lg font-semibold text-gray-800">Import Products from Excel</h1></div>
+
+<div class="mb-4">
+    <p class="text-xs text-gray-500 mb-1">Products</p>
+    <h1 class="text-lg font-semibold text-gray-800">Import / Update Products via Excel</h1>
+    <p class="text-xs text-gray-500 mt-1">Existing SKUs will be <span class="font-semibold text-blue-600">updated</span>. New SKUs will be <span class="font-semibold text-green-600">created</span>.</p>
+</div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <!-- Upload Section -->
+
+    <!-- ── Left: Upload + Column Reference ── -->
     <div class="lg:col-span-2 space-y-4">
-        <!-- Instructions -->
+
+        <!-- Info banner -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 class="text-sm font-semibold text-blue-900 mb-2">How to Import:</h3>
+            <h3 class="text-sm font-semibold text-blue-900 mb-2">How to Import / Update:</h3>
             <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
-                <li>Download the sample template below</li>
-                <li>Fill in product details (Name, SKU, MRP are required)</li>
-                <li>Use dropdowns for Category, Country, Active, Featured fields</li>
-                <li>Add image file paths (local paths on your computer)</li>
-                <li>Upload the Excel file to import all products at once</li>
+                <li><strong>New products:</strong> Fill SKU, Name, MRP — all other fields optional.</li>
+                <li><strong>Update existing:</strong> Use the same SKU — all fields will be overwritten.</li>
+                <li>Download the template below; it matches the export format exactly.</li>
+                <li>Grey columns in the export (Stock Qty, Image URLs, dates) are ignored on import.</li>
+                <li>Category, Sub-Category, Country, Delivery Time and Package must match names exactly.</li>
             </ul>
         </div>
 
-        <!-- Upload Form -->
+        <!-- Upload form -->
         <div class="bg-white rounded-lg shadow p-6">
             <form method="post" enctype="multipart/form-data" class="space-y-4">
                 {% csrf_token %}
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Excel File</label>
-                    <input type="file" name="excel_file" accept=".xlsx,.xls" required class="w-full border-2 border-dashed border-gray-300 rounded-lg px-4 py-6 text-center cursor-pointer hover:border-blue-400 transition">
-                    <p class="text-xs text-gray-500 mt-1">Supported formats: .xlsx, .xls</p>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Excel File (.xlsx)</label>
+                    <label class="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-lg py-8 px-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        <span class="text-sm text-gray-600 font-medium">Click to choose file</span>
+                        <span class="text-xs text-gray-400 mt-1" id="fileLabel">No file selected</span>
+                        <input type="file" name="excel_file" accept=".xlsx,.xls" required class="hidden" onchange="document.getElementById('fileLabel').textContent = this.files[0]?.name || 'No file selected'">
+                    </label>
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-semibold text-sm">Upload & Import</button>
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-semibold text-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Upload & Import
+                </button>
             </form>
         </div>
 
-        <!-- Column Reference -->
+        <!-- Column reference table -->
         <div class="bg-white rounded-lg shadow p-4">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Excel Column Reference</h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Column</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600 w-8">Col</th>
                             <th class="px-3 py-2 text-left font-semibold text-gray-600">Field</th>
-                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Required</th>
-                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Example</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600 w-20">Required</th>
+                            <th class="px-3 py-2 text-left font-semibold text-gray-600">Example / Notes</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y">
-                        <tr><td class="px-3 py-2">A</td><td class="px-3 py-2">Product Name</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">Mixer Grinder</td></tr>
-                        <tr><td class="px-3 py-2">B</td><td class="px-3 py-2">SKU</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">MG-001</td></tr>
-                        <tr><td class="px-3 py-2">C</td><td class="px-3 py-2">Brand</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Philips</td></tr>
-                        <tr><td class="px-3 py-2">D</td><td class="px-3 py-2">Category</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
-                        <tr><td class="px-3 py-2">E</td><td class="px-3 py-2">Sub-Category</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Blenders</td></tr>
-                        <tr><td class="px-3 py-2">F</td><td class="px-3 py-2">Country/Origin</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
-                        <tr><td class="px-3 py-2">G</td><td class="px-3 py-2">MRP</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Yes</span></td><td class="px-3 py-2">2500.00</td></tr>
-                        <tr><td class="px-3 py-2">H</td><td class="px-3 py-2">Short Description</td><td class="px-3 py-2">No</td><td class="px-3 py-2">High-speed mixer</td></tr>
-                        <tr><td class="px-3 py-2">I</td><td class="px-3 py-2">Full Description</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Powerful 1000W motor...</td></tr>
-                        <tr><td class="px-3 py-2">J</td><td class="px-3 py-2">Specifications</td><td class="px-3 py-2">No</td><td class="px-3 py-2">Power: 1000W, Speed: 3</td></tr>
-                        <tr><td class="px-3 py-2">K</td><td class="px-3 py-2">Active (Yes/No)</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
-                        <tr><td class="px-3 py-2">L</td><td class="px-3 py-2">Featured (Yes/No)</td><td class="px-3 py-2">No</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Dropdown</span></td></tr>
-                        <tr><td class="px-3 py-2">M-P</td><td class="px-3 py-2">Image Paths (1-4)</td><td class="px-3 py-2">No</td><td class="px-3 py-2">C:\Images\product1.jpg</td></tr>
+                    <tbody class="divide-y text-gray-700">
+                        <!-- Identity -->
+                        <tr class="bg-blue-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-blue-800 text-xs uppercase tracking-wide">Identity</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">A</td><td class="px-3 py-2 font-medium">SKU</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">Yes</span></td><td class="px-3 py-2 text-gray-500">MG-001 — must be unique; used to match existing products</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">B</td><td class="px-3 py-2">Product Code</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Internal reference code</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">C</td><td class="px-3 py-2 font-medium">Name</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">Yes</span></td><td class="px-3 py-2 text-gray-500">Mixer Grinder</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">D</td><td class="px-3 py-2">Brand</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Philips</td></tr>
+                        <!-- Classification -->
+                        <tr class="bg-purple-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-purple-800 text-xs uppercase tracking-wide">Classification</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">E</td><td class="px-3 py-2">Category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Must match a category name exactly</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">F</td><td class="px-3 py-2">Sub-Category</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Must match sub-category name under the chosen category</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">G</td><td class="px-3 py-2">Origin Country</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Must match a country name exactly</td></tr>
+                        <!-- Pricing -->
+                        <tr class="bg-green-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-green-800 text-xs uppercase tracking-wide">Pricing</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">H</td><td class="px-3 py-2 font-medium">MRP (Rs.)</td><td class="px-3 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded">Yes</span></td><td class="px-3 py-2 text-gray-500">2500.00</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">I</td><td class="px-3 py-2">Retail Price</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Leave blank to default to MRP</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">J</td><td class="px-3 py-2">Dealer Price</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Leave blank to default to MRP</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">K</td><td class="px-3 py-2">Tax Included</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Yes or No</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">L</td><td class="px-3 py-2">Tax %</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">13</td></tr>
+                        <!-- Stock & Logistics -->
+                        <tr class="bg-yellow-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-yellow-800 text-xs uppercase tracking-wide">Stock & Logistics</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">M</td><td class="px-3 py-2">Initial Stock</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Only applied to <strong>new</strong> products — ignored for updates</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">N</td><td class="px-3 py-2">Delivery Time</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Must match a Delivery Time name exactly</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">O</td><td class="px-3 py-2">Linked Package</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Must match a Package name exactly</td></tr>
+                        <!-- Content -->
+                        <tr class="bg-gray-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Content</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">P</td><td class="px-3 py-2">Short Description</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">One-liner summary</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">Q</td><td class="px-3 py-2">Full Description</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Full product description</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">R</td><td class="px-3 py-2">Specifications</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Power: 1000W, Speed: 3</td></tr>
+                        <!-- Flags -->
+                        <tr class="bg-orange-50"><td colspan="4" class="px-3 py-1.5 font-semibold text-orange-800 text-xs uppercase tracking-wide">Flags</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">S</td><td class="px-3 py-2">Active</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Yes / No (default: Yes)</td></tr>
+                        <tr><td class="px-3 py-2 font-mono font-bold text-gray-500">T</td><td class="px-3 py-2">Featured</td><td class="px-3 py-2 text-gray-400">No</td><td class="px-3 py-2 text-gray-500">Yes / No (default: No)</td></tr>
+                        <!-- Ignored -->
+                        <tr class="bg-gray-100"><td colspan="4" class="px-3 py-1.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Ignored on Import (reference only)</td></tr>
+                        <tr class="text-gray-400"><td class="px-3 py-2 font-mono">U–Z</td><td class="px-3 py-2" colspan="3">Stock Qty, Image URLs, Tier Prices, Created/Updated dates — read-only in export</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Sidebar -->
+    <!-- ── Right: Sidebar ── -->
     <div class="space-y-4">
-        <!-- Download Template -->
+
+        <!-- Download template -->
         <div class="bg-white rounded-lg shadow p-4">
-            <h3 class="text-sm font-semibold text-gray-700 mb-3">Download Template</h3>
+            <h3 class="text-sm font-semibold text-gray-700 mb-1">Download Blank Template</h3>
+            <p class="text-xs text-gray-500 mb-3">Columns match the export exactly — paste from export or fill from scratch.</p>
             <button id="downloadBtn" class="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download Excel Template
+                Download Template
             </button>
-            <p class="text-xs text-gray-500 mt-2">With auto-fill dropdowns</p>
         </div>
 
-        <!-- Available Options -->
-        <div class="bg-white rounded-lg shadow p-4">
-            <h3 class="text-sm font-semibold text-gray-700 mb-3">Available Options</h3>
-            
-            <div class="mb-3">
+        <!-- Available options -->
+        <div class="bg-white rounded-lg shadow p-4 space-y-3">
+            <h3 class="text-sm font-semibold text-gray-700">Available Options</h3>
+
+            <div>
                 <p class="text-xs font-semibold text-gray-600 mb-1">Categories ({{ categories|length }})</p>
-                <div class="text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
+                <div class="text-xs text-gray-600 space-y-0.5 max-h-28 overflow-y-auto pr-1">
                     {% for cat in categories %}
-                    <div>• {{ cat.name }}</div>
+                    <div class="flex items-start gap-1">
+                        <span class="text-gray-400 flex-shrink-0">•</span>
+                        <span>{{ cat.name }}
+                            {% if cat.subcategories.all %}
+                            <span class="text-gray-400">({{ cat.subcategories.count }} subs)</span>
+                            {% endif %}
+                        </span>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <div class="mb-3">
+            <div>
                 <p class="text-xs font-semibold text-gray-600 mb-1">Countries ({{ countries|length }})</p>
-                <div class="text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
+                <div class="text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto pr-1">
                     {% for country in countries %}
                     <div>• {{ country.name }}</div>
                     {% endfor %}
@@ -103,24 +147,22 @@
             </div>
 
             <div>
-                <p class="text-xs font-semibold text-gray-600 mb-1">Customer Tiers ({{ tiers|length }})</p>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Customer Tiers</p>
                 <div class="text-xs text-gray-600 space-y-0.5">
-                    {% for tier in tiers %}
-                    <div>• {{ tier.name }}</div>
-                    {% endfor %}
+                    {% for tier in tiers %}<div>• {{ tier.name }}</div>{% endfor %}
                 </div>
             </div>
         </div>
 
         <!-- Tips -->
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h3 class="text-sm font-semibold text-yellow-900 mb-2">Tips:</h3>
-            <ul class="text-xs text-yellow-800 space-y-1 list-disc list-inside">
-                <li>Dropdowns auto-fill from database</li>
-                <li>Image paths must be absolute</li>
-                <li>First image becomes primary</li>
-                <li>Max 4 images per product</li>
-                <li>Check for duplicates before upload</li>
+            <h3 class="text-sm font-semibold text-yellow-900 mb-2">⚠️ Tips</h3>
+            <ul class="text-xs text-yellow-800 space-y-1.5 list-disc list-inside">
+                <li>SKU is the unique key — duplicate SKU = update</li>
+                <li>Blank rows are skipped automatically</li>
+                <li>Initial Stock only applies to new products</li>
+                <li>Names for Category / Country etc. must be spelled exactly as shown above</li>
+                <li>Up to 15 errors are shown — fix and re-upload</li>
             </ul>
         </div>
     </div>
@@ -128,86 +170,107 @@
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const categoryNames = [{% for cat in categories %}'{{ cat.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
-const countryNames = [{% for country in countries %}'{{ country.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+// These match the export column order exactly
+const categoryNames  = [{% for cat in categories %}'{{ cat.name|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+const countryNames   = [{% for c in countries %}'{{ c.name|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
 
-document.getElementById('downloadBtn').addEventListener('click', downloadTemplate);
+document.getElementById('downloadBtn').addEventListener('click', function () {
+    if (typeof XLSX === 'undefined') { alert('XLSX library not loaded. Refresh and try again.'); return; }
 
-function downloadTemplate() {
-    if (typeof XLSX === 'undefined') {
-        alert('XLSX library is not loaded. Please refresh the page.');
-        return;
-    }
-    
-    const yesNoOptions = ['Yes', 'No'];
-    const firstCategory = categoryNames.length > 0 ? categoryNames[0] : '';
-    const firstCountry = countryNames.length > 0 ? countryNames[0] : '';
-    
-    const sampleData = [
-        ['Product Name', 'SKU', 'Brand', 'Category', 'Sub-Category', 'Country', 'MRP', 'Short Description', 'Full Description', 'Specifications', 'Active', 'Featured', 'Image 1', 'Image 2', 'Image 3', 'Image 4'],
-        ['Mixer Grinder', 'MG-001', 'Philips', firstCategory, '', firstCountry, 2500, 'High-speed mixer', 'Powerful 1000W motor with 3 speed settings', 'Power: 1000W, Speed: 3', 'Yes', 'No', 'C:\\Images\\mixer1.jpg', 'C:\\Images\\mixer2.jpg', '', ''],
-        ['Refrigerator', 'RF-001', 'LG', firstCategory, '', firstCountry, 45000, 'Energy efficient fridge', 'Advanced cooling technology', 'Capacity: 500L, Energy: 5 Star', 'Yes', 'Yes', 'C:\\Images\\fridge1.jpg', '', '', ''],
+    const headers = [
+        // Identity
+        'SKU *', 'Product Code', 'Name *', 'Brand',
+        // Classification
+        'Category', 'Sub-Category', 'Origin Country',
+        // Pricing
+        'MRP (Rs.) *', 'Retail Price', 'Dealer Price', 'Tax Included', 'Tax %',
+        // Stock & Logistics
+        'Initial Stock', 'Delivery Time', 'Linked Package',
+        // Content
+        'Short Description', 'Full Description', 'Specifications',
+        // Flags
+        'Active', 'Featured',
     ];
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(sampleData);
-    
+
+    const sample = [
+        'MG-001', '', 'Mixer Grinder', 'Philips',
+        categoryNames[0] || '', '', countryNames[0] || '',
+        2500, 2200, 2000, 'No', 13,
+        10, '', '',
+        'High-speed mixer', 'Powerful 1000W motor with 3 speed settings', 'Power: 1000W',
+        'Yes', 'No',
+    ];
+
+    const wb   = XLSX.utils.book_new();
+    const data = [headers, sample];
+    const ws   = XLSX.utils.aoa_to_sheet(data);
+
+    // Column widths (same order as headers)
     ws['!cols'] = [
-        {wch: 20}, {wch: 12}, {wch: 15}, {wch: 18}, {wch: 18}, {wch: 15},
-        {wch: 12}, {wch: 20}, {wch: 25}, {wch: 25}, {wch: 10}, {wch: 10},
-        {wch: 25}, {wch: 25}, {wch: 25}, {wch: 25}
+        {wch:15},{wch:15},{wch:42},{wch:20},
+        {wch:22},{wch:22},{wch:18},
+        {wch:13},{wch:13},{wch:13},{wch:13},{wch:10},
+        {wch:13},{wch:25},{wch:25},
+        {wch:50},{wch:60},{wch:50},
+        {wch:10},{wch:10},
     ];
-    
-    const dataValidation = [];
-    
-    if (categoryNames.length > 0) {
-        dataValidation.push({
-            type: 'list',
-            formula1: '"' + categoryNames.join(',') + '"',
-            sqref: 'D2:D1000',
-            showInputMessage: true,
-            showErrorMessage: true,
-            errorTitle: 'Invalid Category',
-            error: 'Please select from available categories'
+
+    // Data validations
+    ws['!dataValidation'] = [];
+
+    if (categoryNames.length) {
+        ws['!dataValidation'].push({
+            type:'list', sqref:'E2:E5000',
+            formula1:'"' + categoryNames.join(',') + '"',
+            showErrorMessage:true, errorTitle:'Invalid Category',
+            error:'Select from the list'
         });
     }
-    
-    if (countryNames.length > 0) {
-        dataValidation.push({
-            type: 'list',
-            formula1: '"' + countryNames.join(',') + '"',
-            sqref: 'F2:F1000',
-            showInputMessage: true,
-            showErrorMessage: true,
-            errorTitle: 'Invalid Country',
-            error: 'Please select from available countries'
+    if (countryNames.length) {
+        ws['!dataValidation'].push({
+            type:'list', sqref:'G2:G5000',
+            formula1:'"' + countryNames.join(',') + '"',
+            showErrorMessage:true, errorTitle:'Invalid Country',
+            error:'Select from the list'
         });
     }
-    
-    dataValidation.push({
-        type: 'list',
-        formula1: '"Yes,No"',
-        sqref: 'K2:K1000',
-        showInputMessage: true,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Value',
-        error: 'Please select Yes or No'
+    ['K2:K5000','S2:S5000','T2:T5000'].forEach(sqref => {
+        ws['!dataValidation'].push({
+            type:'list', sqref, formula1:'"Yes,No"',
+            showErrorMessage:true, errorTitle:'Invalid Value', error:'Enter Yes or No'
+        });
     });
-    
-    dataValidation.push({
-        type: 'list',
-        formula1: '"Yes,No"',
-        sqref: 'L2:L1000',
-        showInputMessage: true,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Value',
-        error: 'Please select Yes or No'
-    });
-    
-    ws.dataValidations = dataValidation;
-    
+
     XLSX.utils.book_append_sheet(wb, ws, 'Products');
+
+    // Instructions sheet
+    const info = XLSX.utils.aoa_to_sheet([
+        ['Column', 'Field', 'Notes'],
+        ['A','SKU *','Required. Unique key. Existing SKU = update existing product.'],
+        ['B','Product Code','Optional internal reference.'],
+        ['C','Name *','Required.'],
+        ['D','Brand','Optional.'],
+        ['E','Category','Must match an existing category name exactly.'],
+        ['F','Sub-Category','Must match sub-category name under the chosen category.'],
+        ['G','Origin Country','Must match a country name exactly.'],
+        ['H','MRP *','Required. Numeric.'],
+        ['I','Retail Price','Leave blank to use MRP.'],
+        ['J','Dealer Price','Leave blank to use MRP.'],
+        ['K','Tax Included','Yes or No.'],
+        ['L','Tax %','Numeric e.g. 13'],
+        ['M','Initial Stock','Only applied to NEW products. Ignored on update.'],
+        ['N','Delivery Time','Must match existing Delivery Time name.'],
+        ['O','Linked Package','Must match existing Package name.'],
+        ['P','Short Description','Optional.'],
+        ['Q','Full Description','Optional.'],
+        ['R','Specifications','Optional.'],
+        ['S','Active','Yes or No. Default: Yes.'],
+        ['T','Featured','Yes or No. Default: No.'],
+    ]);
+    info['!cols'] = [{wch:8},{wch:20},{wch:65}];
+    XLSX.utils.book_append_sheet(wb, info, 'How To Use');
+
     XLSX.writeFile(wb, 'product_import_template.xlsx');
-}
+});
 </script>
 {% endblock %}

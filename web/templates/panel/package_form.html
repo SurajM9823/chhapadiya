@@ -7,7 +7,7 @@
     <h1 class="text-2xl font-semibold">{% if package %}Edit{% else %}Add{% endif %} Package</h1>
 </div>
 
-<form method="post" class="bg-white rounded shadow p-6">
+<form method="post" enctype="multipart/form-data" class="bg-white rounded shadow p-6">
     {% csrf_token %}
     
     <div class="grid grid-cols-4 gap-4 mb-6">
@@ -61,6 +61,40 @@
                 </div>
                 {% endfor %}
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Package Images -->
+    <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3">Package Images</h3>
+        
+        {% if package %}
+        <div class="mb-4">
+            <p class="text-sm text-gray-600 mb-3">Current Images:</p>
+            <div class="grid grid-cols-4 gap-3">
+                {% for img in package.images.all %}
+                <div class="relative border rounded p-2">
+                    <img src="{{ img.image.url }}" class="w-full h-32 object-contain mb-2">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-1 text-xs">
+                            <input type="radio" name="primary_image" value="{{ img.id }}" {% if img.is_primary %}checked{% endif %}>
+                            <span>Primary</span>
+                        </label>
+                        <label class="flex items-center gap-1 text-xs text-red-600">
+                            <input type="checkbox" name="delete_images" value="{{ img.id }}">
+                            <span>Delete</span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div>
+            <label class="block text-sm font-medium mb-2">Upload New Images (Max 4)</label>
+            <input type="file" name="images" multiple accept="image/*" class="w-full border rounded px-3 py-2 text-sm">
+            <p class="text-xs text-gray-500 mt-1">You can upload up to 4 images. First uploaded image will be set as primary if no primary image exists.</p>
         </div>
     </div>
 

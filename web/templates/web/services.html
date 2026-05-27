@@ -20,8 +20,8 @@
         {% if services %}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for service in services %}
-            <div class="border border-gray-200 rounded-sm p-6 hover:border-emerald-500 hover:shadow-md transition-all group">
-                <div class="w-12 h-12 bg-emerald-50 rounded-sm flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors overflow-hidden">
+            <div class="border border-gray-200 rounded-sm p-6 hover:border-emerald-500 hover:shadow-md transition-all group flex flex-col">
+                <div class="w-12 h-12 bg-emerald-50 rounded-sm flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors overflow-hidden flex-shrink-0">
                     {% if service.image %}
                     <img src="{{ service.image.url }}" class="w-full h-full object-cover" alt="{{ service.title }}">
                     {% elif service.icon %}
@@ -31,7 +31,7 @@
                     {% endif %}
                 </div>
                 <h3 class="font-['Work_Sans'] font-semibold text-gray-800 mb-2">{{ service.title }}</h3>
-                <p class="text-sm text-gray-500">{{ service.description }}</p>
+                <p class="text-sm text-gray-500 leading-relaxed flex-grow">{{ service.description }}</p>
             </div>
             {% endfor %}
         </div>

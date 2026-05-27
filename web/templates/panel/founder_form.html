@@ -1,0 +1,62 @@
+{% extends "panel/base.html" %}
+{% block title %} — {{ action }} Founder{% endblock %}
+{% block nav_content_parent %}text-white bg-gray-700{% endblock %}
+{% block nav_content_open %}{% endblock %}
+{% block nav_content_arrow %}rotate-180{% endblock %}
+{% block nav_about %}text-white bg-gray-600{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <p class="text-xs text-gray-500 mb-1"><a href="{% url 'panel_about' %}" class="hover:underline">About</a> › {{ action }} Founder</p>
+    <h1 class="text-xl font-semibold text-gray-800">{{ action }} Founder</h1>
+</div>
+<div class="max-w-lg bg-white rounded-xl shadow p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <input name="name" type="text" value="{{ founder.name|default:'' }}" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+            <input name="role" type="text" value="{{ founder.role|default:'' }}" required
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input name="phone" type="tel" value="{{ founder.phone|default:'' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+            <textarea name="bio" rows="4"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">{{ founder.bio|default:'' }}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <input name="order" type="number" value="{{ founder.order|default:'0' }}"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+        </div>
+        <div class="flex items-center gap-2">
+            <input name="is_active" type="checkbox" id="is_active" {% if founder.is_active or not founder %}checked{% endif %}>
+            <label for="is_active" class="text-sm font-medium text-gray-700">Active</label>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Photo</label>
+            {% if founder.photo %}
+                <div class="mb-2">
+                    <img src="{{ founder.photo.url }}" alt="{{ founder.name }}" class="w-24 h-24 object-cover rounded">
+                </div>
+                <p class="text-xs text-gray-500">Current photo: <a href="{{ founder.photo.url }}" target="_blank" class="hover:underline">View</a></p>
+            {% endif %}
+            <input name="photo" type="file" accept="image/*"
+                class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+            <p class="text-xs text-gray-500">Recommended size: 400x400px</p>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700">Save</button>
+            <a href="{% url 'panel_about' %}" class="px-5 py-2 rounded border text-sm hover:bg-gray-50">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

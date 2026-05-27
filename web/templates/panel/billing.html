@@ -205,55 +205,59 @@
                     <h5 class="mb-0">Billing History</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Filters -->
-                    <div class="row mb-3">
-                        <div class="col-md-2">
-                            <label class="small">Start Date</label>
-                            <input type="date" id="filterStartDate" class="form-control form-control-sm" value="{{ f_date_from }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small">End Date</label>
-                            <input type="date" id="filterEndDate" class="form-control form-control-sm" value="{{ f_date_to }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small">Sale Type</label>
-                            <select id="filterSaleType" class="form-control form-control-sm">
-                                <option value="">All Types</option>
-                                <option value="counter" {% if f_sale_type == 'counter' %}selected{% endif %}>Counter</option>
-                                <option value="agent" {% if f_sale_type == 'agent' %}selected{% endif %}>Agent</option>
-                                <option value="online" {% if f_sale_type == 'online' %}selected{% endif %}>Online</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small">Payment Status</label>
-                            <select id="filterPaymentStatus" class="form-control form-control-sm">
-                                <option value="">All Status</option>
-                                <option value="paid" {% if f_pay_status == 'paid' %}selected{% endif %}>Paid</option>
-                                <option value="partial" {% if f_pay_status == 'partial' %}selected{% endif %}>Partial</option>
-                                <option value="pending" {% if f_pay_status == 'pending' %}selected{% endif %}>Pending</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small">Agent</label>
-                            <select id="filterAgent" class="form-control form-control-sm">
-                                <option value="">All Agents</option>
-                                <!-- Populated via JS -->
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            <label class="small">Show</label>
-                            <select id="limitSelect" class="form-control form-control-sm">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            <label class="small">&nbsp;</label>
-                            <button id="resetFilters" class="btn btn-sm btn-secondary btn-block">Reset</button>
-                        </div>
-                    </div>
+                     <!-- Filters -->
+                     <div class="row mb-3">
+                         <div class="col-md-2">
+                             <label class="small">Start Date</label>
+                             <input type="date" id="filterStartDate" class="form-control form-control-sm" value="{{ f_date_from }}">
+                         </div>
+                         <div class="col-md-2">
+                             <label class="small">End Date</label>
+                             <input type="date" id="filterEndDate" class="form-control form-control-sm" value="{{ f_date_to }}">
+                         </div>
+                         <div class="col-md-2">
+                             <label class="small">Sale Type</label>
+                             <select id="filterSaleType" class="form-control form-control-sm">
+                                 <option value="">All Types</option>
+                                 <option value="counter" {% if f_sale_type == 'counter' %}selected{% endif %}>Counter</option>
+                                 <option value="agent" {% if f_sale_type == 'agent' %}selected{% endif %}>Agent</option>
+                                 <option value="online" {% if f_sale_type == 'online' %}selected{% endif %}>Online</option>
+                             </select>
+                         </div>
+                         <div class="col-md-2">
+                             <label class="small">Payment Status</label>
+                             <select id="filterPaymentStatus" class="form-control form-control-sm">
+                                 <option value="">All Status</option>
+                                 <option value="paid" {% if f_pay_status == 'paid' %}selected{% endif %}>Paid</option>
+                                 <option value="partial" {% if f_pay_status == 'partial' %}selected{% endif %}>Partial</option>
+                                 <option value="pending" {% if f_pay_status == 'pending' %}selected{% endif %}>Pending</option>
+                             </select>
+                         </div>
+                         <div class="col-md-2">
+                             <label class="small">Agent</label>
+                             <select id="filterAgent" class="form-control form-control-sm">
+                                 <option value="">All Agents</option>
+                                 <!-- Populated via JS -->
+                             </select>
+                         </div>
+                         <div class="col-md-1">
+                             <label class="small">Search</label>
+                             <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search...">
+                         </div>
+                         <div class="col-md-1">
+                             <label class="small">Show</label>
+                             <select id="limitSelect" class="form-control form-control-sm">
+                                 <option value="10">10</option>
+                                 <option value="25">25</option>
+                                 <option value="50">50</option>
+                                 <option value="100">100</option>
+                             </select>
+                         </div>
+                         <div class="col-md-1">
+                             <label class="small">&nbsp;</label>
+                             <button id="resetFilters" class="btn btn-sm btn-secondary btn-block">Reset</button>
+                         </div>
+                     </div>
 
                     <!-- Statistics Row -->
                     <div class="row mb-3 py-2 bg-light border rounded">
@@ -449,20 +453,21 @@ $(document).ready(function() {
     });
 
     // Filters
-    $('#filterStartDate, #filterEndDate, #filterSaleType, #filterPaymentStatus, #filterAgent').on('change', function() {
+    $('#filterStartDate, #filterEndDate, #filterSaleType, #filterPaymentStatus, #filterAgent, #filterSearch').on('change', function() {
         currentOffset = 0;
         loadBillingHistory();
     });
 
-    $('#resetFilters').on('click', function() {
-        $('#filterStartDate').val('');
-        $('#filterEndDate').val('');
-        $('#filterSaleType').val('');
-        $('#filterPaymentStatus').val('');
-        $('#filterAgent').val('');
-        currentOffset = 0;
-        loadBillingHistory();
-    });
+$('#resetFilters').on('click', function() {
+    $('#filterStartDate').val('');
+    $('#filterEndDate').val('');
+    $('#filterSaleType').val('');
+    $('#filterPaymentStatus').val('');
+    $('#filterAgent').val('');
+    $('#filterSearch').val('');
+    currentOffset = 0;
+    loadBillingHistory();
+});
 });
 
 function loadProducts() {
@@ -641,6 +646,10 @@ function renderCart() {
 }
 
 function calculateItemTotal(item) {
+    // If quantity is 0 or less, item contributes nothing to total
+    if (item.quantity <= 0) {
+        return 0;
+    }
     const subtotal = item.price * item.quantity;
     const discount = subtotal * (item.discount / 100);
     return subtotal - discount;
@@ -656,10 +665,14 @@ function updateItemQty(index, value) {
     if (qty > cart[index].max_stock) {
         alert('Cannot exceed available stock!');
         cart[index].quantity = cart[index].max_stock;
+    } else if (qty === 0) {
+        // Remove item from cart if quantity is set to 0
+        cart.splice(index, 1);
+        renderCart();
     } else {
         cart[index].quantity = qty;
+        renderCart();
     }
-    renderCart();
 }
 
 function updateItemDiscount(index, value) {
@@ -790,6 +803,7 @@ function loadBillingHistory() {
     const saleType = $('#filterSaleType').val();
     const paymentStatus = $('#filterPaymentStatus').val();
     const agentId = $('#filterAgent').val();
+    const searchTerm = $('#filterSearch').val();
     
     const params = new URLSearchParams({
         limit: currentLimit,
@@ -798,9 +812,10 @@ function loadBillingHistory() {
         end_date: endDate,
         sale_type: saleType,
         payment_status: paymentStatus,
-        agent: agentId
+        agent: agentId,
+        search: searchTerm
     });
-
+    
     $.get('/panel/api/billing/?' + params.toString(), function(data) {
         renderBillingHistory(data.results);
         renderPagination(data.count);

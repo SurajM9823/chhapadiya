@@ -3,8 +3,9 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview, Package
+from .models import CarouselSlide, Reel, Category, Service, WhyChooseUs, Stat, TrustedClient, Testimonial, TeamMember, Founder, SiteSettings, ContactInquiry, Product, CustomerUser, Cart, CartItem, Favourite, Order, OrderItem, QuoteRequest, QuotationRequest, QuotationRequestItem, Country, ProductReview, Package, AboutContent
 from .email_utils import send_order_confirmation_email
+from django.db.models import Count
 
 def base_context():
     categories = Category.objects.filter(is_active=True).prefetch_related('subcategories').order_by('name')
@@ -16,7 +17,21 @@ def index(request):
     slides = CarouselSlide.objects.filter(is_active=True)
     reels = Reel.objects.filter(is_active=True)
     categories = Category.objects.filter(is_active=True)
-    return render(request, 'web/index.html', {**base_context(), 'slides': slides, 'reels': reels, 'categories': categories})
+    packages = Package.objects.filter(is_active=True).prefetch_related('items__product__images')[:6]
+    
+    for package in packages:
+        if package.total_mrp > 0:
+            package.discount_percent = ((package.total_mrp - package.selling_price) / package.total_mrp) * 100
+        else:
+            package.discount_percent = 0
+    
+    return render(request, 'web/index.html', {
+        **base_context(), 
+        'slides': slides, 
+        'reels': reels, 
+        'categories': categories,
+        'packages': packages
+    })
 
 def about(request):
     return render(request, 'web/about.html', {
@@ -25,6 +40,8 @@ def about(request):
         'trusted_clients': TrustedClient.objects.filter(is_active=True),
         'testimonials': Testimonial.objects.filter(is_active=True),
         'team': TeamMember.objects.filter(is_active=True),
+        'founder': Founder.objects.filter(is_active=True).first(),  # Get the active founder
+        'about_content': AboutContent.get_active(),
         'default_team': TeamMember.objects.filter(is_active=True),
     })
 
@@ -68,6 +85,8 @@ def products(request):
             'sub_category_name': p.sub_category.name if p.sub_category else '',
             'origin_id': p.origin_id or 0,
             'mrp': float(p.mrp),
+            'retail_price': float(p.display_retail_price),
+            'dealer_price': float(p.display_dealer_price),
             'image': img.image.url if img else '',
             'is_featured': p.is_featured,
             'delivery_time': p.delivery_time.get_display_time() if p.delivery_time else None,
@@ -126,15 +145,25 @@ def product_detail_redirect(request, product_id):
 
 # ── Customer Auth ─────────────────────────────────────────────────────────────
 
+from django.contrib.auth import login
+from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from .models import CustomerUser, Customer, Cart, CartItem, Favourite, Product
+
 @ensure_csrf_cookie
 def customer_register(request):
     if request.user.is_authenticated:
         return JsonResponse({'ok': True})
+
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
         phone = request.POST.get('phone', '').strip()
         password = request.POST.get('password', '')
         password2 = request.POST.get('password2', '')
+        
+        # New: Get customer type from frontend (default to retailer)
+        customer_type = request.POST.get('customer_type', 'retailer')
+
         if not email:
             return JsonResponse({'ok': False, 'error': 'Email is required.'})
         if password != password2:
@@ -143,9 +172,32 @@ def customer_register(request):
             return JsonResponse({'ok': False, 'error': 'Password must be at least 8 characters.'})
         if CustomerUser.objects.filter(email=email).exists():
             return JsonResponse({'ok': False, 'error': 'An account with this email already exists.'})
-        user = CustomerUser.objects.create_user(username=email, email=email, password=password, phone=phone)
+
+        # Create CustomerUser
+        user = CustomerUser.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+            phone=phone,
+            user_type='customer',           # Important
+        )
+
+        # ====================== AUTO CREATE CUSTOMER PROFILE ======================
+        Customer.objects.create(
+            user=user,
+            name=f"{user.first_name} {user.last_name}".strip() or email.split('@')[0],
+            email=email,
+            phone=phone,
+            customer_type=customer_type,    # retailer or dealer
+            is_active=True,
+        )
+        # =========================================================================
+
+        # Login the user
         login(request, user, backend='django.contrib.auth.backends.ModelBackend')
         request.session.save()
+
+        # Handle pending cart / favorites
         pending = request.session.pop('pending_cart_product', None)
         if pending:
             cart, _ = Cart.objects.get_or_create(user=user)
@@ -155,14 +207,16 @@ def customer_register(request):
                 if not created:
                     item.quantity += 1
                     item.save()
+
         pending_fav = request.session.pop('pending_fav_product', None)
         if pending_fav:
             p = Product.objects.filter(pk=pending_fav, is_active=True).first()
             if p:
                 Favourite.objects.get_or_create(user=user, product=p)
-        return JsonResponse({'ok': True})
-    return JsonResponse({'ok': False, 'error': 'Invalid request.'})
 
+        return JsonResponse({'ok': True})
+
+    return JsonResponse({'ok': False, 'error': 'Invalid request.'})
 
 @ensure_csrf_cookie
 def customer_login(request):
@@ -330,6 +384,46 @@ def buy_package(request, package_id):
     })
 
 
+def package_detail(request, package_id):
+    """Package detail page."""
+    package = get_object_or_404(
+        Package.objects.prefetch_related('items__product__images', 'items__product__category'),
+        pk=package_id, is_active=True
+    )
+    
+    # Calculate discount and savings
+    if package.total_mrp > 0:
+        discount_percent = ((package.total_mrp - package.selling_price) / package.total_mrp) * 100
+        savings = package.total_mrp - package.selling_price
+    else:
+        discount_percent = 0
+        savings = 0
+    
+    # Check if all items are in stock
+    all_in_stock = all(item.product.stock_quantity > 0 for item in package.items.all())
+
+    # Related packages: other active packages sharing the most products with this one
+    product_ids = package.items.values_list('product_id', flat=True)
+    related_packages = (
+        Package.objects
+        .prefetch_related('items__product__images')
+        .exclude(pk=package.pk)
+        .filter(is_active=True, items__product_id__in=product_ids)
+        .annotate(shared_count=Count('items__product_id', distinct=True))
+        .order_by('-shared_count')[:6]
+    )
+    
+    return render(request, 'web/package_detail.html', {
+        **base_context(),
+        'package': package,
+        'discount_percent': discount_percent,
+        'savings': savings,
+        'all_in_stock': all_in_stock,
+        'related_packages': related_packages,
+    })
+
+
+
 def place_order(request):
     if request.method != 'POST' or not request.user.is_authenticated:
         return redirect('index')
@@ -342,6 +436,7 @@ def place_order(request):
     city           = request.POST.get('city', '').strip()
     billing_address = request.POST.get('billing_address', '').strip()
     billing_city    = request.POST.get('billing_city', '').strip()
+    billing_contact    = request.POST.get('billing_contact', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     source         = request.POST.get('source', 'cart')
@@ -361,7 +456,7 @@ def place_order(request):
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city, note=note,
+            billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
@@ -393,7 +488,7 @@ def place_order(request):
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city, note=note,
+            billing_address=billing_address, billing_city=billing_city, billing_contact=billing_contact,note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
@@ -423,6 +518,7 @@ def place_package_order(request):
     city           = request.POST.get('city', '').strip()
     billing_address = request.POST.get('billing_address', '').strip()
     billing_city    = request.POST.get('billing_city', '').strip()
+    billing_contact    = request.POST.get('billing_contact', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     receipt        = request.FILES.get('payment_receipt')
@@ -441,7 +537,7 @@ def place_package_order(request):
         is_package_order=True, package_name=package.name,
         delivery_type=delivery_type, full_name=full_name, phone=phone,
         email=email, address=address, city=city,
-        billing_address=billing_address, billing_city=billing_city, note=note,
+        billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, note=note,
         payment_method=payment_method,
         agent_referral_code=agent_code, referred_agent=referred_agent,
         subtotal=subtotal, delivery_charge=0, total=total,
@@ -477,10 +573,19 @@ def my_profile(request):
     
     if request.method == 'POST':
         user = request.user
+        
         user.first_name = request.POST.get('first_name', '')
         user.last_name = request.POST.get('last_name', '')
         user.phone = request.POST.get('phone', '')
+        
+        # User Type
         user.user_type = request.POST.get('user_type', 'customer')
+        
+        # Customer Subtype (Retailer / Dealer)
+        if user.user_type == 'customer':
+            user.customer_subtype = request.POST.get('customer_subtype', 'retailer')
+        else:
+            user.customer_subtype = None
         
         # Company details
         user.company_name = request.POST.get('company_name', '')
@@ -732,7 +837,11 @@ def featured_products_api(request):
     limit = int(request.GET.get('limit', 10))
     offset = (page - 1) * limit
     
-    products = Product.objects.filter(is_active=True, is_featured=True).select_related('category', 'delivery_time').prefetch_related('images').annotate(avg_rating=Avg('reviews__rating')).order_by('-created_at')[offset:offset+limit]
+    products = Product.objects.filter(
+        is_active=True
+    ).select_related('category', 'delivery_time').prefetch_related('images').annotate(
+        avg_rating=Avg('reviews__rating')
+    ).order_by('-created_at')[offset:offset+limit]
     
     result = []
     for p in products:
@@ -743,6 +852,8 @@ def featured_products_api(request):
             'name': p.name,
             'brand': p.brand,
             'mrp': float(p.mrp),
+            'retail_price': float(p.display_retail_price),   # Added
+            'dealer_price': float(p.display_dealer_price),   # Added
             'category': p.category.name if p.category else '',
             'image': img.image.url if img else '',
             'delivery_time': p.delivery_time.get_display_time() if p.delivery_time else None,
@@ -750,6 +861,7 @@ def featured_products_api(request):
         })
     
     total = Product.objects.filter(is_active=True, is_featured=True).count()
+    
     return JsonResponse({
         'products': result,
         'total': total,
@@ -757,6 +869,7 @@ def featured_products_api(request):
         'limit': limit,
         'has_more': (offset + limit) < total,
     })
+
 def reels_api(request):
     page = int(request.GET.get('page', 1))
     limit = int(request.GET.get('limit', 10))

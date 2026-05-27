@@ -57,15 +57,19 @@ class Permission(models.Model):
     def __str__(self):
         return f"{self.role.get_name_display()} - {self.get_module_display()} ({self.get_action_display()})"
 
-
-# ── Customer User ─────────────────────────────────────────────────────────────
-
 class CustomerUser(AbstractUser):
     USER_TYPE_CHOICES = [
         ('customer', 'Customer'),
         ('agent', 'Agent'),
+        ('staff', 'Staff'),
     ]
     
+    # New: Customer Subtype (Retailer by default for customers)
+    CUSTOMER_SUBTYPE_CHOICES = [
+        ('retailer', 'Retailer Customer'),
+        ('dealer', 'Dealer'),
+    ]
+
     phone = models.CharField(max_length=20, blank=True)
     google_id = models.CharField(max_length=200, blank=True)
     avatar = models.URLField(blank=True)
@@ -73,6 +77,16 @@ class CustomerUser(AbstractUser):
     
     # User type and reference
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='customer')
+    
+    # New field: Only applicable for customers
+    customer_subtype = models.CharField(
+        max_length=10, 
+        choices=CUSTOMER_SUBTYPE_CHOICES, 
+        default='retailer',
+        blank=True,
+        null=True
+    )
+    
     reference_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
     
     # Company/Organization details
@@ -85,7 +99,7 @@ class CustomerUser(AbstractUser):
     
     # Agent specific
     referral_code = models.CharField(max_length=9, unique=True, blank=True, null=True)
-    
+
     def save(self, *args, **kwargs):
         # Generate reference number if not exists
         if not self.reference_number:
@@ -97,6 +111,14 @@ class CustomerUser(AbstractUser):
             import random
             self.referral_code = ''.join([str(random.randint(0, 9)) for _ in range(9)])
         
+        # === NEW LOGIC: Set default subtype for customers ===
+        if self.user_type == 'customer':
+            if not self.customer_subtype:
+                self.customer_subtype = 'retailer'
+        else:
+            # For agents, clear the customer subtype
+            self.customer_subtype = None
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -109,7 +131,6 @@ class CustomerUser(AbstractUser):
         if not self.role:
             return False
         return self.role.permissions.filter(module=module, action=action).exists()
-
 
 # ── Cart ──────────────────────────────────────────────────────────────────────
 
@@ -203,6 +224,7 @@ class Order(models.Model):
     lng             = models.FloatField(null=True, blank=True)
     billing_address = models.TextField(blank=True)
     billing_city    = models.CharField(max_length=100, blank=True)
+    billing_contact = models.CharField(max_length=30, null=True, blank=True)
     note            = models.TextField(blank=True)
     payment_method  = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cod')
     payment_status  = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
@@ -297,13 +319,14 @@ class SiteSettings(models.Model):
     tiktok = models.URLField(blank=True)
     linkedin = models.URLField(blank=True)
     twitter = models.URLField(blank=True)
-    map_embed = models.TextField(blank=True, help_text='Google Maps embed src URL')
+    map_embed = models.TextField(default='https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3532.822830843477!2d85.3188547!3d27.6918809!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39eb19b26e0df391%3A0xc48afebfca84b55c!2sKathmandu%2010000%2C%20Nepal!5e0!3m2!1sen!2sus!4v1715000000000!5m2!1sen!2sus', blank=True, help_text='Google Maps embed src URL')
     hours_weekday = models.CharField(max_length=100, blank=True, default='Sun – Fri: 9:00 AM – 6:00 PM')
     hours_saturday = models.CharField(max_length=100, blank=True, default='Saturday: 10:00 AM – 3:00 PM')
     bank_name = models.CharField(max_length=200, blank=True)
     bank_account_name = models.CharField(max_length=200, blank=True)
     bank_account_number = models.CharField(max_length=100, blank=True)
     bank_branch = models.CharField(max_length=200, blank=True)
+    bank_qr = models.ImageField(upload_to='site/', blank=True, null=True)
 
     class Meta:
         verbose_name = 'Site Settings'
@@ -314,8 +337,42 @@ class SiteSettings(models.Model):
 
     @classmethod
     def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1, defaults={'business_name': 'My Business'})
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={
+            'business_name': 'My Business',
+            'map_embed': 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3532.822830843477!2d85.3188547!3d27.6918809!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39eb19b26e0df391%3A0xc48afebfca84b55c!2sKathmandu%2010000%2C%20Nepal!5e0!3m2!1sen!2sus!4v1715000000000!5m2!1sen!2sus'
+        })
         return obj
+
+
+class AboutContent(models.Model):
+    mission_title = models.CharField(max_length=200, default='Our Mission')
+    mission_content = models.TextField(
+        default='To deliver high-quality products at competitive prices while building lasting relationships through reliability, transparency, and exceptional service. We strive to be the most trusted trading partner for businesses of all sizes.'
+    )
+    vision_title = models.CharField(max_length=200, default='Our Vision')
+    vision_content = models.TextField(
+        default='To become the region\'s most comprehensive and trusted multi-category trading company — expanding our reach globally while maintaining the personal touch and quality standards that define us.'
+    )
+    quote_content = models.TextField(
+        default='"Reliability isn\'t just a metric; it\'s our promise to every partner we serve."'
+    )
+    quote_author = models.CharField(max_length=200, blank=True, help_text='Optional author of the quote')
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'About Content'
+        verbose_name_plural = 'About Contents'
+        ordering = ['order']
+
+    def __str__(self):
+        return f"About Content - {self.mission_title}"
+
+    @classmethod
+    def get_active(cls):
+        return cls.objects.filter(is_active=True).first()
 
 class ContactInquiry(models.Model):
     INQUIRY_TYPES = [
@@ -502,14 +559,33 @@ class DeliveryTimeTier(models.Model):
         return f"{self.min_time} {self.min_unit} - {self.max_time} {self.max_unit}"
 
 
-class Customer(models.Model):
+# models.py
+class Customer(models.Model):  
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
     pan_number = models.CharField(max_length=10, blank=True, verbose_name='PAN Number')
     company = models.CharField(max_length=200, blank=True)
     address = models.TextField(blank=True)
-    tier = models.ForeignKey(CustomerTier, null=True, blank=True, on_delete=models.SET_NULL, related_name='customers')
+    
+    # New: Customer Type
+    CUSTOMER_TYPE_CHOICES = [
+        ('retailer', 'Retailer'),
+        ('dealer', 'Dealer'),
+    ]
+    customer_type = models.CharField(
+        max_length=10, 
+        choices=CUSTOMER_TYPE_CHOICES, 
+        default='retailer'
+    )
+    
+    tier = models.ForeignKey(
+        'CustomerTier', 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL, 
+        related_name='customers'
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -518,6 +594,7 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.email})"
+    
 
 
 # ── Products ──────────────────────────────────────────────────────────────────
@@ -541,6 +618,23 @@ class Product(models.Model):
 
     # Pricing
     mrp = models.DecimalField(max_digits=12, decimal_places=2, help_text='Public / normal user price')
+    
+    # New Fields
+    retail_price = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text='Retail price (if different from MRP). Defaults to MRP if not provided.'
+    )
+    dealer_price = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text='Dealer price (if different from MRP). Defaults to MRP if not provided.'
+    )
+    
     tax_included = models.BooleanField(default=True, help_text='Is VAT/tax included in MRP?')
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Tax % if not included')
 
@@ -564,6 +658,14 @@ class Product(models.Model):
         return f"{self.name} [{self.sku}]"
 
     def save(self, *args, **kwargs):
+        # Auto-set retail_price and dealer_price to MRP if not provided
+        if self.retail_price is None:
+            self.retail_price = self.mrp
+            
+        if self.dealer_price is None:
+            self.dealer_price = self.mrp
+
+        # Generate slug if not provided
         if not self.slug:
             from django.utils.text import slugify
             base = slugify(self.name)
@@ -573,6 +675,7 @@ class Product(models.Model):
                 slug = f"{base}-{n}"
                 n += 1
             self.slug = slug
+
         super().save(*args, **kwargs)
 
     @property
@@ -587,6 +690,14 @@ class Product(models.Model):
         from django.db.models import Sum
         result = self.stock_entries.aggregate(total=Sum('quantity_change'))
         return result['total'] or 0
+    
+    @property
+    def display_retail_price(self):
+        return self.retail_price or self.mrp
+
+    @property
+    def display_dealer_price(self):
+        return self.dealer_price or self.mrp
 
 
 class ProductImage(models.Model):
@@ -671,6 +782,24 @@ class TeamMember(models.Model):
 
     class Meta:
         ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
+class Founder(models.Model):
+    name = models.CharField(max_length=200)
+    role = models.CharField(max_length=200)
+    phone = models.CharField(max_length=30, blank=True)
+    bio = models.TextField(blank=True)
+    photo = models.ImageField(upload_to='founders/', blank=True, null=True)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Founder'
+        verbose_name_plural = 'Founders'
 
     def __str__(self):
         return self.name
@@ -880,18 +1009,46 @@ class Package(models.Model):
     def __str__(self):
         return f"{self.name} [{self.sku}]"
 
+    @property
+    def savings(self):
+        return self.total_mrp - self.selling_price
+
     def calculate_total_mrp(self):
-        from django.db.models import Sum, F
-        result = self.items.aggregate(
-            total=Sum(F('product__mrp') * F('quantity') - F('item_discount'))
-        )
+        from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+        result = self.items.annotate(
+            line=ExpressionWrapper(
+                F('product__mrp') * F('quantity') - F('item_discount'),
+                output_field=DecimalField()
+            )
+        ).aggregate(total=Sum('line'))
         return result['total'] or 0
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.total_mrp = self.calculate_total_mrp()
         if self.pk:
-            Package.objects.filter(pk=self.pk).update(total_mrp=self.total_mrp)
+            new_total = self.calculate_total_mrp()
+            Package.objects.filter(pk=self.pk).update(total_mrp=new_total)
+            self.total_mrp = new_total  # Keep instance in sync
+
+    @property
+    def primary_image(self):
+        img = self.images.filter(is_primary=True).first()
+        if not img:
+            img = self.images.first()
+        return img
+
+
+class PackageImage(models.Model):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='packages/images/')
+    is_primary = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.package.name} - image {self.order}"
 
 
 class PackageItem(models.Model):
@@ -909,4 +1066,11 @@ class PackageItem(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.package.save()
+        new_total = self.package.calculate_total_mrp()
+        Package.objects.filter(pk=self.package_id).update(total_mrp=new_total)
+
+    def delete(self, *args, **kwargs):
+        package = self.package
+        super().delete(*args, **kwargs)
+        new_total = package.calculate_total_mrp()
+        Package.objects.filter(pk=package.pk).update(total_mrp=new_total)

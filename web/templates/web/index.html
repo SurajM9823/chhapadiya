@@ -1,7 +1,7 @@
 {% extends "web/base.html" %}
 {% load static %}
 
-{% block title %}Clan Wowo | Industrial Solutions{% endblock %}
+{% block title %}Chhapadiya Traders | Home{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -36,7 +36,9 @@
         <span class="material-symbols-outlined">chevron_right</span>
     </button>
 </section>
-
+<!-- AD SECTION
+{% include "web/partials/ad_slot.html" %}
+  -->
 <!-- Reels/Stories Section -->
 <section class="mt-4 py-2 bg-surface w-full overflow-hidden">
     <div class="w-full px-2 md:px-4">
@@ -111,6 +113,76 @@
     </div>
 </section>
 
+<!-- Packages Section -->
+{% if packages %}
+<section class="py-8 bg-surface">
+    <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="font-['Work_Sans'] text-2xl font-medium text-gray-800">Special Packages</h2>
+            <span class="text-xs text-emerald-600 font-medium">Bundle & Save</span>
+        </div>
+        <div class="relative group/carousel">
+            <!-- Left Navigation Button -->
+            <button onclick="scrollPackages(-1)" class="absolute -left-4 top-1/2 -translate-y-1/2 bg-white hover:bg-emerald-50 text-gray-800 border border-gray-200 rounded-full w-9 h-9 z-10 shadow-md hover:shadow-lg transition-all hidden md:flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 duration-300">
+                <span class="material-symbols-outlined text-lg">chevron_left</span>
+            </button>
+            
+            <div id="packagesContainer" class="flex overflow-x-auto gap-3 pb-2 snap-x snap-mandatory scroll-smooth hide-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
+                {% for package in packages %}
+                <a href="{% url 'package_detail' package.pk %}" class="bg-white border border-gray-200 p-4 flex items-center gap-4 hover:border-emerald-500 hover:shadow-md transition-all group flex-shrink-0 w-[47.5%] sm:w-[31.5%] lg:w-[31.5%] rounded-sm snap-start">
+                    <!-- Left: Image -->
+                    <div class="w-20 h-20 md:w-24 md:h-24 bg-gray-50 rounded flex-shrink-0 overflow-hidden flex items-center justify-center p-2 relative">
+                        {% if package.primary_image %}
+                        <img src="{{ package.primary_image.image.url }}" alt="{{ package.name }}" class="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy">
+                        {% else %}
+                            {% with first_item=package.items.first %}
+                            {% if first_item %}
+                                {% with img=first_item.product.primary_image %}
+                                {% if img %}
+                                <img src="{{ img.image.url }}" alt="{{ package.name }}" class="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy">
+                                {% else %}
+                                <span class="material-symbols-outlined text-3xl text-gray-300">inventory_2</span>
+                                {% endif %}
+                                {% endwith %}
+                            {% else %}
+                            <span class="material-symbols-outlined text-3xl text-gray-300">inventory_2</span>
+                            {% endif %}
+                            {% endwith %}
+                        {% endif %}
+                        <span class="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">-{{ package.discount_percent|floatformat:0 }}%</span>
+                    </div>
+                    
+                    <!-- Right: Info -->
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block mb-1">Package Deal</span>
+                        <h3 class="text-sm md:text-base font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors">{{ package.name }}</h3>
+                        
+                        <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                            <span class="flex items-center gap-1">
+                                <span class="material-symbols-outlined text-xs">inventory_2</span>
+                                {{ package.items.count }} item{{ package.items.count|pluralize }}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 line-through">Rs. {{ package.total_mrp }}</span>
+                            <span class="text-lg md:text-xl font-bold text-gray-900">Rs. {{ package.selling_price }}</span>
+                        </div>
+                        <span class="text-[10px] text-emerald-600 font-medium">Save Rs. {{ package.savings }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            
+            <!-- Right Navigation Button -->
+            <button onclick="scrollPackages(1)" class="absolute -right-4 top-1/2 -translate-y-1/2 bg-white hover:bg-emerald-50 text-gray-800 border border-gray-200 rounded-full w-9 h-9 z-10 shadow-md hover:shadow-lg transition-all hidden md:flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 duration-300">
+                <span class="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <!-- Featured Products Section with Infinite Scroll -->
 <section class="py-8 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 md:px-8">
@@ -168,16 +240,20 @@
         </div>
 
         <div id="scrollSentinel" style="height: 100px; margin-top: 40px;"></div>
-        
-        <div class="flex justify-center mt-8">
-            <a href="{% url 'products' %}" class="px-8 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 transition-colors flex items-center gap-2">
-                View All Products <span class="material-symbols-outlined text-sm">arrow_forward</span>
-            </a>
-        </div>
     </div>
 </section>
 
 <script>
+// ====================== USER DEBUG ======================
+window.isLoggedIn = {{ request.user.is_authenticated|yesno:"true,false" }};
+window.userType   = "{{ request.user.customer_subtype|default:'guest' }}";
+
+console.log("%c🔥 USER DEBUG", "color: lime; font-weight: bold;", { 
+    loggedIn: window.isLoggedIn, 
+    userType: window.userType 
+});
+// ======================================================
+
 let currentPage = 0;
 let isLoading = false;
 let hasMore = true;
@@ -195,74 +271,44 @@ function preloadAdjacentCarouselImages() {
     [nextIdx, prevIdx].forEach(idx => {
         const img = slides[idx];
         if (img && !img.complete) {
-            const tempImg = new Image();
-            tempImg.src = img.src;
+            const temp = new Image();
+            temp.src = img.src;
         }
     });
 }
 
+// ==================== REELS ====================
 function createReelCard(reel) {
     let cardHtml = '';
+
     if (reel.video_type === 'youtube') {
-        const videoId = reel.embed_url.split('/embed/')[1];
+        const videoId = reel.embed_url?.split('/embed/')[1] || reel.video_url?.split('v=')[1];
         cardHtml = `
-        <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer" onclick="event.stopPropagation(); showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
+        <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer" 
+             onclick="event.stopPropagation(); showReelLoader?.(); openReelModal?.('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
             <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" loading="lazy" class="w-full h-full object-cover" alt="${reel.title}">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3 pointer-events-none">
-                <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+                <span class="text-white text-xs font-semibold line-clamp-2">${reel.title}</span>
             </div>
             <div class="absolute inset-0 flex items-center justify-center">
-                <div class="bg-red-600 rounded-full p-3 hover:bg-red-700 transition-colors">
+                <div class="bg-red-600 rounded-full p-3">
                     <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </div>
             </div>
-        </div>
-        `;
-    } else if (reel.video_type === 'tiktok') {
-        cardHtml = `
-        <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer" onclick="event.stopPropagation(); showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
-            <div class="w-full h-full bg-black flex items-center justify-center">
-                <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.68v13.7a2.4 2.4 0 0 1-2.4 2.4 2.4 2.4 0 0 1-2.4-2.4 2.4 2.4 0 0 1 2.4-2.4c.34 0 .67.05.98.15V9.48a5.64 5.64 0 0 0-.98-.08 5.64 5.64 0 0 0-5.64 5.64 5.64 5.64 0 0 0 5.64 5.64 5.64 5.64 0 0 0 5.64-5.64V9.5a7.6 7.6 0 0 0 3.77 1.01V7.3a4.83 4.83 0 0 1-.77-.61z"/></svg>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3 pointer-events-none">
-                <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
-            </div>
-            <div class="absolute inset-0 flex items-center justify-center">
-                <div class="bg-white/30 rounded-full p-3 hover:bg-white/50 transition-colors">
-                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-            </div>
-        </div>
-        `;
+        </div>`;
     } else {
         cardHtml = `
-        <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-200 reel-card overflow-hidden rounded-lg cursor-pointer" onclick="event.stopPropagation(); showReelLoader(); openReelModal('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
-            <video style="width:100%;height:100%;object-fit:cover;" preload="none" muted playsinline loop><source src="${reel.video_url}" type="video/mp4"></video>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3 pointer-events-none">
-                <span class="text-white text-xs md:text-sm font-semibold line-clamp-2">${reel.title}</span>
+        <div class="relative w-28 h-48 md:w-36 md:h-64 flex-shrink-0 snap-start bg-gray-900 reel-card overflow-hidden rounded-lg cursor-pointer"
+             onclick="event.stopPropagation(); showReelLoader?.(); openReelModal?.('reel${reel.id}', '${reel.video_url}', '${reel.video_type}', '${reel.embed_url}')">
+            <video style="width:100%;height:100%;object-fit:cover;" preload="none" muted playsinline loop>
+                <source src="${reel.video_url}" type="video/mp4">
+            </video>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+                <span class="text-white text-xs font-semibold line-clamp-2">${reel.title}</span>
             </div>
-        </div>
-        `;
+        </div>`;
     }
     return cardHtml;
-}
-
-function initYouTubeAutoplay() {
-    const reelCards = document.querySelectorAll('.reel-card');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const video = entry.target.querySelector('video');
-            if (video) {
-                if (entry.isIntersecting) {
-                    video.play().catch(() => {});
-                } else {
-                    video.pause();
-                }
-            }
-        });
-    }, { threshold: 0.5 });
-    
-    reelCards.forEach(card => observer.observe(card));
 }
 
 async function loadMoreReels() {
@@ -270,30 +316,27 @@ async function loadMoreReels() {
     
     reelsLoading = true;
     document.getElementById('reelsLoadingIndicator').classList.remove('hidden');
-    
+
     try {
-        const nextPage = reelsPage + 1;
-        const res = await fetch(`/api/reels/?page=${nextPage}&limit=10`);
-        if (res.ok) {
-            const data = await res.json();
-            const container = document.getElementById('reelsContainer');
-            
-            if (reelsPage === 0) {
-                // Remove skeleton loaders
-                document.querySelectorAll('.reel-skeleton').forEach(el => el.remove());
-                container.innerHTML = '';
-            }
-            
-            data.reels.forEach(reel => {
-                console.log('Reel data:', reel);
-                container.innerHTML += createReelCard(reel);
-            });
-            
-            initYouTubeAutoplay();
-            reelsPage = nextPage;
-            reelsHasMore = data.has_more;
+        const res = await fetch(`/api/reels/?page=${reelsPage + 1}&limit=10`);
+        if (!res.ok) throw new Error('Failed to fetch reels');
+
+        const data = await res.json();
+        const container = document.getElementById('reelsContainer');
+
+        // Remove skeletons only on first load
+        if (reelsPage === 0) {
+            container.innerHTML = '';
         }
-    } catch(e) {
+
+        data.reels.forEach(reel => {
+            container.innerHTML += createReelCard(reel);
+        });
+
+        reelsPage++;
+        reelsHasMore = data.has_more;
+
+    } catch (e) {
         console.error('Error loading reels:', e);
     } finally {
         reelsLoading = false;
@@ -301,16 +344,201 @@ async function loadMoreReels() {
     }
 }
 
+// ==================== PRODUCTS ====================
+function createProductCard(product) {
+    try {
+        const isWishlisted = wishlistedProducts.has(product.id);
+        const ratingHtml = product.avg_rating ? `
+            <span class="flex items-center gap-1 text-xs text-gray-600">
+                <span class="material-symbols-outlined text-sm text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>
+                ${parseFloat(product.avg_rating).toFixed(1)}
+            </span>` : '';
+
+        let priceHtml = '';
+
+        if (!window.isLoggedIn) {
+            priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${parseFloat(product.mrp || 0).toFixed(2)}</span>`;
+        } else {
+            let displayPrice = parseFloat(product.mrp || 0);
+            let showStrikethrough = false;
+            let savingsPercent = 0;
+
+            if (window.userType === 'retailer' && product.retail_price) {
+                displayPrice = parseFloat(product.retail_price);
+            } else if (window.userType === 'dealer' && product.dealer_price) {
+                displayPrice = parseFloat(product.dealer_price);
+            }
+
+            if (displayPrice < parseFloat(product.mrp || 0)) {
+                showStrikethrough = true;
+                const mrp = parseFloat(product.mrp || 0);
+                const savings = mrp - displayPrice;
+                savingsPercent = ((savings / mrp) * 100).toFixed(0);
+            }
+
+            priceHtml = `
+                <div class="flex items-center gap-2 flex-wrap">
+                    ${showStrikethrough ? `<span class="text-sm md:text-base text-gray-400 line-through">Rs. ${parseFloat(product.mrp).toFixed(2)}</span>` : ''}
+                    <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${displayPrice.toFixed(2)}</span>
+                    ${savingsPercent > 0 ? `<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">${savingsPercent}% OFF</span>` : ''}
+                </div>`;
+        }
+
+        const favButtonHtml = window.isLoggedIn ? `
+            <button onclick="toggleFavourite(this, '${product.id}')" 
+                    class="w-8 h-8 ${isWishlisted ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} rounded-full flex items-center justify-center text-white">
+                <i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart text-sm"></i>
+            </button>` : '';
+
+        return `
+        <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
+            <div class="absolute top-2 right-2 z-10 flex gap-1.5">
+                ${favButtonHtml}
+                <button onclick="addToCompare('${product.slug}', '${product.name.replace(/'/g, "\\'")}')" 
+                        class="w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white">
+                    <span class="material-symbols-outlined text-sm">compare</span>
+                </button>
+            </div>
+
+            <a href="/product/${product.slug}/" class="block aspect-square mb-3 bg-white overflow-hidden p-2">
+                <img src="${product.image || product.primary_image?.image || '/static/images/placeholder.jpg'}" 
+                     loading="lazy" 
+                     class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                     alt="${product.name}">
+            </a>
+            
+            <a href="/product/${product.slug}/" class="font-medium text-xs md:text-sm text-gray-800 line-clamp-2 mb-1 hover:text-emerald-600">
+                ${product.name}
+            </a>
+            
+            <div class="flex items-center justify-between text-xs text-gray-400 mb-3">
+                ${product.brand ? `<span>${product.brand}</span>` : '<span></span>'}
+            </div>
+            
+            <div class="flex items-center gap-2 mb-4">
+                ${priceHtml}
+                ${ratingHtml}
+            </div>
+            
+            <div class="flex gap-2 mt-auto">
+                <button onclick="addToCart('${product.id}')" 
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium py-2.5 rounded flex justify-center items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">shopping_cart</span>
+                    <span class="hidden md:inline">Add to Cart</span>
+                </button>
+                <button onclick="handleBuyNow('/buy/${product.slug}/')" 
+                        class="flex-1 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium py-2.5 rounded flex justify-center items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">payments</span>
+                    <span class="hidden md:inline">Buy Now</span>
+                </button>
+            </div>
+        </div>`;
+    } catch(e) {
+        console.error("Error creating product card:", e, product);
+        return `<div class="p-4 border border-red-300 text-red-500">Error loading product</div>`;
+    }
+}
+
+async function loadMoreProducts() {
+    if (isLoading) return;
+    
+    isLoading = true;
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/api/featured-products/?page=${currentPage + 1}&limit=100`);
+        if (!res.ok) throw new Error('API Error');
+
+        const data = await res.json();
+        const grid = document.getElementById('productsGrid');
+
+        if (currentPage === 0) grid.innerHTML = '';
+
+        data.products.forEach(product => {
+            grid.innerHTML += createProductCard(product);
+        });
+
+        currentPage++;
+        hasMore = data.has_more;
+        document.getElementById('scrollSentinel').style.display = hasMore ? '' : 'none';
+
+    } catch (e) {
+        console.error('Error loading products:', e);
+    } finally {
+        isLoading = false;
+        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+}
+
+// ==================== CAROUSEL ====================
+function nextHeroSlide() {
+    const carousel = document.getElementById('hero-carousel');
+    const slides = carousel.querySelectorAll('.w-full.flex-shrink-0');
+    carouselIndex = (carouselIndex + 1) % slides.length;
+    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
+    preloadAdjacentCarouselImages();
+}
+
+function prevHeroSlide() {
+    const carousel = document.getElementById('hero-carousel');
+    const slides = carousel.querySelectorAll('.w-full.flex-shrink-0');
+    carouselIndex = (carouselIndex - 1 + slides.length) % slides.length;
+    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
+    preloadAdjacentCarouselImages();
+}
+
+let autoplayInterval;
+function startAutoplay() {
+    autoplayInterval = setInterval(nextHeroSlide, 5000);
+}
+function stopAutoplay() {
+    clearInterval(autoplayInterval);
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("🚀 Homepage initializing...");
+
+    // Carousel
+    const carousel = document.getElementById('hero-carousel');
+    if (carousel) {
+        carousel.addEventListener('mouseenter', stopAutoplay);
+        carousel.addEventListener('mouseleave', startAutoplay);
+        preloadAdjacentCarouselImages();
+        startAutoplay();
+    }
+
+    // Fetch wishlist
+    if (window.isLoggedIn) {
+        await fetchWishlistedProducts();
+    }
+
+    // Setup infinite scrolls
+    setupInfiniteScroll();
+    setupReelsInfiniteScroll();
+
+    // Initial loads
+    await loadMoreProducts();
+    await loadMoreReels();
+});
+
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('scrollSentinel');
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+            loadMoreProducts();
+        }
+    }, { rootMargin: '400px' });
+    observer.observe(sentinel);
+}
+
 function setupReelsInfiniteScroll() {
     const sentinel = document.getElementById('reelsSentinel');
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && reelsHasMore && !reelsLoading) {
-                loadMoreReels();
-            }
-        });
-    }, { rootMargin: '200px' });
-    
+        if (entries[0].isIntersecting && reelsHasMore && !reelsLoading) {
+            loadMoreReels();
+        }
+    }, { rootMargin: '300px' });
     observer.observe(sentinel);
 }
 
@@ -322,138 +550,8 @@ async function fetchWishlistedProducts() {
             wishlistedProducts = new Set(data.wishlisted_ids || []);
         }
     } catch(e) {
-        console.log('Could not fetch wishlist');
+        console.warn('Could not load wishlist');
     }
 }
-
-function createProductCard(product) {
-    const isWishlisted = wishlistedProducts.has(product.id);
-    const ratingHtml = product.avg_rating ? `<span class="flex items-center gap-1 text-xs text-gray-600"><span class="material-symbols-outlined text-sm text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>${product.avg_rating}</span>` : '';
-    return `
-    <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
-        <div class="absolute top-2 right-2 z-10 flex flex-row gap-1.5">
-            <div class="relative group/fav">
-                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/fav:opacity-100 transition-opacity pointer-events-none">Favourite</span>
-                <button onclick="toggleFavourite(this, '${product.id}')" class="w-8 h-8 ${isWishlisted ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-600 hover:bg-emerald-700'} rounded-full flex items-center justify-center text-white transition-all"><i class="fa-${isWishlisted ? 'solid' : 'regular'} fa-heart text-sm"></i></button>
-            </div>
-            <div class="relative group/cmp">
-                <span class="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover/cmp:opacity-100 transition-opacity pointer-events-none">Compare</span>
-                <button onclick="addToCompare('${product.slug}', '${product.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" class="w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center text-white transition-all"><span class="material-symbols-outlined text-sm">compare</span></button>
-            </div>
-        </div>
-        <div class="block aspect-square mb-3 bg-white overflow-hidden p-2">
-            <a href="/product/${product.slug}/">
-            <img src="${product.image}" loading="lazy" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt="${product.name}">
-            </a>
-        </div>
-        <a href="/product/${product.slug}/" class="font-medium text-xs md:text-sm text-gray-800 line-clamp-2 mb-1 hover:text-emerald-600 transition-colors">${product.name}</a>
-        <div class="flex items-center justify-between text-xs text-gray-400 mb-2 min-h-[20px]">
-            ${product.brand ? `<span>${product.brand}</span>` : '<span></span>'}
-            ${product.delivery_time ? `<span class="flex items-center gap-0.5 text-gray-600"><span class="material-symbols-outlined text-xs">local_shipping</span>${product.delivery_time}</span>` : ''}
-        </div>
-        <div class="flex items-center gap-2 mb-3">
-            <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${product.mrp.toFixed(2)}</span>
-            ${ratingHtml}
-        </div>
-        <div class="flex flex-col gap-2 mt-auto">
-            <div class="flex gap-2">
-                <button onclick="addToCart('${product.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
-                    <span class="material-symbols-outlined text-[14px]">shopping_cart</span> <span class="hidden md:inline">Add to Cart</span><span class="md:hidden">Cart</span>
-                </button>
-                <button onclick="handleBuyNow('/buy/${product.slug}/')" class="flex-1 bg-gray-900 hover:bg-gray-700 text-white text-[11px] md:text-xs font-medium py-2 rounded flex justify-center items-center gap-1 transition-colors">
-                    <span class="material-symbols-outlined text-[14px]">payments</span> <span class="hidden md:inline">Buy</span><span class="md:hidden">Buy</span>
-                </button>
-            </div>
-        </div>
-    </div>
-    `;
-}
-
-async function loadMoreProducts() {
-    if (isLoading || !hasMore) return;
-    
-    isLoading = true;
-    document.getElementById('loadingIndicator').classList.remove('hidden');
-    
-    try {
-        const nextPage = currentPage + 1;
-        const res = await fetch(`/api/featured-products/?page=${nextPage}&limit=10`);
-        if (res.ok) {
-            const data = await res.json();
-            const grid = document.getElementById('productsGrid');
-            
-            if (currentPage === 0) {
-                grid.innerHTML = '';
-            }
-            
-            data.products.forEach(product => {
-                grid.innerHTML += createProductCard(product);
-            });
-            
-            currentPage = nextPage;
-            hasMore = data.has_more;
-            console.log(`Loaded page ${nextPage}, hasMore: ${hasMore}`);
-        }
-    } catch(e) {
-        console.error('Error loading products:', e);
-    } finally {
-        isLoading = false;
-        document.getElementById('loadingIndicator').classList.add('hidden');
-    }
-}
-
-function setupInfiniteScroll() {
-    const sentinel = document.getElementById('scrollSentinel');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && hasMore && !isLoading) {
-                console.log('Sentinel visible, loading more...');
-                loadMoreProducts();
-            }
-        });
-    }, { rootMargin: '300px' });
-    
-    observer.observe(sentinel);
-}
-
-function nextHeroSlide() {
-    const carousel = document.getElementById('hero-carousel');
-    const slides = carousel.querySelectorAll('.w-full');
-    carouselIndex = (carouselIndex + 1) % slides.length;
-    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
-    preloadAdjacentCarouselImages();
-}
-
-function prevHeroSlide() {
-    const carousel = document.getElementById('hero-carousel');
-    const slides = carousel.querySelectorAll('.w-full');
-    carouselIndex = (carouselIndex - 1 + slides.length) % slides.length;
-    carousel.style.transform = `translateX(-${carouselIndex * 100}%)`;
-    preloadAdjacentCarouselImages();
-}
-
-let autoplayInterval;
-function startAutoplay() {
-    autoplayInterval = setInterval(nextHeroSlide, 5000);
-}
-
-function stopAutoplay() {
-    clearInterval(autoplayInterval);
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-    preloadAdjacentCarouselImages();
-    startAutoplay();
-    
-    const carousel = document.getElementById('hero-carousel');
-    carousel.addEventListener('mouseenter', stopAutoplay);
-    carousel.addEventListener('mouseleave', startAutoplay);
-    
-    await fetchWishlistedProducts();
-    setupInfiniteScroll();
-    setupReelsInfiniteScroll();
-    await loadMoreProducts();
-    await loadMoreReels();
-});
 </script>
 {% endblock %}

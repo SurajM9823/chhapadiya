@@ -6,18 +6,28 @@
 {% block nav_about %}text-white bg-gray-600{% endblock %}
 {% block content %}
 
-<!-- Stats -->
-<div class="flex justify-between items-center mb-4">
-    <div>
-        <p class="text-xs text-gray-500 mb-1">About Page</p>
-        <h1 class="text-xl font-semibold text-gray-800">Vision Stats</h1>
-    </div>
-    {% if can_create %}
-    <a href="{% url 'panel_stat_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Stat</a>
-    {% endif %}
+<!-- Tab Navigation -->
+<div class="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
+    <button type="button" onclick="switchTab('stats')" class="tab-btn active px-4 py-3 text-sm font-medium text-gray-700 border-b-2 border-gray-900 whitespace-nowrap">Stats</button>
+    <button type="button" onclick="switchTab('clients')" class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 whitespace-nowrap">Trusted Clients</button>
+    <button type="button" onclick="switchTab('testimonials')" class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 whitespace-nowrap">Testimonials</button>
+    <button type="button" onclick="switchTab('team')" class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 whitespace-nowrap">Team Members</button>
+    <button type="button" onclick="switchTab('founders')" class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 whitespace-nowrap">Founders</button>
+    <button type="button" onclick="switchTab('aboutcontent')" class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 whitespace-nowrap">About Content</button>
 </div>
-{% if stats %}
-<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+
+<!-- Stats Tab -->
+<div id="stats-tab" class="tab-content bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <div>
+            <p class="text-xs text-gray-500 mb-1">About Page</p>
+            <h2 class="text-lg font-semibold text-gray-800">Vision Stats</h2>
+        </div>
+        {% if can_create %}
+        <a href="{% url 'panel_stat_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add Stat</a>
+        {% endif %}
+    </div>
+    {% if stats %}
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
@@ -55,20 +65,20 @@
             {% endfor %}
         </tbody>
     </table>
-</div>
-{% else %}
-<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No stats yet. {% if can_create %}<a href="{% url 'panel_stat_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
-{% endif %}
-
-<!-- Trusted Clients -->
-<div class="flex justify-between items-center mb-4">
-    <h2 class="text-lg font-semibold text-gray-800">Trusted by Industry Leaders</h2>
-    {% if can_create %}
-    <a href="{% url 'panel_trusted_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Client</a>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No stats yet. {% if can_create %}<a href="{% url 'panel_stat_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
     {% endif %}
 </div>
-{% if trusted_clients %}
-<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+
+<!-- Trusted Clients Tab -->
+<div id="clients-tab" class="tab-content hidden bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Trusted by Industry Leaders</h2>
+        {% if can_create %}
+        <a href="{% url 'panel_trusted_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Client</a>
+        {% endif %}
+    </div>
+    {% if trusted_clients %}
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
@@ -110,20 +120,20 @@
             {% endfor %}
         </tbody>
     </table>
-</div>
-{% else %}
-<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No clients yet. {% if can_create %}<a href="{% url 'panel_trusted_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
-{% endif %}
-
-<!-- Testimonials -->
-<div class="flex justify-between items-center mb-4">
-    <h2 class="text-lg font-semibold text-gray-800">Voices of Our Clients</h2>
-    {% if can_create %}
-    <a href="{% url 'panel_testimonial_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Testimonial</a>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No clients yet. {% if can_create %}<a href="{% url 'panel_trusted_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
     {% endif %}
 </div>
-{% if testimonials %}
-<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+
+<!-- Testimonials Tab -->
+<div id="testimonials-tab" class="tab-content hidden bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Voices of Our Clients</h2>
+        {% if can_create %}
+        <a href="{% url 'panel_testimonial_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Testimonial</a>
+        {% endif %}
+    </div>
+    {% if testimonials %}
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
@@ -163,20 +173,20 @@
             {% endfor %}
         </tbody>
     </table>
-</div>
-{% else %}
-<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No testimonials yet. {% if can_create %}<a href="{% url 'panel_testimonial_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
-{% endif %}
-
-<!-- Team Members -->
-<div class="flex justify-between items-center mb-4">
-    <h2 class="text-lg font-semibold text-gray-800">Meet Our Specialists</h2>
-    {% if can_create %}
-    <a href="{% url 'panel_team_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Member</a>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No testimonials yet. {% if can_create %}<a href="{% url 'panel_testimonial_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
     {% endif %}
 </div>
-{% if team %}
-<div class="bg-white rounded-xl shadow overflow-hidden mb-10">
+
+<!-- Team Members Tab -->
+<div id="team-tab" class="tab-content hidden bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Meet Our Specialists</h2>
+        {% if can_create %}
+        <a href="{% url 'panel_team_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Member</a>
+        {% endif %}
+    </div>
+    {% if team %}
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
@@ -221,9 +231,135 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No team members yet. {% if can_create %}<a href="{% url 'panel_team_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
+    {% endif %}
 </div>
-{% else %}
-<div class="bg-white rounded-xl shadow p-6 text-center text-gray-400 mb-10">No team members yet. {% if can_create %}<a href="{% url 'panel_team_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
-{% endif %}
 
+<!-- Founders Tab -->
+<div id="founders-tab" class="tab-content hidden bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Our Founders</h2>
+        {% if can_create %}
+        <a href="{% url 'panel_founder_add' %}" class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">+ Add Founder</a>
+        {% endif %}
+    </div>
+    {% if founders %}
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Photo</th>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Role</th>
+                <th class="px-4 py-3 text-left">Phone</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for f in founders %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">
+                    {% if f.photo %}<img src="{{ f.photo.url }}" class="w-10 h-10 object-cover rounded-full">
+                    {% else %}<span class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">{{ f.name|slice:":2"|upper }}</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ f.name }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ f.role }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ f.phone|default:"—" }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ f.order }}</td>
+                <td class="px-4 py-3">
+                    {% if f.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    {% if can_edit %}
+                    <a href="{% url 'panel_founder_edit' f.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    {% endif %}
+                    {% if can_delete %}
+                    <form method="post" action="{% url 'panel_founder_delete' f.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                    {% endif %}
+                    {% if not can_edit and not can_delete %}
+                    <span class="text-gray-400 text-xs">No actions</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No founders yet. {% if can_create %}<a href="{% url 'panel_founder_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
+    {% endif %}
+</div>
+
+<!-- About Content Tab -->
+<div id="aboutcontent-tab" class="tab-content hidden bg-white rounded-xl shadow overflow-hidden mb-10">
+    <div class="flex justify-between items-center p-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">About Content</h2>
+        {% if can_create %}
+        <a href="{% url 'panel_about_content_add' %}" class="bg-gray-900 text-white px-4 py-2 rounded text-sm hover:bg-gray-700">+ Add About Content</a>
+        {% endif %}
+    </div>
+    {% if about_content %}
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">Mission Title</th>
+                <th class="px-4 py-3 text-left">Vision Title</th>
+                <th class="px-4 py-3 text-left">Quote Author</th>
+                <th class="px-4 py-3 text-left">Order</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for ac in about_content %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium text-gray-800">{{ ac.mission_title|truncatechars:30 }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ ac.vision_title|truncatechars:30 }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ ac.quote_author|default:"—" }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ ac.order }}</td>
+                <td class="px-4 py-3">
+                    {% if ac.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Active</span>
+                    {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Inactive</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 flex gap-3">
+                    {% if can_edit %}
+                    <a href="{% url 'panel_about_content_edit' ac.pk %}" class="text-blue-600 hover:underline text-xs">Edit</a>
+                    {% endif %}
+                    {% if can_delete %}
+                    <form method="post" action="{% url 'panel_about_content_delete' ac.pk %}" onsubmit="return confirm('Delete?')">{% csrf_token %}
+                        <button class="text-red-500 hover:underline text-xs">Delete</button>
+                    </form>
+                    {% endif %}
+                    {% if not can_edit and not can_delete %}
+                    <span class="text-gray-400 text-xs">No actions</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="p-6 text-center text-gray-400">No about content yet. {% if can_create %}<a href="{% url 'panel_about_content_add' %}" class="text-blue-600 hover:underline">Add one</a>{% endif %}.</div>
+    {% endif %}
+</div>
+
+<script>
+function switchTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-gray-700', 'border-gray-900');
+        btn.classList.add('text-gray-500', 'border-transparent');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName + '-tab').classList.remove('hidden');
+    event.target.classList.remove('text-gray-500', 'border-transparent');
+    event.target.classList.add('text-gray-700', 'border-gray-900');
+}
+</script>
 {% endblock %}

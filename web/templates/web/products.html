@@ -1,7 +1,7 @@
 {% extends "web/base.html" %}
 {% load static %}
 
-{% block title %}Products | Clan Wowo | Industrial Solutions{% endblock %}
+{% block title %}Products | Chhapadiya Traders{% endblock %}
 
 {% block content %}
 <!-- Mobile Filter Drawer Overlay -->
@@ -24,16 +24,6 @@
         <div class="mb-5">
             <h4 class="text-sm font-semibold text-gray-700 mb-3">Sub Category</h4>
             <div class="grid grid-cols-2 gap-2" id="mobileSubCategories"></div>
-        </div>
-        <div class="mb-5">
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">Price Range</h4>
-            <div class="grid grid-cols-2 gap-2">
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="all" checked class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">All Prices</span></label>
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="0-50" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Under Rs.50</span></label>
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="50-200" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.50 - Rs.200</span></label>
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="200-500" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.200 - Rs.500</span></label>
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="price" value="500+" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Over Rs.500</span></label>
-            </div>
         </div>
         <div class="mb-5">
             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="featuredFilter" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"><span class="text-sm text-gray-600">Featured Only</span></label>
@@ -60,16 +50,6 @@
                     <div class="mb-6">
                         <h4 class="text-sm font-semibold text-gray-700 mb-3">Sub Category</h4>
                         <div class="space-y-2" id="desktopSubCategories"></div>
-                    </div>
-                    <div class="mb-6">
-                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Price Range</h4>
-                        <div class="space-y-2">
-                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="all" checked class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">All Prices</span></label>
-                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="0-50" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Under Rs.50</span></label>
-                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="50-200" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.50 - Rs.200</span></label>
-                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="200-500" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Rs.200 - Rs.500</span></label>
-                            <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors"><input type="radio" name="price" value="500+" class="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"><span class="text-sm text-gray-600">Over Rs.500</span></label>
-                        </div>
                     </div>
                     <div class="mb-6">
                         <h4 class="text-sm font-semibold text-gray-700 mb-3">Featured</h4>
@@ -171,6 +151,11 @@
 </section>
 
 <script>
+// ====================== USER DEBUG ======================
+window.isLoggedIn = {{ request.user.is_authenticated|yesno:"true,false" }};
+window.userType   = "{{ request.user.customer_subtype|default:'guest' }}";
+// ======================================================
+
 const initialSearchTerm = "{{ search_query|escapejs }}";
 const productsData = {{ products_json|safe }};
 let wishlistedProducts = new Set();
@@ -208,6 +193,35 @@ async function fetchWishlistedProducts() {
 function createProductCard(product) {
     const isWishlisted = wishlistedProducts.has(product.id);
     const ratingHtml = product.avg_rating ? `<span class="flex items-center gap-1 text-xs text-gray-600"><span class="material-symbols-outlined text-sm text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>${product.avg_rating}</span>` : '';
+    
+    let priceHtml = '';
+    if (!window.isLoggedIn) {
+        priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${product.mrp.toFixed(2)}</span>`;
+    } else {
+        let displayPrice = product.mrp;
+        let showStrikethrough = false;
+        let savingsPercent = 0;
+
+        if (window.userType === 'retailer' && product.retail_price) {
+            displayPrice = product.retail_price;
+        } else if (window.userType === 'dealer' && product.dealer_price) {
+            displayPrice = product.dealer_price;
+        }
+
+        if (displayPrice < product.mrp) {
+            showStrikethrough = true;
+            const savings = product.mrp - displayPrice;
+            savingsPercent = ((savings / product.mrp) * 100).toFixed(0);
+        }
+
+        priceHtml = `
+            <div class="flex items-center gap-2 flex-wrap">
+                ${showStrikethrough ? `<span class="text-sm md:text-base text-gray-400 line-through">Rs. ${product.mrp.toFixed(2)}</span>` : ''}
+                <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${displayPrice.toFixed(2)}</span>
+                ${savingsPercent > 0 ? `<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">${savingsPercent}% OFF</span>` : ''}
+            </div>`;
+    }
+    
     return `
     <div class="relative bg-white border border-gray-200 p-3 md:p-4 group hover:border-emerald-500 hover:shadow-md transition-all flex flex-col rounded-sm">
         <div class="absolute top-2 right-2 z-10 flex flex-row gap-1.5">
@@ -230,7 +244,7 @@ function createProductCard(product) {
             ${product.delivery_time ? `<span class="flex items-center gap-0.5 text-gray-600"><span class="material-symbols-outlined text-xs">local_shipping</span>${product.delivery_time}</span>` : ''}
         </div>
         <div class="flex items-center gap-2 mb-3">
-            <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${product.mrp.toFixed(2)}</span>
+            ${priceHtml}
             ${ratingHtml}
         </div>
         <div class="flex flex-col gap-2 mt-auto">
@@ -254,7 +268,7 @@ function renderCategoryFilters() {
     
     const html = categories.map(cat => `
         <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors">
-            <input type="checkbox" name="category" value="${cat.id}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" onchange="applyFilters()">
+            <input type="checkbox" name="category" value="${cat.id}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" onchange="updateSubCategoryFilters(); applyFilters()">
             <span class="text-sm text-gray-600">${cat.name}</span>
         </label>
     `).join('');
@@ -264,49 +278,55 @@ function renderCategoryFilters() {
 }
 
 function renderSubCategoryFilters() {
-    const categories = categoriesData;
     const desktopSubs = document.getElementById('desktopSubCategories');
     const mobileSubs = document.getElementById('mobileSubCategories');
-    
+    desktopSubs.innerHTML = '<p class="text-xs text-gray-400">Select a category first</p>';
+    mobileSubs.innerHTML = '<p class="text-xs text-gray-400">Select a category first</p>';
+}
+function updateSubCategoryFilters() {
+    const selectedCatIds = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => parseInt(cb.value));
+    const desktopSubs = document.getElementById('desktopSubCategories');
+    const mobileSubs = document.getElementById('mobileSubCategories');
+
+    if (selectedCatIds.length === 0) {
+        desktopSubs.innerHTML = '<p class="text-xs text-gray-400">Select a category first</p>';
+        mobileSubs.innerHTML = '<p class="text-xs text-gray-400">Select a category first</p>';
+        return;
+    }
+
     let allSubs = [];
-    categories.forEach(cat => {
-        if (cat.subcategories) {
-            allSubs = allSubs.concat(cat.subcategories.map(sub => ({...sub, cat_id: cat.id})));
+    categoriesData.forEach(cat => {
+        if (selectedCatIds.includes(cat.id) && cat.subcategories) {
+            allSubs = allSubs.concat(cat.subcategories.map(sub => ({ ...sub, cat_id: cat.id })));
         }
     });
-    
+
+    if (allSubs.length === 0) {
+        desktopSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
+        mobileSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
+        return;
+    }
+
     const html = allSubs.map(sub => `
         <label class="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors">
             <input type="checkbox" name="subcategory" value="${sub.id}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" onchange="applyFilters()">
             <span class="text-sm text-gray-600">${sub.name}</span>
         </label>
     `).join('');
-    
-    if (allSubs.length === 0) {
-        desktopSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
-        mobileSubs.innerHTML = '<p class="text-xs text-gray-400">No sub-categories</p>';
-    } else {
-        desktopSubs.innerHTML = html;
-        mobileSubs.innerHTML = html;
-    }
+
+    desktopSubs.innerHTML = html;
+    mobileSubs.innerHTML = html;
 }
 
 function getFilteredProducts() {
     const categoryFilters = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => parseInt(cb.value));
     const subCategoryFilters = Array.from(document.querySelectorAll('input[name="subcategory"]:checked')).map(cb => parseInt(cb.value));
-    const priceFilter = document.querySelector('input[name="price"]:checked')?.value || 'all';
     const featuredOnly = document.getElementById('featuredFilter')?.checked || false;
     const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
 
     return productsData.filter(product => {
         if (categoryFilters.length > 0 && !categoryFilters.includes(product.category_id)) return false;
         if (subCategoryFilters.length > 0 && product.sub_category_id && !subCategoryFilters.includes(product.sub_category_id)) return false;
-        if (priceFilter !== 'all') {
-            if (priceFilter === '0-50' && product.mrp > 50) return false;
-            if (priceFilter === '50-200' && (product.mrp < 50 || product.mrp > 200)) return false;
-            if (priceFilter === '200-500' && (product.mrp < 200 || product.mrp > 500)) return false;
-            if (priceFilter === '500+' && product.mrp < 500) return false;
-        }
         if (featuredOnly && !product.is_featured) return false;
         if (searchTerm) {
             const searchable = `${product.name} ${product.category_name} ${product.brand}`.toLowerCase();
@@ -415,7 +435,7 @@ function applyFilters() {
 function resetFilters() {
     document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = false);
     document.querySelectorAll('input[name="subcategory"]').forEach(cb => cb.checked = false);
-    document.querySelector('input[name="price"][value="all"]').checked = true;
+    renderSubCategoryFilters(); // resets subcategory panel to placeholder
     document.getElementById('featuredFilter').checked = false;
     document.getElementById('sortSelect').value = 'default';
     document.getElementById('searchInput').value = '';
@@ -423,6 +443,7 @@ function resetFilters() {
     filteredProducts = productsData;
     renderProducts(productsData);
 }
+
 
 function openFilterDrawer() {
     document.getElementById('filterDrawer').classList.remove('translate-y-full');

@@ -100,6 +100,14 @@ urlpatterns = [
     path('panel/team/add/', panel_views.panel_team_save, name='panel_team_add'),
     path('panel/team/<int:pk>/edit/', panel_views.panel_team_save, name='panel_team_edit'),
     path('panel/team/<int:pk>/delete/', panel_views.panel_team_delete, name='panel_team_delete'),
+    # Founders
+    path('panel/founder/add/', panel_views.panel_founder_save, name='panel_founder_add'),
+    path('panel/founder/<int:pk>/edit/', panel_views.panel_founder_save, name='panel_founder_edit'),
+    path('panel/founder/<int:pk>/delete/', panel_views.panel_founder_delete, name='panel_founder_delete'),
+    # About Content
+    path('panel/about-content/add/', panel_views.panel_about_content_save, name='panel_about_content_add'),
+    path('panel/about-content/<int:pk>/edit/', panel_views.panel_about_content_save, name='panel_about_content_edit'),
+    path('panel/about-content/<int:pk>/delete/', panel_views.panel_about_content_delete, name='panel_about_content_delete'),
     # Contact Inquiries
     path('panel/inquiries/', panel_views.panel_inquiries, name='panel_inquiries'),
     path('panel/inquiries/<int:pk>/delete/', panel_views.panel_inquiry_delete, name='panel_inquiry_delete'),
@@ -123,6 +131,7 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),
     path('buy/<slug:slug>/', views.buy_now, name='buy_now'),
     path('buy-package/<int:package_id>/', views.buy_package, name='buy_package'),
+    path('package/<int:package_id>/', views.package_detail, name='package_detail'),
     path('place-order/', views.place_order, name='place_order'),
     path('place-package-order/', views.place_package_order, name='place_package_order'),
     path('profile/', views.my_profile, name='my_profile'),
@@ -149,6 +158,7 @@ urlpatterns = [
     path('panel/api/billing/', panel_views.api_billing_list, name='api_billing_list'),
     path('panel/api/billing/create/', panel_views.api_billing_create, name='api_billing_create'),
     path('panel/orders/', panel_views.panel_orders, name='panel_orders'),
+    path('panel/orders/data/', panel_views.panel_orders_data, name='panel_orders_data'),
     path('panel/orders/<int:pk>/', panel_views.panel_order_detail, name='panel_order_detail'),
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
     path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),

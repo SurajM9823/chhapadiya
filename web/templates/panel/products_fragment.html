@@ -1,0 +1,137 @@
+{% if products %}
+<div class="overflow-x-auto">
+    <table class="w-full text-sm" id="productsTable">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs font-semibold border-b sticky top-0">
+            <tr>
+                <th class="px-4 py-3 text-left">Image</th>
+                <th class="px-4 py-3 text-left">Name / SKU</th>
+                <th class="px-4 py-3 text-left">Category</th>
+                <th class="px-4 py-3 text-right">MRP</th>
+                <th class="px-4 py-3 text-right">Retail Price</th>
+                <th class="px-4 py-3 text-right">Dealer Price</th>
+                <th class="px-4 py-3 text-center">Stock</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {% for p in products %}
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                    {% with p.primary_image as img %}
+                    {% if img %}<img src="{{ img.image.url }}" alt="{{ p.name }}" class="w-10 h-10 object-cover rounded" loading="lazy">
+                    {% else %}<div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-300 text-xs">—</div>{% endif %}
+                    {% endwith %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-gray-800 text-sm">{{ p.name|truncatechars:35 }}</div>
+                    <div class="text-xs text-gray-400">{{ p.sku }}</div>
+                </td>
+                <td class="px-4 py-3 text-gray-600 text-xs">{{ p.category.name|default:"—" }}</td>
+                
+                <!-- MRP -->
+                <td class="px-4 py-3 font-semibold text-gray-800 text-right">Rs. {{ p.mrp }}</td>
+                
+                <!-- Retail Price -->
+                <td class="px-4 py-3 font-medium text-right text-emerald-700">
+                    Rs. {{ p.retail_price|default:p.mrp }}
+                </td>
+                
+                <!-- Dealer Price -->
+                <td class="px-4 py-3 font-medium text-right text-blue-700">
+                    Rs. {{ p.dealer_price|default:p.mrp }}
+                </td>
+                
+                <td class="px-4 py-3 text-center">
+                    <a href="{% url 'panel_stock' p.pk %}" class="{% if p.stock_quantity <= 0 %}text-red-600 font-bold{% elif p.stock_quantity < 10 %}text-yellow-600 font-semibold{% else %}text-green-600{% endif %} hover:underline text-sm">
+                        {{ p.stock_quantity }}
+                    </a>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex flex-wrap gap-1 justify-center">
+                        {% if p.is_active %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Active</span>
+                        {% else %}<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-xs">Inactive</span>{% endif %}
+                        {% if p.is_featured %}<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">Featured</span>{% endif %}
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex gap-1 justify-center flex-wrap">
+                        <a href="{% url 'panel_product_detail' p.pk %}" class="text-gray-600 hover:text-gray-800 text-xs hover:underline">View</a>
+                        {% if can_edit %}
+                        <a href="{% url 'panel_product_edit' p.pk %}" class="text-blue-600 hover:text-blue-800 text-xs hover:underline">Edit</a>
+                        <a href="{% url 'panel_stock' p.pk %}" class="text-purple-600 hover:text-purple-800 text-xs hover:underline">Stock</a>
+                        {% endif %}
+                        {% if can_delete %}
+                        <form method="post" action="{% url 'panel_product_delete' p.pk %}" onsubmit="return confirm('Delete this product?')" style="display:inline;">{% csrf_token %}
+                            <button class="text-red-600 hover:text-red-800 text-xs hover:underline">Delete</button>
+                        </form>
+                        {% endif %}
+                        {% if not can_edit and not can_delete %}
+                        <span class="text-gray-400 text-xs">No actions</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if products.paginator.num_pages > 1 %}
+<div class="mt-6 flex items-center justify-between flex-wrap gap-3 px-2">
+    <div class="text-xs text-gray-500">
+        Page <span class="font-semibold">{{ products.number }}</span> of <span class="font-semibold">{{ products.paginator.num_pages }}</span>
+        &nbsp;·&nbsp; {{ total_count }} total products
+    </div>
+    <div class="flex items-center gap-1 flex-wrap">
+        {% if products.has_previous %}
+        <button onclick="applyFilters(1)" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 font-medium">«</button>
+        <button onclick="applyFilters({{ products.previous_page_number }})" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 font-medium">‹</button>
+        {% else %}
+        <span class="px-2 py-1 text-gray-300 rounded text-xs">«</span>
+        <span class="px-2 py-1 text-gray-300 rounded text-xs">‹</span>
+        {% endif %}
+
+        {% with current=products.number total=products.paginator.num_pages %}
+        {% for i in products.paginator.page_range %}
+            {% if i == 1 or i == total %}
+                {% if i == current %}
+                <span class="px-3 py-1 bg-gray-900 text-white rounded text-xs font-semibold">{{ i }}</span>
+                {% else %}
+                <button onclick="applyFilters({{ i }})" class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200">{{ i }}</button>
+                {% endif %}
+            {% elif i >= current|add:"-2" and i <= current|add:"2" %}
+                {% if i == 2 and current > 4 %}<span class="px-2 py-1 text-gray-400 text-xs">…</span>{% endif %}
+                {% if i == current %}
+                <span class="px-3 py-1 bg-gray-900 text-white rounded text-xs font-semibold">{{ i }}</span>
+                {% else %}
+                <button onclick="applyFilters({{ i }})" class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200">{{ i }}</button>
+                {% endif %}
+                {% if i == total|add:"-1" and current < total|add:"-3" %}<span class="px-2 py-1 text-gray-400 text-xs">…</span>{% endif %}
+            {% endif %}
+        {% endfor %}
+        {% endwith %}
+
+        {% if products.has_next %}
+        <button onclick="applyFilters({{ products.next_page_number }})" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 font-medium">›</button>
+        <button onclick="applyFilters({{ products.paginator.num_pages }})" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 font-medium">»</button>
+        {% else %}
+        <span class="px-2 py-1 text-gray-300 rounded text-xs">›</span>
+        <span class="px-2 py-1 text-gray-300 rounded text-xs">»</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="p-12 text-center text-gray-400">
+    <p class="mb-2">No products found.</p>
+    <p class="text-xs mb-3">Try adjusting your filters or <button onclick="resetFilters()" class="text-blue-600 hover:underline">clear all filters</button>.</p>
+</div>
+{% endif %}
+
+<!-- Summary line -->
+<p class="text-xs text-gray-500 px-2 pb-2">
+    Total: <span class="font-semibold">{{ total_count }}</span> products &nbsp;|&nbsp;
+    Showing: <span class="font-semibold">{{ products.start_index }}–{{ products.end_index }}</span>
+</p>

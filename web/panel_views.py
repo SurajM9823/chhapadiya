@@ -2,9 +2,12 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent
 from .email_utils import send_order_status_update_email
 from .permissions import permission_required, check_permission
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 
 def is_staff_user(user):
     return user.is_superuser or user.is_staff
@@ -166,7 +169,6 @@ def panel_dashboard(request):
 
 
 
-# â”€â”€ Site Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
 @permission_required('settings', 'view')
@@ -201,6 +203,8 @@ def panel_settings(request):
         s.bank_branch = request.POST.get('bank_branch', '')
         if 'logo' in request.FILES:
             s.logo = request.FILES['logo']
+        if 'bank_qr' in request.FILES:
+            s.bank_qr = request.FILES['bank_qr']
         s.save()
         messages.success(request, 'Settings saved.')
         return redirect('panel_settings')
@@ -704,7 +708,6 @@ def panel_customer_delete(request, pk):
     return redirect('panel_customers')
 
 
-# â”€â”€ Products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
 @permission_required('products', 'view')
@@ -716,7 +719,7 @@ def panel_products(request):
     category_id = request.GET.get('category', '').strip()
     status = request.GET.get('status', '').strip()
     page = request.GET.get('page', 1)
-    limit = request.GET.get('limit', 20)
+    limit = request.GET.get('limit', 10)
     
     try:
         limit = int(limit)
@@ -757,7 +760,7 @@ def panel_products(request):
     can_delete = request.user.is_superuser or check_permission(request.user, 'products', 'delete')
     can_export = request.user.is_superuser or check_permission(request.user, 'products', 'view')
     
-    return render(request, 'panel/products.html', {
+    context = {
         'products': products,
         'categories': list(categories),
         'search': search,
@@ -769,7 +772,14 @@ def panel_products(request):
         'can_edit': can_edit,
         'can_delete': can_delete,
         'can_export': can_export,
-    })
+    }
+
+    # ✅ Return only the table fragment for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'panel/products_fragment.html', context)
+    
+    return render(request, 'panel/products.html', context)
+
 
 @login_required(login_url='panel_login')
 @permission_required('products', 'create')
@@ -791,6 +801,8 @@ def panel_product_add(request):
             full_description=request.POST.get('full_description', ''),
             specifications=request.POST.get('specifications', ''),
             mrp=request.POST['mrp'],
+            retail_price=request.POST.get('retail_price') or None,
+            dealer_price=request.POST.get('dealer_price') or None,
             tax_included=request.POST.get('tax_included') == 'on',
             tax_percent=request.POST.get('tax_percent') or 0,
             delivery_time_id=request.POST.get('delivery_time') or None,
@@ -842,6 +854,8 @@ def panel_product_edit(request, pk):
         product.full_description = request.POST.get('full_description', '')
         product.specifications = request.POST.get('specifications', '')
         product.mrp = request.POST['mrp']
+        product.retail_price = request.POST.get('retail_price') or None
+        product.dealer_price = request.POST.get('dealer_price') or None
         product.tax_included = request.POST.get('tax_included') == 'on'
         product.tax_percent = request.POST.get('tax_percent') or 0
         product.delivery_time_id = request.POST.get('delivery_time') or None
@@ -883,289 +897,356 @@ def panel_products_export(request):
     from django.http import HttpResponse
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-    from openpyxl.utils import get_column_letter
     from django.db.models import Q
-    
-    # Get filter parameters
-    search = request.GET.get('search', '').strip()
+ 
+    search     = request.GET.get('search', '').strip()
     category_id = request.GET.get('category', '').strip()
-    status = request.GET.get('status', '').strip()
-    
-    qs = Product.objects.select_related('category', 'sub_category', 'origin', 'delivery_time', 'linked_package').prefetch_related('tier_prices__tier', 'images').all()
-    
+    status     = request.GET.get('status', '').strip()
+ 
+    qs = Product.objects.select_related(
+        'category', 'sub_category', 'origin', 'delivery_time', 'linked_package'
+    ).prefetch_related('tier_prices__tier', 'images').all()
+ 
     if search:
         qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search) | Q(brand__icontains=search))
-    
     if category_id:
         try:
             qs = qs.filter(category_id=int(category_id))
-        except:
+        except Exception:
             pass
-    
-    if status:
-        if status == 'active':
-            qs = qs.filter(is_active=True)
-        elif status == 'inactive':
-            qs = qs.filter(is_active=False)
-        elif status == 'featured':
-            qs = qs.filter(is_featured=True)
-    
+    if status == 'active':
+        qs = qs.filter(is_active=True)
+    elif status == 'inactive':
+        qs = qs.filter(is_active=False)
+    elif status == 'featured':
+        qs = qs.filter(is_featured=True)
+ 
     qs = qs.order_by('name')
-    
-    # Create workbook
+ 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Products'
-    
-    # Styles
-    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
-    header_font = Font(bold=True, color='FFFFFF', size=11)
-    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    border = Border(
-        left=Side(style='thin', color='D0D0D0'),
-        right=Side(style='thin', color='D0D0D0'),
-        top=Side(style='thin', color='D0D0D0'),
-        bottom=Side(style='thin', color='D0D0D0')
+ 
+    # ── Styles ──────────────────────────────────────────────────────────────
+    header_fill  = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+    section_fill = PatternFill(start_color='D6E4F0', end_color='D6E4F0', fill_type='solid')
+    alt_fill     = PatternFill(start_color='F7FBFF', end_color='F7FBFF', fill_type='solid')
+    header_font  = Font(bold=True, color='FFFFFF', size=10)
+    section_font = Font(bold=True, color='1F4E79', size=10)
+    thin_border  = Border(
+        left=Side(style='thin', color='BDD7EE'),
+        right=Side(style='thin', color='BDD7EE'),
+        top=Side(style='thin', color='BDD7EE'),
+        bottom=Side(style='thin', color='BDD7EE'),
     )
-    
-    # Headers
-    headers = [
-        'SKU', 'Product Code', 'Name', 'Brand', 'Category', 'Sub-Category', 
-        'Origin Country', 'MRP (Rs.)', 'Tax Included', 'Tax %', 
-        'Stock Quantity', 'Delivery Time', 'Linked Package',
-        'Short Description', 'Full Description', 'Specifications',
-        'Status', 'Featured', 'Primary Image URL', 'All Image URLs',
-        'Tier Prices', 'Created Date', 'Updated Date'
+    center = Alignment(horizontal='center', vertical='top', wrap_text=True)
+    left   = Alignment(horizontal='left',   vertical='top', wrap_text=True)
+ 
+    # ── Column definitions: (header, width, alignment) ───────────────────
+    # IMPORTANT: import view reads columns in exactly this order (col A=1 … )
+    columns = [
+        # --- Identity ---
+        ('SKU *',            15, center),
+        ('Product Code',     15, center),
+        ('Name *',           42, left),
+        ('Brand',            20, left),
+        # --- Classification ---
+        ('Category',         22, left),
+        ('Sub-Category',     22, left),
+        ('Origin Country',   18, left),
+        # --- Pricing ---
+        ('MRP (Rs.) *',      13, center),
+        ('Retail Price',     13, center),
+        ('Dealer Price',     13, center),
+        ('Tax Included',     13, center),   # Yes / No
+        ('Tax %',            10, center),
+        # --- Stock & Logistics ---
+        ('Initial Stock',    13, center),
+        ('Delivery Time',    25, left),
+        ('Linked Package',   25, left),
+        # --- Content ---
+        ('Short Description',50, left),
+        ('Full Description', 60, left),
+        ('Specifications',   50, left),
+        # --- Flags ---
+        ('Active',           10, center),   # Yes / No
+        ('Featured',         10, center),   # Yes / No
+        # --- Read-only reference (ignored on import) ---
+        ('Stock Qty (ref)',  13, center),
+        ('Primary Image URL',60, left),
+        ('All Image URLs',   80, left),
+        ('Tier Prices (ref)',40, left),
+        ('Created At',       22, center),
+        ('Updated At',       22, center),
     ]
-    
-    for col_num, header in enumerate(headers, 1):
+ 
+    # ── Header row ───────────────────────────────────────────────────────
+    ws.row_dimensions[1].height = 28
+    for col_num, (header, width, align) in enumerate(columns, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = header_alignment
-        cell.border = border
-    
-    # Freeze header row
+        cell.fill   = header_fill
+        cell.font   = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = thin_border
+        from openpyxl.utils import get_column_letter
+        ws.column_dimensions[get_column_letter(col_num)].width = width
+ 
     ws.freeze_panes = 'A2'
-    
-    # Data rows
-    for row_num, product in enumerate(qs, 2):
-        # Basic Info
-        ws.cell(row=row_num, column=1, value=product.sku)
-        ws.cell(row=row_num, column=2, value=product.product_code)
-        ws.cell(row=row_num, column=3, value=product.name)
-        ws.cell(row=row_num, column=4, value=product.brand)
-        ws.cell(row=row_num, column=5, value=product.category.name if product.category else '')
-        ws.cell(row=row_num, column=6, value=product.sub_category.name if product.sub_category else '')
-        ws.cell(row=row_num, column=7, value=product.origin.name if product.origin else '')
-        
+ 
+    # ── Data rows ────────────────────────────────────────────────────────
+    for row_num, p in enumerate(qs, 2):
+        row_fill = alt_fill if row_num % 2 == 0 else None
+ 
+        def w(col, value, align=left):
+            cell = ws.cell(row=row_num, column=col, value=value)
+            cell.alignment = align
+            cell.border    = thin_border
+            if row_fill:
+                cell.fill = row_fill
+ 
+        # Identity
+        w(1,  p.sku,                                center)
+        w(2,  p.product_code,                       center)
+        w(3,  p.name)
+        w(4,  p.brand)
+        # Classification
+        w(5,  p.category.name     if p.category     else '')
+        w(6,  p.sub_category.name if p.sub_category else '')
+        w(7,  p.origin.name       if p.origin       else '')
         # Pricing
-        ws.cell(row=row_num, column=8, value=float(product.mrp))
-        ws.cell(row=row_num, column=9, value='Yes' if product.tax_included else 'No')
-        ws.cell(row=row_num, column=10, value=float(product.tax_percent))
-        
-        # Stock & Delivery
-        ws.cell(row=row_num, column=11, value=product.stock_quantity)
-        ws.cell(row=row_num, column=12, value=str(product.delivery_time) if product.delivery_time else '')
-        ws.cell(row=row_num, column=13, value=product.linked_package.name if product.linked_package else '')
-        
-        # Descriptions
-        ws.cell(row=row_num, column=14, value=product.short_description)
-        ws.cell(row=row_num, column=15, value=product.full_description)
-        ws.cell(row=row_num, column=16, value=product.specifications)
-        
-        # Status
-        ws.cell(row=row_num, column=17, value='Active' if product.is_active else 'Inactive')
-        ws.cell(row=row_num, column=18, value='Yes' if product.is_featured else 'No')
-        
-        # Images
-        primary_img = product.primary_image
-        if primary_img:
-            ws.cell(row=row_num, column=19, value=request.build_absolute_uri(primary_img.image.url))
-        
-        all_images = product.images.all()
-        if all_images:
-            image_urls = ', '.join([request.build_absolute_uri(img.image.url) for img in all_images])
-            ws.cell(row=row_num, column=20, value=image_urls)
-        
-        # Tier Prices
-        tier_prices = product.tier_prices.all()
-        if tier_prices:
-            tier_price_text = ', '.join([f"{tp.tier.name}: Rs.{tp.price}" for tp in tier_prices])
-            ws.cell(row=row_num, column=21, value=tier_price_text)
-        
-        # Dates
-        ws.cell(row=row_num, column=22, value=product.created_at.strftime('%Y-%m-%d %H:%M:%S'))
-        ws.cell(row=row_num, column=23, value=product.updated_at.strftime('%Y-%m-%d %H:%M:%S'))
-        
-        # Apply borders to all cells in row
-        for col in range(1, len(headers) + 1):
-            ws.cell(row=row_num, column=col).border = border
-            ws.cell(row=row_num, column=col).alignment = Alignment(vertical='top', wrap_text=True)
-    
-    # Adjust column widths
-    column_widths = {
-        'A': 15,  # SKU
-        'B': 15,  # Product Code
-        'C': 40,  # Name
-        'D': 20,  # Brand
-        'E': 20,  # Category
-        'F': 20,  # Sub-Category
-        'G': 15,  # Origin
-        'H': 12,  # MRP
-        'I': 12,  # Tax Included
-        'J': 10,  # Tax %
-        'K': 12,  # Stock
-        'L': 25,  # Delivery Time
-        'M': 25,  # Linked Package
-        'N': 50,  # Short Description
-        'O': 60,  # Full Description
-        'P': 50,  # Specifications
-        'Q': 12,  # Status
-        'R': 12,  # Featured
-        'S': 60,  # Primary Image
-        'T': 80,  # All Images
-        'U': 40,  # Tier Prices
-        'V': 20,  # Created Date
-        'W': 20,  # Updated Date
-    }
-    
-    for col, width in column_widths.items():
-        ws.column_dimensions[col].width = width
-    
-    # Set row height for header
-    ws.row_dimensions[1].height = 30
-    
-    # Create response
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=products_detailed_export.xlsx'
+        w(8,  float(p.mrp),                                            center)
+        w(9,  float(p.retail_price) if p.retail_price else float(p.mrp), center)
+        w(10, float(p.dealer_price) if p.dealer_price else float(p.mrp), center)
+        w(11, 'Yes' if p.tax_included else 'No',                       center)
+        w(12, float(p.tax_percent),                                    center)
+        # Stock & Logistics
+        w(13, 0,  center)   # Initial Stock — always 0 for existing products
+        w(14, str(p.delivery_time)     if p.delivery_time  else '')
+        w(15, p.linked_package.name    if p.linked_package else '')
+        # Content
+        w(16, p.short_description)
+        w(17, p.full_description)
+        w(18, p.specifications)
+        # Flags
+        w(19, 'Yes' if p.is_active   else 'No', center)
+        w(20, 'Yes' if p.is_featured else 'No', center)
+        # Read-only reference
+        w(21, p.stock_quantity, center)
+        primary = p.primary_image
+        w(22, request.build_absolute_uri(primary.image.url) if primary else '')
+        all_imgs = ', '.join(request.build_absolute_uri(i.image.url) for i in p.images.all())
+        w(23, all_imgs)
+        tier_txt = ', '.join(f"{tp.tier.name}: Rs.{tp.price}" for tp in p.tier_prices.all())
+        w(24, tier_txt)
+        w(25, p.created_at.strftime('%Y-%m-%d %H:%M'), center)
+        w(26, p.updated_at.strftime('%Y-%m-%d %H:%M'), center)
+ 
+    # Mark read-only reference columns with a different header fill
+    for col in (21, 22, 23, 24, 25, 26):
+        cell = ws.cell(row=1, column=col)
+        cell.fill = PatternFill(start_color='7F7F7F', end_color='7F7F7F', fill_type='solid')
+ 
+    # ── Add a legend sheet ───────────────────────────────────────────────
+    ls = wb.create_sheet('How To Use')
+    notes = [
+        ('Column', 'Notes'),
+        ('SKU *',            'Required. Must be unique. Used to match existing products on update.'),
+        ('Name *',           'Required.'),
+        ('MRP *',            'Required. Numeric.'),
+        ('Retail / Dealer',  'Leave blank to default to MRP.'),
+        ('Tax Included',     'Yes or No'),
+        ('Active / Featured','Yes or No'),
+        ('Initial Stock',    'Only applied on NEW products. Ignored when updating existing SKUs.'),
+        ('Delivery Time',    'Must match an existing Delivery Time name exactly.'),
+        ('Linked Package',   'Must match an existing Package name exactly.'),
+        ('Grey columns',     'Read-only reference — ignored during import.'),
+    ]
+    ls.column_dimensions['A'].width = 22
+    ls.column_dimensions['B'].width = 70
+    for r, (a, b) in enumerate(notes, 1):
+        ls.cell(r, 1, a).font = Font(bold=(r == 1))
+        ls.cell(r, 2, b)
+ 
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=products_export.xlsx'
     wb.save(response)
-    
     return response
-
-
+ 
+ 
+# ─────────────────────────────────────────────────────────────────────────────
+#  IMPORT
+# ─────────────────────────────────────────────────────────────────────────────
 @login_required(login_url='panel_login')
 @permission_required('products', 'create')
 def panel_products_import(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         import openpyxl
-        from openpyxl.drawing.image import Image as XLImage
-        import os
-        from django.core.files.base import ContentFile
-        
+ 
         excel_file = request.FILES['excel_file']
         try:
-            wb = openpyxl.load_workbook(excel_file)
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
             ws = wb.active
-            
-            imported = 0
+ 
+            created_count = 0
+            updated_count = 0
             errors = []
-            
-            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
+ 
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                # Skip entirely blank rows
+                if not any(row):
+                    continue
+ 
+                def cell(n):
+                    """Return stripped string for column n (1-based)."""
+                    v = row[n - 1] if len(row) >= n else None
+                    return str(v).strip() if v not in (None, '') else ''
+ 
+                def yn(n):
+                    return cell(n).lower() in ('yes', 'true', '1', 'y')
+ 
+                # ── Required fields ──────────────────────────────────────
+                sku  = cell(1)
+                name = cell(3)
+                mrp_raw = cell(8)
+ 
+                if not sku:
+                    errors.append(f"Row {row_idx}: SKU is required — row skipped.")
+                    continue
+                if not name:
+                    errors.append(f"Row {row_idx}: Name is required (SKU: {sku}) — row skipped.")
+                    continue
                 try:
-                    name = row[0].value
-                    sku = row[1].value
-                    brand = row[2].value or ''
-                    category_name = row[3].value
-                    subcategory_name = row[4].value
-                    origin_name = row[5].value
-                    mrp = row[6].value
-                    short_desc = row[7].value or ''
-                    full_desc = row[8].value or ''
-                    specs = row[9].value or ''
-                    is_active = str(row[10].value or 'Yes').lower() in ['yes', 'true', '1']
-                    is_featured = str(row[11].value or 'No').lower() in ['yes', 'true', '1']
-                    
-                    if not name or not sku or not mrp:
-                        errors.append(f"Row {row_idx}: Missing required fields (Name, SKU, MRP)")
+                    mrp = float(mrp_raw)
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_idx}: MRP must be a number (SKU: {sku}) — row skipped.")
+                    continue
+ 
+                # ── Optional numeric fields ──────────────────────────────
+                def to_float_or_none(n):
+                    v = cell(n)
+                    if not v:
+                        return None
+                    try:
+                        return float(v)
+                    except ValueError:
+                        return None
+ 
+                retail_price = to_float_or_none(9)
+                dealer_price = to_float_or_none(10)
+                tax_percent  = to_float_or_none(12) or 0
+ 
+                try:
+                    initial_stock = int(float(cell(13))) if cell(13) else 0
+                except ValueError:
+                    initial_stock = 0
+ 
+                # ── FK lookups ───────────────────────────────────────────
+                category = sub_category = origin = delivery_time = linked_package = None
+ 
+                cat_name = cell(5)
+                if cat_name:
+                    category = Category.objects.filter(name__iexact=cat_name, is_active=True).first()
+                    if not category:
+                        errors.append(f"Row {row_idx}: Category '{cat_name}' not found (SKU: {sku}) — skipped.")
                         continue
-                    
-                    if Product.objects.filter(sku=sku).exists():
-                        errors.append(f"Row {row_idx}: SKU '{sku}' already exists")
+ 
+                sub_name = cell(6)
+                if sub_name:
+                    qs_sub = SubCategory.objects.filter(name__iexact=sub_name, is_active=True)
+                    if category:
+                        qs_sub = qs_sub.filter(category=category)
+                    sub_category = qs_sub.first()
+                    if not sub_category:
+                        errors.append(f"Row {row_idx}: Sub-category '{sub_name}' not found (SKU: {sku}) — skipped.")
                         continue
-                    
-                    category = None
-                    if category_name:
-                        category = Category.objects.filter(name__iexact=category_name, is_active=True).first()
-                        if not category:
-                            errors.append(f"Row {row_idx}: Category '{category_name}' not found")
-                            continue
-                    
-                    subcategory = None
-                    if subcategory_name and category:
-                        subcategory = SubCategory.objects.filter(name__iexact=subcategory_name, category=category, is_active=True).first()
-                        if not subcategory:
-                            errors.append(f"Row {row_idx}: Sub-category '{subcategory_name}' not found")
-                            continue
-                    
-                    origin = None
-                    if origin_name:
-                        origin = Country.objects.filter(name__iexact=origin_name).first()
-                        if not origin:
-                            errors.append(f"Row {row_idx}: Country '{origin_name}' not found")
-                            continue
-                    
-                    product = Product.objects.create(
-                        name=name,
-                        sku=sku,
-                        brand=brand,
-                        category=category,
-                        sub_category=subcategory,
-                        origin=origin,
-                        mrp=float(mrp),
-                        short_description=short_desc,
-                        full_description=full_desc,
-                        specifications=specs,
-                        is_active=is_active,
-                        is_featured=is_featured,
-                    )
-                    
-                    image_cols = [12, 13, 14, 15]
-                    for img_col_idx, col_idx in enumerate(image_cols):
-                        if col_idx < len(row) and row[col_idx].value:
-                            try:
-                                image_path = row[col_idx].value
-                                if isinstance(image_path, str) and os.path.exists(image_path):
-                                    with open(image_path, 'rb') as img_file:
-                                        filename = os.path.basename(image_path)
-                                        ProductImage.objects.create(
-                                            product=product,
-                                            image=ContentFile(img_file.read(), name=filename),
-                                            is_primary=(img_col_idx == 0),
-                                            order=img_col_idx,
-                                        )
-                            except Exception as e:
-                                errors.append(f"Row {row_idx}: Image upload failed - {str(e)}")
-                    
-                    imported += 1
-                    
-                except Exception as e:
-                    errors.append(f"Row {row_idx}: {str(e)}")
-            
-            if imported > 0:
-                messages.success(request, f'Successfully imported {imported} products!')
-            if errors:
-                for error in errors[:10]:
-                    messages.warning(request, error)
-                if len(errors) > 10:
-                    messages.warning(request, f'... and {len(errors) - 10} more errors')
-            
-            return redirect('panel_products')
+ 
+                origin_name = cell(7)
+                if origin_name:
+                    origin = Country.objects.filter(name__iexact=origin_name).first()
+                    if not origin:
+                        errors.append(f"Row {row_idx}: Country '{origin_name}' not found (SKU: {sku}) — skipped.")
+                        continue
+ 
+                dt_name = cell(14)
+                if dt_name:
+                    delivery_time = DeliveryTimeTier.objects.filter(
+                        name__iexact=dt_name, is_active=True
+                    ).first()
+ 
+                pkg_name = cell(15)
+                if pkg_name:
+                    linked_package = Package.objects.filter(
+                        name__iexact=pkg_name, is_active=True
+                    ).first()
+ 
+                # ── Create or Update ─────────────────────────────────────
+                existing = Product.objects.filter(sku=sku).first()
+ 
+                fields = dict(
+                    name             = name,
+                    product_code     = cell(2),
+                    brand            = cell(4),
+                    category         = category,
+                    sub_category     = sub_category,
+                    origin           = origin,
+                    mrp              = mrp,
+                    retail_price     = retail_price,
+                    dealer_price     = dealer_price,
+                    tax_included     = yn(11),
+                    tax_percent      = tax_percent,
+                    delivery_time    = delivery_time,
+                    linked_package   = linked_package,
+                    short_description= cell(16),
+                    full_description = cell(17),
+                    specifications   = cell(18),
+                    is_active        = yn(19),
+                    is_featured      = yn(20),
+                )
+ 
+                if existing:
+                    for attr, val in fields.items():
+                        setattr(existing, attr, val)
+                    existing.save()
+                    updated_count += 1
+                else:
+                    product = Product.objects.create(**fields)
+                    if initial_stock > 0:
+                        StockEntry.objects.create(
+                            product=product,
+                            entry_type='import',
+                            quantity_change=initial_stock,
+                            note='Imported via Excel',
+                        )
+                    created_count += 1
+ 
+            # ── Flash messages ───────────────────────────────────────────
+            if created_count:
+                messages.success(request, f'✅ {created_count} product(s) created.')
+            if updated_count:
+                messages.info(request, f'✏️ {updated_count} product(s) updated.')
+            if not created_count and not updated_count and not errors:
+                messages.warning(request, 'No data rows found in the file.')
+            for err in errors[:15]:
+                messages.warning(request, err)
+            if len(errors) > 15:
+                messages.warning(request, f'… and {len(errors) - 15} more errors. Fix and re-import.')
+ 
         except Exception as e:
-            messages.error(request, f'Excel import failed: {str(e)}')
-    
+            messages.error(request, f'Import failed: {str(e)}')
+ 
+        return redirect('panel_products')
+ 
     categories = Category.objects.filter(is_active=True).prefetch_related('subcategories')
-    countries = Country.objects.all()
-    tiers = CustomerTier.objects.filter(is_active=True)
-    
+    countries  = Country.objects.all()
+    tiers      = CustomerTier.objects.filter(is_active=True)
     return render(request, 'panel/products_import.html', {
         'categories': categories,
-        'countries': countries,
-        'tiers': tiers,
+        'countries':  countries,
+        'tiers':      tiers,
     })
 
-
-# â”€â”€ Stock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @login_required(login_url='panel_login')
 @permission_required('stock', 'edit')
@@ -1327,10 +1408,93 @@ def panel_about(request):
         'trusted_clients': TrustedClient.objects.all(),
         'testimonials': Testimonial.objects.all(),
         'team': TeamMember.objects.all(),
+        'founders': Founder.objects.all(),
+        'about_content': AboutContent.objects.all(),
         'can_create': can_create,
         'can_edit': can_edit,
         'can_delete': can_delete,
     })
+
+# About Content Management
+@login_required(login_url='panel_login')
+@permission_required('content', 'view')
+def panel_about_content_save(request, pk=None):
+    about_content = get_object_or_404(AboutContent, pk=pk) if pk else None
+    
+    # Check create/edit permission
+    if request.method == 'POST':
+        required_perm = 'edit' if about_content else 'create'
+        if not (request.user.is_superuser or check_permission(request.user, 'content', required_perm)):
+            messages.error(request, f'You do not have permission to {required_perm} about content.')
+            return redirect('panel_about')
+        data = dict(
+            mission_title=request.POST['mission_title'],
+            mission_content=request.POST['mission_content'],
+            vision_title=request.POST['vision_title'],
+            vision_content=request.POST['vision_content'],
+            quote_content=request.POST['quote_content'],
+            quote_author=request.POST.get('quote_author', ''),
+            order=request.POST.get('order', 0),
+            is_active=request.POST.get('is_active') == 'on'
+        )
+        if about_content:
+            for k, v in data.items(): setattr(about_content, k, v)
+            about_content.save()
+        else:
+            about_content = AboutContent.objects.create(**data)
+        messages.success(request, 'About content saved.')
+        return redirect('panel_about')
+    return render(request, 'panel/about_content_form.html', {'action': 'Edit' if about_content else 'Add', 'about_content': about_content})
+
+@login_required(login_url='panel_login')
+@permission_required('content', 'view')
+def panel_about_content_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete about content.')
+        return redirect('panel_about')
+    
+    get_object_or_404(AboutContent, pk=pk).delete()
+    messages.success(request, 'About content deleted.')
+    return redirect('panel_about')
+
+# Founder Management
+@login_required(login_url='panel_login')
+@permission_required('content', 'view')
+def panel_founder_save(request, pk=None):
+    founder = get_object_or_404(Founder, pk=pk) if pk else None
+    
+    # Check create/edit permission
+    if request.method == 'POST':
+        required_perm = 'edit' if founder else 'create'
+        if not (request.user.is_superuser or check_permission(request.user, 'content', required_perm)):
+            messages.error(request, f'You do not have permission to {required_perm} founder.')
+            return redirect('panel_about')
+        data = dict(name=request.POST['name'], role=request.POST['role'],
+                    phone=request.POST.get('phone', ''), bio=request.POST.get('bio', ''),
+                    order=request.POST.get('order', 0), is_active=request.POST.get('is_active') == 'on')
+        if founder:
+            for k, v in data.items(): setattr(founder, k, v)
+            if 'photo' in request.FILES: founder.photo = request.FILES['photo']
+            founder.save()
+        else:
+            founder = Founder.objects.create(**data)
+            if 'photo' in request.FILES: founder.photo = request.FILES['photo']; founder.save()
+        messages.success(request, 'Founder saved.')
+        return redirect('panel_about')
+    return render(request, 'panel/founder_form.html', {'action': 'Edit' if founder else 'Add', 'founder': founder})
+
+@login_required(login_url='panel_login')
+@permission_required('content', 'view')
+def panel_founder_delete(request, pk):
+    # Check delete permission
+    if not (request.user.is_superuser or check_permission(request.user, 'content', 'delete')):
+        messages.error(request, 'You do not have permission to delete founder.')
+        return redirect('panel_about')
+    
+    get_object_or_404(Founder, pk=pk).delete()
+    messages.success(request, 'Founder deleted.')
+    return redirect('panel_about')
 
 # Stats
 @login_required(login_url='panel_login')
@@ -1570,20 +1734,126 @@ def panel_quote_delete(request, pk):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'view')
 def panel_orders(request):
-    from django.core.paginator import Paginator
-    orders_list = Order.objects.select_related('user', 'referred_agent').prefetch_related('items').order_by('-created_at')
-    paginator = Paginator(orders_list, 20)
-    page_number = request.GET.get('page', 1)
-    orders = paginator.get_page(page_number)
-    
-    can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
+    """Renders the Orders Management page shell (no data — loaded via AJAX)."""
+    can_edit   = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
-    
     return render(request, 'panel/orders.html', {
-        'orders': orders,
-        'can_edit': can_edit,
+        'can_edit':   can_edit,
         'can_delete': can_delete,
     })
+ 
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+@require_GET
+def panel_orders_data(request):
+    """
+    AJAX endpoint — returns paginated, filtered order rows as JSON.
+ 
+    Query params
+    ────────────
+    search          – searches order_number, full_name, phone, email
+    status          – order status slug  ('' = all)
+    payment_status  – unpaid | partial | paid  ('' = all)
+    payment_method  – cod | online | pickup    ('' = all)
+    date_from       – YYYY-MM-DD
+    date_to         – YYYY-MM-DD
+    page            – int (default 1)
+    per_page        – int (default 20, max 100)
+    """
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    import datetime
+ 
+    qs = (
+        Order.objects
+        .select_related('user', 'referred_agent')
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
+ 
+    # ── filters ───────────────────────────────────────────────────────────────
+    search = request.GET.get('search', '').strip()
+    if search:
+        qs = qs.filter(
+            Q(order_number__icontains=search)
+            | Q(full_name__icontains=search)
+            | Q(phone__icontains=search)
+            | Q(email__icontains=search)
+        )
+ 
+    status = request.GET.get('status', '').strip()
+    if status:
+        qs = qs.filter(status=status)
+ 
+    payment_status = request.GET.get('payment_status', '').strip()
+    if payment_status:
+        qs = qs.filter(payment_status=payment_status)
+ 
+    payment_method = request.GET.get('payment_method', '').strip()
+    if payment_method:
+        qs = qs.filter(payment_method=payment_method)
+ 
+    date_from = request.GET.get('date_from', '').strip()
+    if date_from:
+        try:
+            qs = qs.filter(created_at__date__gte=datetime.date.fromisoformat(date_from))
+        except ValueError:
+            pass
+ 
+    date_to = request.GET.get('date_to', '').strip()
+    if date_to:
+        try:
+            qs = qs.filter(created_at__date__lte=datetime.date.fromisoformat(date_to))
+        except ValueError:
+            pass
+ 
+    # ── pagination ────────────────────────────────────────────────────────────
+    try:
+        per_page = min(int(request.GET.get('per_page', 20)), 100)
+    except ValueError:
+        per_page = 20
+ 
+    paginator  = Paginator(qs, per_page)
+    page_num   = request.GET.get('page', 1)
+    page_obj   = paginator.get_page(page_num)
+ 
+    can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
+ 
+    # ── serialise rows ────────────────────────────────────────────────────────
+    rows = []
+    for order in page_obj:
+        agent = order.referred_agent
+        rows.append({
+            'pk':             order.pk,
+            'order_number':   order.order_number,
+            'full_name':      order.full_name,
+            'email':          order.email or '—',
+            'phone':          order.phone or '—',
+            'items_count':    order.items.count(),
+            'total':          str(order.total),
+            'status':         order.status,
+            'payment_status': order.payment_status,
+            'payment_method': order.payment_method,
+            'delivery_type':  order.delivery_type,
+            'is_package':     order.is_package_order,
+            'package_name':   order.package_name or '',
+            'agent':          (agent.get_full_name() or agent.email) if agent else None,
+            'created_at':     order.created_at.strftime('%d %b %Y, %H:%M'),
+            'can_edit':       can_edit,
+        })
+ 
+    return JsonResponse({
+        'rows':        rows,
+        'total':       paginator.count,
+        'page':        page_obj.number,
+        'num_pages':   paginator.num_pages,
+        'per_page':    per_page,
+        'has_prev':    page_obj.has_previous(),
+        'has_next':    page_obj.has_next(),
+    })
+ 
+
+
 
 @login_required(login_url='panel_login')
 @permission_required('orders', 'edit')
@@ -1799,6 +2069,7 @@ def panel_users(request):
 @permission_required('users', 'create')
 def panel_user_add(request):
     roles = Role.objects.all()
+    
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         email = request.POST.get('email', '').strip()
@@ -1806,22 +2077,48 @@ def panel_user_add(request):
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
         phone = request.POST.get('phone', '').strip()
-        role_id = request.POST.get('role') or None
         is_staff = request.POST.get('is_staff') == 'on'
         is_active = request.POST.get('is_active') == 'on'
-        
+
         if not username or not email or not password:
             messages.error(request, 'Username, email, and password are required.')
-            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+            return render(request, 'panel/user_form.html', {
+                'action': 'Add', 
+                'roles': roles, 
+                'user': None
+            })
         
         if CustomerUser.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists.')
-            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+            return render(request, 'panel/user_form.html', {
+                'action': 'Add', 
+                'roles': roles, 
+                'user': None
+            })
         
         if CustomerUser.objects.filter(email=email).exists():
             messages.error(request, 'Email already exists.')
-            return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+            return render(request, 'panel/user_form.html', {
+                'action': 'Add', 
+                'roles': roles, 
+                'user': None
+            })
+
+        # ====================== AUTO ASSIGN STAFF ROLE ======================
+        staff_role = Role.objects.filter(name__iexact="staff").first()
         
+        if not staff_role:
+            # Fallback: Get the first role or create one if needed
+            staff_role = Role.objects.first()
+            if not staff_role:
+                messages.error(request, "No roles found in the system. Please create a 'Staff' role first.")
+                return render(request, 'panel/user_form.html', {
+                    'action': 'Add', 
+                    'roles': roles, 
+                    'user': None
+                })
+
+        # Create user with Staff role auto-assigned
         user = CustomerUser.objects.create_user(
             username=username,
             email=email,
@@ -1829,15 +2126,22 @@ def panel_user_add(request):
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            role_id=role_id,
+            role=staff_role,                    # ← Auto assigned
             is_staff=is_staff,
             is_active=is_active,
-            is_superuser=False,  # Don't auto-make superuser
+            is_superuser=False,
+            user_type='staff',                  # Optional: also set user_type
         )
-        messages.success(request, f'User "{username}" created successfully.')
+        
+        messages.success(request, f'User "{username}" created successfully with Staff role.')
         return redirect('panel_users')
     
-    return render(request, 'panel/user_form.html', {'action': 'Add', 'roles': roles, 'user': None})
+    return render(request, 'panel/user_form.html', {
+        'action': 'Add', 
+        'roles': roles, 
+        'user': None
+    })
+
 
 @login_required(login_url='panel_login')
 @permission_required('users', 'edit')
@@ -1850,11 +2154,15 @@ def panel_user_edit(request, pk):
         user.first_name = request.POST.get('first_name', '').strip()
         user.last_name = request.POST.get('last_name', '').strip()
         user.phone = request.POST.get('phone', '').strip()
-        user.role_id = request.POST.get('role') or None
         user.is_staff = request.POST.get('is_staff') == 'on'
         user.is_active = request.POST.get('is_active') == 'on'
-        user.is_superuser = False  # Don't auto-make superuser
-        
+        user.is_superuser = False
+
+        # Allow changing role manually in edit mode (optional)
+        role_id = request.POST.get('role')
+        if role_id:
+            user.role_id = role_id
+
         password = request.POST.get('password', '').strip()
         if password:
             user.set_password(password)
@@ -1863,7 +2171,11 @@ def panel_user_edit(request, pk):
         messages.success(request, f'User "{user.username}" updated successfully.')
         return redirect('panel_users')
     
-    return render(request, 'panel/user_form.html', {'action': 'Edit', 'user': user, 'roles': roles})
+    return render(request, 'panel/user_form.html', {
+        'action': 'Edit', 
+        'user': user, 
+        'roles': roles
+    })
 
 @login_required(login_url='panel_login')
 @permission_required('users', 'delete')
@@ -2574,6 +2886,44 @@ def panel_packages(request):
     return render(request, 'panel/packages.html', {'packages': packages})
 
 
+def _handle_package_images(request, package):
+    """Handle image uploads, deletions, and primary image setting."""
+    
+    # 1. Delete marked images
+    delete_ids = request.POST.getlist('delete_images')
+    if delete_ids:
+        images_to_delete = PackageImage.objects.filter(pk__in=delete_ids, package=package)
+        for img in images_to_delete:
+            img.image.delete(save=False)  # Delete file from storage
+            img.delete()
+
+    # 2. Set primary image from radio selection
+    primary_id = request.POST.get('primary_image')
+    if primary_id:
+        PackageImage.objects.filter(package=package).update(is_primary=False)
+        PackageImage.objects.filter(pk=primary_id, package=package).update(is_primary=True)
+
+    # 3. Upload new images (max 4 total)
+    uploaded_files = request.FILES.getlist('images')
+    if uploaded_files:
+        current_count = package.images.count()
+        slots_available = 4 - current_count
+        files_to_upload = uploaded_files[:slots_available]  # Respect max 4 limit
+
+        has_primary = package.images.filter(is_primary=True).exists()
+
+        for i, image_file in enumerate(files_to_upload):
+            is_primary = (not has_primary and i == 0)  # First upload becomes primary if none exists
+            PackageImage.objects.create(
+                package=package,
+                image=image_file,
+                is_primary=is_primary,
+                order=current_count + i
+            )
+            if is_primary:
+                has_primary = True
+
+
 @login_required(login_url='panel_login')
 @permission_required('packages', 'create')
 def panel_package_add(request):
@@ -2583,29 +2933,32 @@ def panel_package_add(request):
         description = request.POST.get('description', '')
         overall_discount = request.POST.get('overall_discount', 0)
         selling_price = request.POST.get('selling_price')
-        
+
         package = Package.objects.create(
             name=name, sku=sku, description=description,
             overall_discount=overall_discount, selling_price=selling_price
         )
-        
+
         # Add items
         product_ids = request.POST.getlist('product_id[]')
         quantities = request.POST.getlist('quantity[]')
         item_discounts = request.POST.getlist('item_discount[]')
-        
+
         for pid, qty, disc in zip(product_ids, quantities, item_discounts):
             if pid and qty:
                 PackageItem.objects.create(
                     package=package,
-                    product_id=pid,
+                    product_id=int(pid),
                     quantity=int(qty),
                     item_discount=float(disc or 0)
                 )
-        
+
+        # ✅ Handle images
+        _handle_package_images(request, package)
+
         messages.success(request, f'Package "{name}" created successfully!')
         return redirect('panel_packages')
-    
+
     products = Product.objects.filter(is_active=True).order_by('name')
     return render(request, 'panel/package_form.html', {'products': products})
 
@@ -2614,7 +2967,7 @@ def panel_package_add(request):
 @permission_required('packages', 'edit')
 def panel_package_edit(request, pk):
     package = get_object_or_404(Package, pk=pk)
-    
+
     if request.method == 'POST':
         package.name = request.POST.get('name')
         package.sku = request.POST.get('sku')
@@ -2623,29 +2976,32 @@ def panel_package_edit(request, pk):
         package.selling_price = request.POST.get('selling_price')
         package.is_active = request.POST.get('is_active') == 'on'
         package.save()
-        
-        # Update items
+
+        # Replace all items
         package.items.all().delete()
         product_ids = request.POST.getlist('product_id[]')
         quantities = request.POST.getlist('quantity[]')
         item_discounts = request.POST.getlist('item_discount[]')
-        
+
         for pid, qty, disc in zip(product_ids, quantities, item_discounts):
             if pid and qty:
                 PackageItem.objects.create(
                     package=package,
-                    product_id=pid,
+                    product_id=int(pid),
                     quantity=int(qty),
                     item_discount=float(disc or 0)
                 )
-        
+
+        # ✅ Handle images
+        _handle_package_images(request, package)
+
         messages.success(request, f'Package "{package.name}" updated successfully!')
         return redirect('panel_packages')
-    
+
     products = Product.objects.filter(is_active=True).order_by('name')
     return render(request, 'panel/package_form.html', {'package': package, 'products': products})
 
-
+    
 @login_required(login_url='panel_login')
 @permission_required('packages', 'delete')
 def panel_package_delete(request, pk):
