@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt #{{ order.order_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.4;
+            padding: 20px;
+            font-size: 13px;
+        }
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #fff;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0 0 5px 0; font-size: 22px; color: #000; }
+        .header .website { color: #0066cc; text-decoration: none; font-weight: bold; }
+        .header .date { text-align: right; font-weight: bold; }
+
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .info-box { width: 48%; }
+        .info-box h3 {
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 4px;
+            font-size: 14px;
+        }
+        .info-box p { margin: 3px 0; }
+        .method-box {
+            background-color: #f9f9f9;
+            padding: 8px;
+            border: 1px solid #eee;
+            margin-top: 8px;
+        }
+
+        .product-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .grand-total-row { font-weight: bold; background-color: #f9f9f9; }
+
+        .summary-section { width: 40%; margin-left: auto; margin-bottom: 30px; }
+        .summary-table { width: 100%; border-collapse: collapse; }
+        .summary-table td { border: none; padding: 5px 0; }
+        .summary-table tr.total-line td {
+            border-top: 1px solid #333;
+            font-weight: bold;
+            font-size: 14px;
+            padding-top: 8px;
+        }
+
+        .footer {
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+            text-align: center;
+        }
+        .footer a { color: #0066cc; text-decoration: none; }
+
+        .print-btn { background: #007bff; color: #fff; border: none; padding: 10px 20px; cursor: pointer; margin-bottom: 20px; font-weight: bold; border-radius: 4px; }
+        @media print { .print-btn { display: none; } body { padding: 0; } .receipt-container { border: none; padding: 0; } }
+    </style>
+</head>
+<body>
+
+    <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+
+    <div class="receipt-container">
+
+        <div class="header">
+            <div>
+                <h1>Order# {{ order.order_number }}</h1>
+                <a href="https://chhapadiyatraders.com" class="website" target="_blank">https://chhapadiyatraders.com</a>
+            </div>
+            <div class="date">
+                Date: {{ order.created_at|date:"l, F d, Y" }}
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-box">
+                <h3>Billing Information:</h3>
+                <p><strong>Company:</strong> {{ settings.business_name|upper }}</p>
+                <p><strong>Name:</strong> {{ order.full_name }}</p>
+                <p><strong>Phone:</strong> {{ order.phone }}</p>
+                <p><strong>Email:</strong> {{ order.email|default:"-" }}</p>
+                {% if order.address or order.city %}
+                <p><strong>Address:</strong> {{ order.address }}{% if order.city %}, {{ order.city }}{% endif %}</p>
+                {% endif %}
+                {% if order.billing_address or order.billing_city %}
+                    {% if order.billing_address == order.address and order.billing_city == order.city %}
+                    {% else %}
+                    <p><strong>Billing Address:</strong> {{ order.billing_address }}{% if order.billing_city %}, {{ order.billing_city }}{% endif %}</p>
+                    {% endif %}
+                {% endif %}
+                <p>Nepal</p>
+                <div class="method-box">
+                    <strong>Payment method:</strong> {{ order.get_payment_method_display }}
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>Shipping Information:</h3>
+                <p><strong>Company:</strong> {{ settings.business_name|upper }}</p>
+                <p><strong>Name:</strong> {% if order.referred_agent %}{{ order.referred_agent.get_full_name|default:order.referred_agent.username }}{% else %}Admin{% endif %}</p>
+                <p><strong>Phone:</strong> {{ settings.phone }}</p>
+                <p><strong>Address:</strong> {{ settings.shipping_address|default:settings.address }}</p>
+                <p>Nepal</p>
+                <div class="method-box">
+                    <strong>Shipping method:</strong>
+                    {% if order.delivery_type == 'delivery' %}Home Delivery{% elif order.delivery_type == 'pickup' %}Store Pickup{% else %}{{ order.delivery_type }}{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="product-title">Product(s)</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;" class="text-center">S.N.</th>
+                    <th style="width: 30%;">Name</th>
+                    <th style="width: 15%;">SKU</th>
+                    <th style="width: 10%;" class="text-center">Qty</th>
+                    <th style="width: 15%;" class="text-right">Unit Price</th>
+                    <th style="width: 15%;" class="text-right">Amount</th>
+                    <th style="width: 10%;">Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.product_sku|default:"-" }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-right">Rs. {{ item.unit_price }}</td>
+                    <td class="text-right">Rs. {{ item.subtotal }}</td>
+                    <td>{% if order.payment_status == 'paid' %}Paid{% else %}Unpaid{% endif %}</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="grand-total-row">
+                    <td colspan="2" class="text-right">Grand Total</td>
+                    <td></td>
+                    <td class="text-center">{{ order.items.all|length }}</td>
+                    <td colspan="2" class="text-right">Rs. {{ order.total }}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="summary-section">
+            <table class="summary-table">
+                <tr>
+                    <td>Sub-Total(Exclusive):</td>
+                    <td class="text-right">Rs. {{ order.subtotal }}</td>
+                </tr>
+                <tr>
+                    <td>Shipping:</td>
+                    <td class="text-right">Rs. {{ order.delivery_charge|default:"0" }}</td>
+                </tr>
+                <tr class="total-line">
+                    <td>Order total:</td>
+                    <td class="text-right">Rs. {{ order.total }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="footer">
+            <a href="https://chhapadiyatraders.com/panel/orders/{{ order.id }}/receipt/" target="_blank">https://chhapadiyatraders.com/panel/orders/{{ order.id }}/receipt/</a>
+        </div>
+
+    </div>
+
+</body>
+</html>

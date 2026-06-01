@@ -19,6 +19,7 @@
             {% endif %}
         </div>
         <a href="{% url 'panel_orders' %}" class="text-blue-600 hover:text-blue-800 font-medium">← Back to Orders</a>
+        <a href="{% url 'panel_order_receipt' order.pk %}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm">🖨️ Print Receipt</a>
     </div>
 
     {% if messages %}

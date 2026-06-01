@@ -165,6 +165,7 @@ urlpatterns = [
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
     path('panel/orders/<int:pk>/toggle-availability/', panel_views.toggle_order_availability, name='toggle_order_availability'),
     path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),
+    path('panel/orders/<int:pk>/receipt/', panel_views.panel_order_receipt, name='panel_order_receipt'),
 
     path('my-quotes/', views.my_quotes, name='my_quotes'),
     path('my-quotes/<int:pk>/pdf/', views.quotation_pdf, name='quotation_pdf'),

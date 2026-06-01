@@ -2127,6 +2127,21 @@ def panel_order_detail(request, pk):
         'order_payments': order_payments,
     })
 
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'view')
+def panel_order_receipt(request, pk):
+    order = get_object_or_404(
+        Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product').order_by('-created_at'),
+        pk=pk
+    )
+    settings = SiteSettings.get()
+    return render(request, 'panel/order_receipt.html', {
+        'order': order,
+        'settings': settings,
+    })
+
+
 @login_required(login_url='panel_login')
 @permission_required('orders', 'delete')
 def panel_order_delete(request, pk):

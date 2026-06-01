@@ -872,7 +872,7 @@ def featured_products_api(request):
         is_active=True
     ).select_related('category', 'delivery_time').prefetch_related('images').annotate(
         avg_rating=Avg('reviews__rating')
-    ).order_by('-created_at')[offset:offset+limit]
+    ).order_by('created_at')[offset:offset+limit]
     
     result = []
     for p in products:
