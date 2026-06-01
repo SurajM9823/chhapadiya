@@ -129,7 +129,7 @@
             
             <div id="packagesContainer" class="flex overflow-x-auto gap-3 pb-2 snap-x snap-mandatory scroll-smooth hide-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">
                 {% for package in packages %}
-                <a href="{% url 'package_detail' package.pk %}" class="bg-white border border-gray-200 p-4 flex items-center gap-4 hover:border-emerald-500 hover:shadow-md transition-all group flex-shrink-0 w-[47.5%] sm:w-[31.5%] lg:w-[31.5%] rounded-sm snap-start">
+                <a href="{% url 'package_detail' package.pk %}" class="bg-white border border-gray-200 p-4 flex items-center gap-4 hover:border-emerald-500 hover:shadow-md transition-all group flex-shrink-0 w-[88%] sm:w-[48%] md:w-[38%] lg:w-[31.5%] rounded-sm snap-start">
                     <!-- Left: Image -->
                     <div class="w-20 h-20 md:w-24 md:h-24 bg-gray-50 rounded flex-shrink-0 overflow-hidden flex items-center justify-center p-2 relative">
                         {% if package.primary_image %}
