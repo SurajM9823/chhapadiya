@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, panel_views
+from . import views, panel_views, order_permission_views
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -163,6 +163,7 @@ urlpatterns = [
     path('panel/orders/data/', panel_views.panel_orders_data, name='panel_orders_data'),
     path('panel/orders/<int:pk>/', panel_views.panel_order_detail, name='panel_order_detail'),
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
+    path('panel/orders/<int:pk>/toggle-availability/', panel_views.toggle_order_availability, name='toggle_order_availability'),
     path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),
 
     path('my-quotes/', views.my_quotes, name='my_quotes'),
@@ -176,6 +177,11 @@ urlpatterns = [
     path('api/user/<int:pk>/', panel_views.api_user_get, name='api_user_get'),
     path('panel/roles/', panel_views.panel_roles, name='panel_roles'),
     path('panel/roles/<int:pk>/edit/', panel_views.panel_role_edit, name='panel_role_edit'),
+    
+    # Order Status Permissions
+    path('panel/order-permissions/', order_permission_views.manage_order_permissions, name='manage_order_permissions'),
+    path('api/orders/<int:order_id>/allowed-statuses/', order_permission_views.get_allowed_statuses, name='get_allowed_statuses'),
+    
     path('b2b-request/', views.b2b_request, name='b2b_request'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     path('terms-conditions/', views.terms_conditions, name='terms_conditions'),

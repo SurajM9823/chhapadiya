@@ -1888,9 +1888,17 @@ def panel_orders(request):
     """Renders the Orders Management page shell (no data — loaded via AJAX)."""
     can_edit   = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
+    
+    # Check if user can mark availability
+    restricted_roles = ['customer', 'admin_logistics', 'admin_purchase']
+    can_mark_available = request.user.is_superuser or (
+        not request.user.role or request.user.role.name not in restricted_roles
+    )
+    
     return render(request, 'panel/orders.html', {
         'can_edit':   can_edit,
         'can_delete': can_delete,
+        'can_mark_available': can_mark_available,
     })
  
 @login_required(login_url='panel_login')
@@ -1991,6 +1999,7 @@ def panel_orders_data(request):
             'agent':          (agent.get_full_name() or agent.email) if agent else None,
             'created_at':     order.created_at.strftime('%d %b %Y, %H:%M'),
             'can_edit':       can_edit,
+            'is_available':   order.is_avilable,
         })
  
     return JsonResponse({
@@ -2056,6 +2065,13 @@ def panel_order_detail(request, pk):
     if request.method == 'POST':
         old_status = order.status
         new_status = request.POST.get('status', order.status)
+        
+        # Validate status transition using OrderStatusPermission
+        if old_status != new_status:
+            if not request.user.can_update_order_status(old_status, new_status):
+                messages.error(request, f'You do not have permission to change order status from {old_status} to {new_status}.')
+                return redirect('panel_order_detail', pk=pk)
+        
         order.status = new_status
         order.save()
         if old_status != new_status:
@@ -2083,11 +2099,28 @@ def panel_order_detail(request, pk):
     can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
     
+    # Check if order status can be updated (only if available or not pending)
+    can_update_status = can_edit and (order.is_avilable or order.status != 'pending')
+    
+    # Get allowed status transitions for current user
+    allowed_statuses = []
+    if can_update_status:
+        if request.user.is_superuser:
+            allowed_statuses = [status[0] for status in Order.STATUS_CHOICES]
+        elif request.user.role:
+            allowed_statuses = list(
+                request.user.role.order_status_permissions
+                .filter(from_status=order.status)
+                .values_list('to_status', flat=True)
+            )
+    
     return render(request, 'panel/order_detail.html', {
         'order': order,
         'items_with_reviews': items_with_reviews,
         'can_edit': can_edit,
         'can_delete': can_delete,
+        'can_update_status': can_update_status,
+        'allowed_statuses': allowed_statuses,
         'total_paid_amount': total_paid_amount,
         'remaining_amount': max(0, order_total - total_paid_amount),
         'related_bills': related_bills,
@@ -2101,6 +2134,32 @@ def panel_order_delete(request, pk):
     order_number = order.order_number
     order.delete()
     messages.success(request, f'Order {order_number} deleted.')
+    return redirect('panel_orders')
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def toggle_order_availability(request, pk):
+    """Toggle order availability status."""
+    # Check if user role is allowed to mark availability
+    restricted_roles = ['customer', 'admin_logistics', 'admin_purchase']
+    
+    if request.user.role and request.user.role.name in restricted_roles:
+        messages.error(request, 'You do not have permission to mark order availability.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        return redirect('panel_orders')
+    
+    order = get_object_or_404(Order, pk=pk)
+    order.is_avilable = not order.is_avilable
+    order.save()
+    
+    status_text = "available" if order.is_avilable else "unavailable"
+    messages.success(request, f'Order #{order.order_number} marked as {status_text}.')
+    
+    # Return JSON for AJAX or redirect for regular request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'is_available': order.is_avilable})
     return redirect('panel_orders')
 
 

@@ -132,6 +132,17 @@ class CustomerUser(AbstractUser):
         if not self.role:
             return False
         return self.role.permissions.filter(module=module, action=action).exists()
+    
+    def can_update_order_status(self, from_status, to_status):
+        """Check if user can update order from one status to another."""
+        if self.is_superuser:
+            return True
+        if not self.role:
+            return False
+        return self.role.order_status_permissions.filter(
+            from_status=from_status, 
+            to_status=to_status
+        ).exists()
 
 # ── Cart ──────────────────────────────────────────────────────────────────────
 
@@ -185,6 +196,21 @@ class Favourite(models.Model):
 
 # ── Orders ─────────────────────────────────────────────────────────────
 
+class OrderStatusPermission(models.Model):
+    """Defines which order statuses a role can update to."""
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='order_status_permissions')
+    from_status = models.CharField(max_length=20, help_text='Current order status')
+    to_status = models.CharField(max_length=20, help_text='Status that can be updated to')
+    
+    class Meta:
+        unique_together = ('role', 'from_status', 'to_status')
+        verbose_name = 'Order Status Permission'
+        verbose_name_plural = 'Order Status Permissions'
+    
+    def __str__(self):
+        return f"{self.role.get_name_display()}: {self.from_status} → {self.to_status}"
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending',    'Pending'),
@@ -193,6 +219,7 @@ class Order(models.Model):
         ('shipped',    'Shipped'),
         ('delivered',  'Delivered'),
         ('cancelled',  'Cancelled'),
+        ('return',  'Return'),
     ]
     DELIVERY_CHOICES = [
         ('delivery', 'Home Delivery'),
@@ -237,6 +264,7 @@ class Order(models.Model):
     payment_receipt = models.ImageField(upload_to='receipts/', blank=True, null=True)
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
+    is_avilable     = models.BooleanField(default=False, help_text='Is this avilable?')
 
     class Meta:
         ordering = ['-created_at']

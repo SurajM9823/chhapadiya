@@ -96,7 +96,7 @@
   .ord-agent{ font-size:.72rem; color:#2563eb; margin-top:2px; }
 
   /* ── Action link ──────────────────────────────────────────── */
-  .action-link { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; background:#eef2ff; color:var(--c-accent); border-radius:6px; font-size:.78rem; font-weight:700; text-decoration:none; transition:background .15s; }
+  .action-link { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; background:#eef2ff; color:var(--c-accent); border-radius:6px; font-size:.78rem; font-weight:700; text-decoration:none; transition:background .15s; border:none; cursor:pointer; }
   .action-link:hover { background:#e0e7ff; }
 
   /* ── Loading / empty states ───────────────────────────────── */
@@ -247,6 +247,7 @@
 
 <script>
   const CAN_EDIT  = {{ can_edit|yesno:"true,false" }};
+  const CAN_MARK_AVAILABLE = {{ can_mark_available|yesno:"true,false" }};
   const DATA_URL  = "{% url 'panel_orders_data' %}";
 
   let state = {
@@ -310,9 +311,22 @@
       const agentTag  = o.agent   ? `<div class="ord-agent">👤 ${esc(o.agent)}</div>` : '';
       const pkgTag    = o.is_package ? `<div class="ord-pkg">📦 ${esc(o.package_name)}</div>` : '';
 
-      const actionCol = CAN_EDIT
-        ? `<td><a class="action-link" href="/panel/orders/${o.pk}/">View →</a></td>`
-        : '';
+      // Availability check for pending orders
+      let actionCol = '';
+      if (CAN_EDIT) {
+        if (o.status === 'pending' && !o.is_available && CAN_MARK_AVAILABLE) {
+          actionCol = `<td>
+            <a class="action-link" href="/panel/orders/${o.pk}/" style="background:#e0e7ff;color:#4338ca;margin-right:4px;">
+              View →
+            </a>
+            <button onclick="markAvailable(${o.pk})" class="action-link" style="background:#fef3c7;color:#92400e;">
+              ⚠️ Mark Available
+            </button>
+          </td>`;
+        } else {
+          actionCol = `<td><a class="action-link" href="/panel/orders/${o.pk}/">View →</a></td>`;
+        }
+      }
 
       return `<tr>
         <td>
@@ -461,5 +475,26 @@
   // ── Boot ─────────────────────────────────────────────────────────────────
   setupFilters();
   fetchOrders();
+
+  async function markAvailable(orderId) {
+    if (!confirm('Mark this order as available?')) return;
+    
+    try {
+      const res = await fetch(`/panel/orders/${orderId}/toggle-availability/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Order marked as available!');
+        fetchOrders();
+      }
+    } catch(e) {
+      showToast('⚠️ Failed to update availability');
+    }
+  }
 </script>
 {% endblock %}

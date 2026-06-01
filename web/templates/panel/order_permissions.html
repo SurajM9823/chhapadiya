@@ -1,0 +1,158 @@
+{% extends 'panel/base.html' %}
+{% load static %}
+
+{% block title %} - Order Status Permissions{% endblock %}
+
+{% block nav_user_parent %}bg-gray-700 text-white{% endblock %}
+{% block nav_user_arrow %}rotate-180{% endblock %}
+{% block nav_user_open %}{% endblock %}
+{% block nav_order_permissions %}bg-gray-700 text-white{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h5>Order Status Permissions</h5>
+                    <p class="text-sm">Configure which order status transitions each role can perform</p>
+                </div>
+                <div class="card-body">
+                    <!-- Role Selector -->
+                    <div class="mb-4">
+                        <label class="form-label">Select Role</label>
+                        <select id="roleSelector" class="form-select" style="max-width: 400px;">
+                            <option value="">-- Choose a role --</option>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}">{{ role.get_name_display }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <form method="post" id="permissionForm" style="display: none;">
+                        {% csrf_token %}
+                        
+                        {% for role in roles %}
+                        <div class="role-section" id="role-{{ role.id }}" style="display: none;">
+                            <div class="alert alert-info">
+                                <strong>Configuring permissions for: {{ role.get_name_display }}</strong>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="200">From Status</th>
+                                            <th>Can Update To</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for from_status in status_choices %}
+                                        <tr>
+                                            <td class="align-middle">
+                                                <strong class="text-uppercase">{{ from_status.1 }}</strong>
+                                            </td>
+                                            <td>
+                                                {% for to_status in status_choices %}
+                                                {% with perm_key=role.id|stringformat:"s"|add:"_"|add:from_status.0|add:"_"|add:to_status.0 %}
+                                                <div class="form-check form-check-inline">
+                                                    <input 
+                                                        class="form-check-input" 
+                                                        type="checkbox" 
+                                                        name="perm_{{ role.id }}_{{ from_status.0 }}_{{ to_status.0 }}"
+                                                        id="perm_{{ role.id }}_{{ from_status.0 }}_{{ to_status.0 }}"
+                                                        {% if perm_key in existing_perms %}checked{% endif %}
+                                                    >
+                                                    <label class="form-check-label" for="perm_{{ role.id }}_{{ from_status.0 }}_{{ to_status.0 }}">
+                                                        {{ to_status.1 }}
+                                                    </label>
+                                                </div>
+                                                {% endwith %}
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="material-icons">save</i> Save All Permissions
+                            </button>
+                            <a href="{% url 'panel_dashboard' %}" class="btn btn-secondary">
+                                <i class="material-icons">cancel</i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h6>How It Works</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="text-sm mb-0">
+                        <li>Select a role from the dropdown to configure its permissions</li>
+                        <li>Each row shows what statuses that role can update TO from a specific status</li>
+                        <li>Example: Check "Confirmed" in the "Pending" row to allow changing Pending → Confirmed</li>
+                        <li>Click "Save All Permissions" to save changes for all roles</li>
+                        <li>Superusers always have full access regardless of these settings</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-check-inline {
+        margin-right: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    .form-check-label {
+        cursor: pointer;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelector = document.getElementById('roleSelector');
+    const permissionForm = document.getElementById('permissionForm');
+    const roleSections = document.querySelectorAll('.role-section');
+    
+    roleSelector.addEventListener('change', function() {
+        const selectedRoleId = this.value;
+        
+        if (selectedRoleId) {
+            // Show form
+            permissionForm.style.display = 'block';
+            
+            // Hide all role sections
+            roleSections.forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show selected role section
+            const selectedSection = document.getElementById('role-' + selectedRoleId);
+            if (selectedSection) {
+                selectedSection.style.display = 'block';
+            }
+        } else {
+            // Hide form if no role selected
+            permissionForm.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

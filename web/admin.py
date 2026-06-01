@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (SiteSettings, CarouselSlide, Reel, Category, SubCategory,
     Country, CustomerTier, Customer, Product, ProductImage, ProductTierPrice,
     Stat, TrustedClient, Testimonial, TeamMember, Service, WhyChooseUs, StockEntry,
-    CustomerUser, Role, Permission, Package, PackageItem)
+    CustomerUser, Role, Permission, Package, PackageItem, OrderStatusPermission)
 
 
 # ── Customize Admin Site ──────────────────────────────────────────────────────
@@ -86,6 +86,18 @@ class PermissionAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Permission Details', {
             'fields': ('role', 'module', 'action')
+        }),
+    )
+
+
+@admin.register(OrderStatusPermission)
+class OrderStatusPermissionAdmin(admin.ModelAdmin):
+    list_display = ['role', 'from_status', 'to_status']
+    list_filter = ['role', 'from_status', 'to_status']
+    search_fields = ['role__name']
+    fieldsets = (
+        ('Order Status Permission', {
+            'fields': ('role', 'from_status', 'to_status')
         }),
     )
 
