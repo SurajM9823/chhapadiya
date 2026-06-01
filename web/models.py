@@ -11,6 +11,7 @@ class Role(models.Model):
         ('admin_sales', 'Admin - Sales'),
         ('admin_logistics', 'Admin - Logistics'),
         ('admin_finance', 'Admin - Finance'),
+        ('customer', 'Customer'),
     ]
     name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
     description = models.TextField(blank=True)
@@ -225,6 +226,8 @@ class Order(models.Model):
     billing_address = models.TextField(blank=True)
     billing_city    = models.CharField(max_length=100, blank=True)
     billing_contact = models.CharField(max_length=30, null=True, blank=True)
+    billing_org_name = models.CharField(max_length=200, blank=True)
+    billing_person_name = models.CharField(max_length=200, blank=True)
     note            = models.TextField(blank=True)
     payment_method  = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cod')
     payment_status  = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='unpaid')

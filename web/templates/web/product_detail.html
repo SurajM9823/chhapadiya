@@ -210,31 +210,58 @@
                 <!-- Price -->
                 <div class="bg-gray-50 border border-gray-200 rounded-sm p-4">
                     <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Price</p>
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl font-bold text-gray-900">Rs. {{ product.mrp }}</span>
-                        {% if avg_rating %}
-                        <div class="flex items-center gap-1 text-sm text-gray-600">
-                            <span class="material-symbols-outlined text-base text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>
-                            <span>{{ avg_rating|floatformat:1 }}</span>
-                            <span class="text-gray-400">({{ total_reviews }})</span>
+                    {% if not request.user.is_authenticated %}
+                        {% if product.retail_price and product.retail_price < product.mrp %}
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <span class="text-xl text-gray-400 line-through">Rs. {{ product.mrp }}</span>
+                            <span class="text-3xl font-bold text-gray-900">Rs. {{ product.retail_price }}</span>
+                            {% widthratio product.mrp|add:"0"|floatformat:0|add:"-"|add:product.retail_price|floatformat:0 product.mrp 100 as savings_percent %}
+                            {% if savings_percent > 0 %}
+                            <span class="text-sm bg-emerald-100 text-emerald-700 px-3 py-1 rounded font-medium">{{ savings_percent|floatformat:0 }}% OFF</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl font-bold text-gray-900">Rs. {{ product.mrp }}</span>
                         </div>
                         {% endif %}
+                    {% else %}
+                        {% if request.user.customer_subtype == 'retailer' and product.retail_price and product.retail_price < product.mrp %}
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <span class="text-xl text-gray-400 line-through">Rs. {{ product.mrp }}</span>
+                            <span class="text-3xl font-bold text-gray-900">Rs. {{ product.retail_price }}</span>
+                            {% widthratio product.mrp|add:"0"|floatformat:0|add:"-"|add:product.retail_price|floatformat:0 product.mrp 100 as savings_percent %}
+                            {% if savings_percent > 0 %}
+                            <span class="text-sm bg-emerald-100 text-emerald-700 px-3 py-1 rounded font-medium">{{ savings_percent|floatformat:0 }}% OFF</span>
+                            {% endif %}
+                        </div>
+                        {% elif request.user.customer_subtype == 'dealer' and product.dealer_price and product.dealer_price < product.mrp %}
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <span class="text-xl text-gray-400 line-through">Rs. {{ product.mrp }}</span>
+                            <span class="text-3xl font-bold text-gray-900">Rs. {{ product.dealer_price }}</span>
+                            {% widthratio product.mrp|add:"0"|floatformat:0|add:"-"|add:product.dealer_price|floatformat:0 product.mrp 100 as savings_percent %}
+                            {% if savings_percent > 0 %}
+                            <span class="text-sm bg-emerald-100 text-emerald-700 px-3 py-1 rounded font-medium">{{ savings_percent|floatformat:0 }}% OFF</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl font-bold text-gray-900">Rs. {{ product.mrp }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    {% if avg_rating %}
+                    <div class="flex items-center gap-1 text-sm text-gray-600 mt-2">
+                        <span class="material-symbols-outlined text-base text-yellow-500" style="font-variation-settings: 'FILL' 1">star</span>
+                        <span>{{ avg_rating|floatformat:1 }}</span>
+                        <span class="text-gray-400">({{ total_reviews }})</span>
                     </div>
+                    {% endif %}
                     {% if not product.tax_included and product.tax_percent > 0 %}
-                    <span class="text-xs text-gray-400 ml-2">+ {{ product.tax_percent }}% tax</span>
+                    <span class="text-xs text-gray-400">+ {{ product.tax_percent }}% tax</span>
                     {% endif %}
                 </div>
 
-                <!-- Stock -->
-                <div class="flex items-center gap-2">
-                    {% if stock > 0 %}
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
-                    <span class="text-sm text-emerald-600 font-medium">In Stock</span>
-                    {% else %}
-                    <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
-                    <span class="text-sm text-red-600 font-medium">Out of Stock</span>
-                    {% endif %}
-                </div>
 
                 <!-- Quantity + Buttons -->
                 <div class="space-y-3">

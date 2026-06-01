@@ -63,8 +63,11 @@
                 <div><span class="text-gray-500">Billing Address:</span> <span class="font-medium text-gray-400">Same as shipping</span></div>
                 {% else %}
                 <div class="pt-2 border-t border-gray-100">
+                    {% if order.billing_org_name %}<div><span class="text-gray-500">Billing Org:</span> <span class="font-medium">{{ order.billing_org_name }}</span></div>{% endif %}
+                    {% if order.billing_person_name %}<div><span class="text-gray-500">Billing Person:</span> <span class="font-medium">{{ order.billing_person_name }}</span></div>{% endif %}
                     <div><span class="text-gray-500">Billing Address:</span> <span class="font-medium">{{ order.billing_address }}</span></div>
                     <div><span class="text-gray-500">Billing City:</span> <span class="font-medium">{{ order.billing_city }}</span></div>
+                    {% if order.billing_contact %}<div><span class="text-gray-500">Billing Contact:</span> <span class="font-medium">{{ order.billing_contact }}</span></div>{% endif %}
                 </div>
                 {% endif %}
                 {% endif %}

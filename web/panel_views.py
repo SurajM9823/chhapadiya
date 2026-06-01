@@ -2230,6 +2230,8 @@ def panel_user_add(request):
         phone = request.POST.get('phone', '').strip()
         is_staff = request.POST.get('is_staff') == 'on'
         is_active = request.POST.get('is_active') == 'on'
+        user_type = request.POST.get('user_type', 'customer')
+        customer_subtype = request.POST.get('customer_subtype', 'retailer')
 
         if not username or not email or not password:
             messages.error(request, 'Username, email, and password are required.')
@@ -2255,21 +2257,28 @@ def panel_user_add(request):
                 'user': None
             })
 
-        # ====================== AUTO ASSIGN STAFF ROLE ======================
-        staff_role = Role.objects.filter(name__iexact="staff").first()
+        # Get role from form or auto-assign based on user type
+        role_id = request.POST.get('role')
+        if role_id:
+            role = Role.objects.filter(pk=role_id).first()
+        else:
+            # Auto-assign role based on user type
+            if user_type == 'staff':
+                role = Role.objects.filter(name__iexact="staff").first()
+            else:
+                role = Role.objects.filter(name__iexact="customer").first()
         
-        if not staff_role:
-            # Fallback: Get the first role or create one if needed
-            staff_role = Role.objects.first()
-            if not staff_role:
-                messages.error(request, "No roles found in the system. Please create a 'Staff' role first.")
+        if not role:
+            role = Role.objects.first()
+            if not role:
+                messages.error(request, "No roles found in the system. Please create roles first.")
                 return render(request, 'panel/user_form.html', {
                     'action': 'Add', 
                     'roles': roles, 
                     'user': None
                 })
 
-        # Create user with Staff role auto-assigned
+        # Create user
         user = CustomerUser.objects.create_user(
             username=username,
             email=email,
@@ -2277,14 +2286,15 @@ def panel_user_add(request):
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            role=staff_role,                    # ← Auto assigned
+            role=role,
             is_staff=is_staff,
             is_active=is_active,
             is_superuser=False,
-            user_type='staff',                  # Optional: also set user_type
+            user_type=user_type,
+            customer_subtype=customer_subtype if user_type == 'customer' else None,
         )
         
-        messages.success(request, f'User "{username}" created successfully with Staff role.')
+        messages.success(request, f'User "{username}" created successfully.')
         return redirect('panel_users')
     
     return render(request, 'panel/user_form.html', {
@@ -2308,11 +2318,23 @@ def panel_user_edit(request, pk):
         user.is_staff = request.POST.get('is_staff') == 'on'
         user.is_active = request.POST.get('is_active') == 'on'
         user.is_superuser = False
+        user.user_type = request.POST.get('user_type', user.user_type)
+        
+        # Update customer subtype only if user is customer
+        if user.user_type == 'customer':
+            user.customer_subtype = request.POST.get('customer_subtype', 'retailer')
+        else:
+            user.customer_subtype = None
 
-        # Allow changing role manually in edit mode (optional)
+        # Allow changing role manually in edit mode
         role_id = request.POST.get('role')
         if role_id:
             user.role_id = role_id
+        elif user.user_type == 'customer':
+            # Auto-assign customer role if no role selected
+            customer_role = Role.objects.filter(name__iexact="customer").first()
+            if customer_role:
+                user.role = customer_role
 
         password = request.POST.get('password', '').strip()
         if password:
@@ -2744,6 +2766,8 @@ def api_user_get(request, pk):
         'last_name': user.last_name,
         'phone': user.phone,
         'role_id': user.role_id,
+        'user_type': user.user_type,
+        'customer_subtype': user.customer_subtype,
         'is_active': user.is_active,
         'is_staff': user.is_staff,
     })

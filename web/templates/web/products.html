@@ -196,7 +196,24 @@ function createProductCard(product) {
     
     let priceHtml = '';
     if (!window.isLoggedIn) {
-        priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${product.mrp.toFixed(2)}</span>`;
+        const mrp = product.mrp;
+        const retailPrice = product.retail_price;
+        
+        if (retailPrice && retailPrice < mrp) {
+            const savingsPercent = (((mrp - retailPrice) / mrp) * 100).toFixed(0);
+            if (savingsPercent > 0) {
+                priceHtml = `
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-sm md:text-base text-gray-400 line-through">Rs. ${mrp.toFixed(2)}</span>
+                        <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${retailPrice.toFixed(2)}</span>
+                        <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">${savingsPercent}% OFF</span>
+                    </div>`;
+            } else {
+                priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${retailPrice.toFixed(2)}</span>`;
+            }
+        } else {
+            priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${mrp.toFixed(2)}</span>`;
+        }
     } else {
         let displayPrice = product.mrp;
         let showStrikethrough = false;

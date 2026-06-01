@@ -464,6 +464,8 @@ def place_order(request):
     billing_address = request.POST.get('billing_address', '').strip()
     billing_city    = request.POST.get('billing_city', '').strip()
     billing_contact    = request.POST.get('billing_contact', '').strip()
+    billing_org_name = request.POST.get('billing_org_name', '').strip()
+    billing_person_name = request.POST.get('billing_person_name', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     source         = request.POST.get('source', 'cart')
@@ -483,7 +485,7 @@ def place_order(request):
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, note=note,
+            billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
@@ -515,7 +517,7 @@ def place_order(request):
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city, billing_contact=billing_contact,note=note,
+            billing_address=billing_address, billing_city=billing_city, billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name,note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
@@ -546,6 +548,8 @@ def place_package_order(request):
     billing_address = request.POST.get('billing_address', '').strip()
     billing_city    = request.POST.get('billing_city', '').strip()
     billing_contact    = request.POST.get('billing_contact', '').strip()
+    billing_org_name = request.POST.get('billing_org_name', '').strip()
+    billing_person_name = request.POST.get('billing_person_name', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     receipt        = request.FILES.get('payment_receipt')
@@ -564,7 +568,7 @@ def place_package_order(request):
         is_package_order=True, package_name=package.name,
         delivery_type=delivery_type, full_name=full_name, phone=phone,
         email=email, address=address, city=city,
-        billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, note=note,
+        billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, note=note,
         payment_method=payment_method,
         agent_referral_code=agent_code, referred_agent=referred_agent,
         subtotal=subtotal, delivery_charge=0, total=total,

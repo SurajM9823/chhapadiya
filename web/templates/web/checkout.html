@@ -119,7 +119,21 @@
                             </label>
                         </div>
                         <div id="billingFields">
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Organization Name</label>
+                                    <input name="billing_org_name" id="billingOrgNameInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="Company/Shop name (optional)">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Billing Person Name</label>
+                                    <input name="billing_person_name" id="billingPersonNameInput" type="text"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="Contact person name">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="block text-xs text-gray-500 mb-1">Billing City</label>
                                     <input name="billing_city" id="billingCityInput" type="text"
@@ -131,12 +145,12 @@
                                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
                                         placeholder="Street, area, landmark">
                                 </div>
-                                <div>
-                                    <label class="block text-xs text-gray-500 mb-1">Billing Contact</label>
-                                    <input name="billing_contact" id="billingContactInput" type="text"
-                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-                                        placeholder="Street, area, landmark">
-                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Billing Contact</label>
+                                <input name="billing_contact" id="billingContactInput" type="tel"
+                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                    placeholder="Phone number">
                             </div>
                         </div>
                         <div id="billingSameNote" class="hidden text-xs text-gray-400 italic">Same as shipping address</div>

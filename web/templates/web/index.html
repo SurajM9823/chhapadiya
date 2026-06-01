@@ -149,7 +149,9 @@
                             {% endif %}
                             {% endwith %}
                         {% endif %}
+                        {% if package.discount_percent > 0 %}
                         <span class="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">-{{ package.discount_percent|floatformat:0 }}%</span>
+                        {% endif %}
                     </div>
                     
                     <!-- Right: Info -->
@@ -165,10 +167,14 @@
                         </div>
                         
                         <div class="flex items-center gap-2">
+                            {% if package.savings > 0 %}
                             <span class="text-xs text-gray-400 line-through">Rs. {{ package.total_mrp }}</span>
+                            {% endif %}
                             <span class="text-lg md:text-xl font-bold text-gray-900">Rs. {{ package.selling_price }}</span>
                         </div>
+                        {% if package.savings > 0 %}
                         <span class="text-[10px] text-emerald-600 font-medium">Save Rs. {{ package.savings }}</span>
+                        {% endif %}
                     </div>
                 </a>
                 {% endfor %}
@@ -279,7 +285,8 @@ function preloadAdjacentCarouselImages() {
 
 // ==================== REELS ====================
 // ==================== REELS ====================
-function createReelCard(reel) {
+
+/* function createReelCard(reel) {
     let cardHtml = '';
 
     if (reel.video_type === 'youtube') {
@@ -311,7 +318,7 @@ function createReelCard(reel) {
     }
 
     return cardHtml;
-}
+} */
 
 async function loadMoreReels() {
     if (reelsLoading || !reelsHasMore) return;
@@ -364,7 +371,24 @@ function createProductCard(product) {
         let priceHtml = '';
 
         if (!window.isLoggedIn) {
-            priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${parseFloat(product.mrp || 0).toFixed(2)}</span>`;
+            const mrp = parseFloat(product.mrp || 0);
+            const retailPrice = parseFloat(product.retail_price || 0);
+            
+            if (retailPrice && retailPrice < mrp) {
+                const savingsPercent = (((mrp - retailPrice) / mrp) * 100).toFixed(0);
+                if (savingsPercent > 0) {
+                    priceHtml = `
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm md:text-base text-gray-400 line-through">Rs. ${mrp.toFixed(2)}</span>
+                            <span class="text-sm md:text-base font-bold text-gray-900">Rs. ${retailPrice.toFixed(2)}</span>
+                            <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">${savingsPercent}% OFF</span>
+                        </div>`;
+                } else {
+                    priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${retailPrice.toFixed(2)}</span>`;
+                }
+            } else {
+                priceHtml = `<span class="text-sm md:text-base font-bold text-gray-900">Rs. ${mrp.toFixed(2)}</span>`;
+            }
         } else {
             let displayPrice = parseFloat(product.mrp || 0);
             let showStrikethrough = false;

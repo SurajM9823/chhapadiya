@@ -950,13 +950,7 @@
                 <form id="registerForm" class="space-y-3 hidden" onsubmit="submitAuth(event,'register')" autocomplete="on">
                     <input name="email" type="email" placeholder="Email address" required autocomplete="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
                     <input name="phone" type="tel" placeholder="Phone number (optional)" autocomplete="tel" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-                    <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Customer Type</label>
-                    <select name="customer_type" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 bg-white">
-            <option value="retailer" selected>Retailer</option>
-            <option value="dealer">Dealer</option>
-        </select>
-    </div>
+                    <input name="customer_type" type="hidden" value="retailer">
                     <input name="password" type="password" placeholder="Password (min 8 chars)" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
                     <input name="password2" type="password" placeholder="Confirm password" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Create Account</button>
