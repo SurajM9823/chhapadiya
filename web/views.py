@@ -310,6 +310,12 @@ def cart_view(request):
         return redirect('index')
     cart, _ = Cart.objects.get_or_create(user=request.user)
     items = cart.items.select_related('product').prefetch_related('product__images').all()
+    
+    # Attach user-specific price to each item
+    for item in items:
+        item.user_price = item.get_price_for_user(request.user)
+        item.user_subtotal = item.get_subtotal_for_user(request.user)
+    
     return render(request, 'web/cart.html', {**base_context(), 'cart': cart, 'items': items})
 
 
@@ -371,7 +377,13 @@ def checkout(request):
     items = cart.items.select_related('product').prefetch_related('product__images').all()
     if not items.exists():
         return redirect('cart')
-    subtotal = cart.total_price
+    
+    # Attach user-specific price to each item
+    for item in items:
+        item.user_price = item.get_price_for_user(request.user)
+        item.user_subtotal = item.get_subtotal_for_user(request.user)
+    
+    subtotal = sum(item.user_subtotal for item in items)
     s = SiteSettings.get()
     return render(request, 'web/checkout.html', {
         **base_context(), 'items': items, 'subtotal': subtotal,
@@ -387,7 +399,13 @@ def buy_now(request, slug):
         return redirect('index')
     product = get_object_or_404(Product, slug=slug, is_active=True)
     qty = int(request.GET.get('qty', 1))
-    subtotal = product.mrp * qty
+    
+    # Get user-specific price
+    user_price = product.display_retail_price
+    if request.user.customer_subtype == 'dealer':
+        user_price = product.display_dealer_price
+    
+    subtotal = user_price * qty
     s = SiteSettings.get()
     return render(request, 'web/checkout.html', {
         **base_context(), 'buy_product': product, 'buy_qty': qty,
@@ -466,6 +484,7 @@ def place_order(request):
     billing_contact    = request.POST.get('billing_contact', '').strip()
     billing_org_name = request.POST.get('billing_org_name', '').strip()
     billing_person_name = request.POST.get('billing_person_name', '').strip()
+    pan_number      = request.POST.get('pan_number', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     source         = request.POST.get('source', 'cart')
@@ -479,13 +498,19 @@ def place_order(request):
         product_id = request.POST.get('product_id')
         qty        = int(request.POST.get('qty', 1))
         product    = get_object_or_404(Product, pk=product_id, is_active=True)
-        subtotal   = product.mrp * qty
+        
+        # Get user-specific price
+        user_price = product.display_retail_price
+        if request.user.customer_subtype == 'dealer':
+            user_price = product.display_dealer_price
+        
+        subtotal   = user_price * qty
         total      = subtotal
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, note=note,
+            billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, pan_number=pan_number, note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
@@ -494,7 +519,7 @@ def place_order(request):
         OrderItem.objects.create(
             order=order, product=product,
             product_name=product.name, product_sku=product.sku,
-            unit_price=product.mrp, quantity=qty,
+            unit_price=user_price, quantity=qty,
         )
     else:
         cart, _ = Cart.objects.get_or_create(user=request.user)
@@ -511,23 +536,27 @@ def place_order(request):
             cart_items = cart.items.select_related('product').all()
         if not cart_items.exists():
             return redirect('cart')
-        subtotal = sum(ci.subtotal for ci in cart_items)
+        
+        # Calculate subtotal with user-specific pricing
+        subtotal = sum(ci.get_subtotal_for_user(request.user) for ci in cart_items)
         total    = subtotal
         order = Order.objects.create(
             user=request.user, status='pending',
             delivery_type=delivery_type, full_name=full_name, phone=phone,
             email=email, address=address, city=city,
-            billing_address=billing_address, billing_city=billing_city, billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name,note=note,
+            billing_address=billing_address, billing_city=billing_city, billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, pan_number=pan_number, note=note,
             payment_method=payment_method,
             agent_referral_code=agent_code, referred_agent=referred_agent,
             subtotal=subtotal, delivery_charge=0, total=total,
         )
         if receipt: order.payment_receipt = receipt; order.save()
         for ci in cart_items:
+            # Use user-specific price for order
+            user_price = ci.get_price_for_user(request.user)
             OrderItem.objects.create(
                 order=order, product=ci.product,
                 product_name=ci.product.name, product_sku=ci.product.sku,
-                unit_price=ci.product.mrp, quantity=ci.quantity,
+                unit_price=user_price, quantity=ci.quantity,
             )
         cart_items.delete()
 
@@ -550,6 +579,7 @@ def place_package_order(request):
     billing_contact    = request.POST.get('billing_contact', '').strip()
     billing_org_name = request.POST.get('billing_org_name', '').strip()
     billing_person_name = request.POST.get('billing_person_name', '').strip()
+    pan_number      = request.POST.get('pan_number', '').strip()
     note           = request.POST.get('note', '').strip()
     payment_method = request.POST.get('payment_method', 'cod')
     receipt        = request.FILES.get('payment_receipt')
@@ -568,7 +598,7 @@ def place_package_order(request):
         is_package_order=True, package_name=package.name,
         delivery_type=delivery_type, full_name=full_name, phone=phone,
         email=email, address=address, city=city,
-        billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, note=note,
+        billing_address=billing_address, billing_city=billing_city,billing_contact=billing_contact, billing_org_name=billing_org_name, billing_person_name=billing_person_name, pan_number=pan_number, note=note,
         payment_method=payment_method,
         agent_referral_code=agent_code, referred_agent=referred_agent,
         subtotal=subtotal, delivery_charge=0, total=total,
@@ -669,6 +699,17 @@ def update_order_location(request, order_number):
         order.billing_address = billing_address
     if billing_city:
         order.billing_city = billing_city
+    order.save()
+    return JsonResponse({'ok': True})
+
+
+def cancel_order(request, order_number):
+    if request.method != 'POST' or not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Invalid request'})
+    order = get_object_or_404(Order, order_number=order_number, user=request.user)
+    if order.status != 'pending':
+        return JsonResponse({'ok': False, 'error': 'Only pending orders can be cancelled'})
+    order.status = 'cancelled'
     order.save()
     return JsonResponse({'ok': True})
 
@@ -1086,3 +1127,93 @@ def validate_agent_code(request):
     if agent:
         return JsonResponse({'valid': True, 'agent_name': agent.get_full_name() or agent.email})
     return JsonResponse({'valid': False})
+
+
+# ── Customer Password Reset ───────────────────────────────────────────────────
+import random
+from django.core.mail import send_mail
+import traceback
+
+@ensure_csrf_cookie
+def customer_forgot_password(request):
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        user = CustomerUser.objects.filter(email=email, user_type='customer').first()
+        
+        if not user:
+            return JsonResponse({'success': False, 'error': 'No account found with this email.'})
+        
+        otp = str(random.randint(100000, 999999))
+        request.session['reset_otp'] = otp
+        request.session['reset_email'] = email
+        request.session.save()
+        
+        try:
+            from django.conf import settings
+            send_mail(
+                subject='Password Reset OTP - Chhapadiya Traders',
+                message=f'Your OTP for password reset is: {otp}\n\nThis OTP is valid for 10 minutes.\n\nIf you did not request this, please ignore this email.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            print(f'✓ OTP sent successfully to {email}: {otp}')
+            return JsonResponse({'success': True, 'message': 'OTP sent to your email.'})
+        except Exception as e:
+            print(f'✗ Email send error: {e}')
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': f'Failed to send OTP: {str(e)}'})
+    
+    return render(request, 'web/forgot_password.html', {**base_context()})
+
+@ensure_csrf_cookie
+def customer_verify_otp(request):
+    if request.method == 'POST':
+        otp = request.POST.get('otp', '').strip()
+        stored_otp = request.session.get('reset_otp')
+        
+        if not stored_otp:
+            return JsonResponse({'success': False, 'error': 'Session expired. Please request a new OTP.'})
+        
+        if otp != stored_otp:
+            return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'})
+        
+        request.session['otp_verified'] = True
+        request.session.save()
+        return JsonResponse({'success': True})
+    
+    email = request.session.get('reset_email', '')
+    return render(request, 'web/verify_otp.html', {**base_context(), 'email': email})
+
+@ensure_csrf_cookie
+def customer_reset_password(request):
+    if not request.session.get('otp_verified'):
+        return redirect('customer_forgot_password')
+    
+    if request.method == 'POST':
+        password = request.POST.get('password', '').strip()
+        password2 = request.POST.get('password2', '').strip()
+        
+        if password != password2:
+            return JsonResponse({'success': False, 'error': 'Passwords do not match.'})
+        
+        if len(password) < 8:
+            return JsonResponse({'success': False, 'error': 'Password must be at least 8 characters.'})
+        
+        email = request.session.get('reset_email')
+        user = CustomerUser.objects.filter(email=email).first()
+        
+        if user:
+            user.set_password(password)
+            user.save()
+            
+            request.session.pop('reset_otp', None)
+            request.session.pop('reset_email', None)
+            request.session.pop('otp_verified', None)
+            request.session.save()
+            
+            return JsonResponse({'success': True})
+        
+        return JsonResponse({'success': False, 'error': 'User not found.'})
+    
+    return render(request, 'web/reset_password.html', {**base_context()})

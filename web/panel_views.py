@@ -2,13 +2,17 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent,ProductAlliance
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent,ProductAlliance, OrderPayment
 from .email_utils import send_order_status_update_email
 from .permissions import permission_required, check_permission
 import json
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+import random
+import string
+from datetime import datetime, timedelta
+from django.core.mail import send_mail
 
 def is_staff_user(user):
     return user.is_superuser or user.is_staff
@@ -37,6 +41,138 @@ def panel_login(request):
 def panel_logout(request):
     logout(request)
     return redirect('panel_login')
+
+
+def panel_forgot_password(request):
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        user = CustomerUser.objects.filter(email=email).first()
+        
+        if user:
+            # Generate 6-digit OTP
+            otp = ''.join(random.choices(string.digits, k=6))
+            
+            # Store OTP in session with expiry (10 minutes)
+            request.session['reset_otp'] = otp
+            request.session['reset_email'] = email
+            request.session['otp_created_at'] = datetime.now().timestamp()
+            
+            # Send OTP via email
+            try:
+                settings = SiteSettings.get()
+                from_email = f'{settings.business_name} <{settings.email or "suraj20001123@gmail.com"}>'
+                
+                html_message = f"""
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                        .content {{ background-color: #f9fafb; padding: 30px; }}
+                        .otp-box {{ background-color: white; padding: 30px; border-radius: 8px; text-align: center; border: 2px dashed #059669; }}
+                        .otp-code {{ font-size: 32px; font-weight: bold; color: #059669; letter-spacing: 8px; }}
+                        .footer {{ text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1 style="margin: 0;">Password Reset Request</h1>
+                        </div>
+                        <div class="content">
+                            <p>Hello,</p>
+                            <p>You requested to reset your password. Use the OTP below to verify your identity:</p>
+                            <div class="otp-box">
+                                <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your OTP Code</p>
+                                <div class="otp-code">{otp}</div>
+                                <p style="margin: 15px 0 0 0; color: #ef4444; font-size: 12px;">This OTP will expire in 10 minutes</p>
+                            </div>
+                            <p style="margin-top: 20px;">If you didn't request this password reset, please ignore this email.</p>
+                        </div>
+                        <div class="footer">
+                            <p>© {settings.business_name}. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                send_mail(
+                    subject='Password Reset OTP',
+                    message=f'Your password reset OTP is: {otp}. Valid for 10 minutes.',
+                    from_email=from_email,
+                    recipient_list=[email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+                
+                return JsonResponse({'success': True, 'message': f'OTP has been sent to {email}'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': f'Error sending email: {str(e)}'})
+        else:
+            return JsonResponse({'success': False, 'error': 'Email address not found.'})
+    
+    return render(request, 'panel/forgot_password.html')
+
+
+def panel_verify_otp(request):
+    if 'reset_email' not in request.session:
+        return JsonResponse({'success': False, 'error': 'Session expired. Please start again.'})
+    
+    email = request.session.get('reset_email')
+    
+    if request.method == 'POST':
+        entered_otp = request.POST.get('otp', '').strip()
+        stored_otp = request.session.get('reset_otp')
+        otp_created_at = request.session.get('otp_created_at')
+        
+        # Check if OTP expired (10 minutes)
+        if otp_created_at:
+            created_time = datetime.fromtimestamp(otp_created_at)
+            if datetime.now() - created_time > timedelta(minutes=10):
+                return JsonResponse({'success': False, 'error': 'OTP has expired. Please request a new one.'})
+        
+        if entered_otp == stored_otp:
+            request.session['otp_verified'] = True
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False, 'error': 'Invalid OTP. Please try again.'})
+    
+    return render(request, 'panel/verify_otp.html', {'email': email})
+
+
+def panel_reset_password(request):
+    if not request.session.get('otp_verified'):
+        return JsonResponse({'success': False, 'error': 'Please verify OTP first.'})
+    
+    email = request.session.get('reset_email')
+    
+    if request.method == 'POST':
+        password1 = request.POST.get('password1', '').strip()
+        password2 = request.POST.get('password2', '').strip()
+        
+        if password1 != password2:
+            return JsonResponse({'success': False, 'error': 'Passwords do not match.'})
+        elif len(password1) < 8:
+            return JsonResponse({'success': False, 'error': 'Password must be at least 8 characters long.'})
+        else:
+            user = CustomerUser.objects.filter(email=email).first()
+            if user:
+                user.set_password(password1)
+                user.save()
+                
+                # Clear session data
+                request.session.pop('reset_otp', None)
+                request.session.pop('reset_email', None)
+                request.session.pop('otp_created_at', None)
+                request.session.pop('otp_verified', None)
+                
+                return JsonResponse({'success': True})
+            else:
+                return JsonResponse({'success': False, 'error': 'User not found.'})
+    
+    return render(request, 'panel/reset_password.html')
 
 @login_required(login_url='panel_login')
 def panel_dashboard(request):
@@ -215,7 +351,7 @@ def panel_settings(request):
     return render(request, 'panel/settings.html', {'settings': s, 'can_edit': can_edit})
 
 
-# â”€â”€ Carousel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Carousel  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -284,7 +420,7 @@ def panel_carousel_delete(request, pk):
     return redirect('panel_carousel')
 
 
-# â”€â”€ Reels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Reels  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -383,7 +519,7 @@ def panel_reel_delete(request, pk):
     return redirect('panel_reels')
 
 
-# â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Categories  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -454,7 +590,7 @@ def panel_category_delete(request, pk):
     return redirect('panel_categories')
 
 
-# â”€â”€ Sub Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Sub Categories  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -498,7 +634,7 @@ def panel_subcategory_delete(request, cat_pk, pk):
     return redirect('panel_subcategories', cat_pk=cat_pk)
 
 
-# â”€â”€ Product Detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Product Detail  
 
 @login_required(login_url='panel_login')
 @permission_required('products', 'view')
@@ -507,7 +643,7 @@ def panel_product_detail(request, pk):
     return render(request, 'panel/product_detail.html', {'product': product})
 
 
-# â”€â”€ Countries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Countries  
 
 @login_required(login_url='panel_login')
 @permission_required('products', 'view')
@@ -538,7 +674,7 @@ def panel_country_delete(request, pk):
     return redirect('panel_countries')
 
 
-# â”€â”€ Customer Tiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Customer Tiers  
 
 @login_required(login_url='panel_login')
 @permission_required('customers', 'view')
@@ -588,7 +724,7 @@ def panel_tier_delete(request, pk):
     return redirect('panel_tiers')
 
 
-# ── Delivery Time Tiers ──────────────────────────────────────────────────────
+# -- Delivery Time Tiers ------------------------------------------------------
 
 @login_required(login_url='panel_login')
 @permission_required('settings', 'view')
@@ -648,7 +784,7 @@ def panel_delivery_time_delete(request, pk):
     return redirect('panel_delivery_times')
 
 
-# â”€â”€ Customers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Customers  
 
 from django.http import JsonResponse
 from django.core.paginator import Paginator
@@ -698,9 +834,9 @@ def panel_customers_search(request):
             'id': c.id,
             'name': c.name,
             'email': c.email,
-            'phone': c.phone or '—',
+            'phone': c.phone or ' ',
             'customer_type': c.get_customer_type_display() or c.customer_type.title(),
-            'company': c.company or '—',
+            'company': c.company or ' ',
             'tier': c.tier.name if c.tier else 'Normal',
             'is_active': c.is_active,
         })
@@ -720,7 +856,7 @@ def panel_customer_add(request):
             pan_number=request.POST.get('pan_number', '').upper(),
             company=request.POST.get('company', ''),
             address=request.POST.get('address', ''),
-            customer_type=request.POST.get('customer_type', 'retailer'),  # ← Added
+            customer_type=request.POST.get('customer_type', 'retailer'),  # ? Added
             tier_id=request.POST.get('tier') or None,
             is_active=request.POST.get('is_active') == 'on',
         )
@@ -730,7 +866,7 @@ def panel_customer_add(request):
     return render(request, 'panel/customer_form.html', {
         'action': 'Add',
         'tiers': tiers,
-        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ← Pass choices
+        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ? Pass choices
     })
 
 
@@ -747,7 +883,7 @@ def panel_customer_edit(request, pk):
         customer.pan_number = request.POST.get('pan_number', '').upper()
         customer.company = request.POST.get('company', '')
         customer.address = request.POST.get('address', '')
-        customer.customer_type = request.POST.get('customer_type', 'retailer')   # ← Added
+        customer.customer_type = request.POST.get('customer_type', 'retailer')   # ? Added
         customer.tier_id = request.POST.get('tier') or None
         customer.is_active = request.POST.get('is_active') == 'on'
         customer.save()
@@ -759,7 +895,7 @@ def panel_customer_edit(request, pk):
         'action': 'Edit',
         'customer': customer,
         'tiers': tiers,
-        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ← Pass choices
+        'customer_types': Customer.CUSTOMER_TYPE_CHOICES,   # ? Pass choices
     })
 
 @login_required(login_url='panel_login')
@@ -836,7 +972,7 @@ def panel_products(request):
         'can_export': can_export,
     }
 
-    # ✅ Return only the table fragment for AJAX requests
+    # ? Return only the table fragment for AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return render(request, 'panel/products_fragment.html', context)
     
@@ -1078,7 +1214,7 @@ def panel_products_export(request):
     ws = wb.active
     ws.title = 'Products'
  
-    # ── Styles ──────────────────────────────────────────────────────────────
+    # -- Styles --------------------------------------------------------------
     header_fill  = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
     section_fill = PatternFill(start_color='D6E4F0', end_color='D6E4F0', fill_type='solid')
     alt_fill     = PatternFill(start_color='F7FBFF', end_color='F7FBFF', fill_type='solid')
@@ -1093,8 +1229,8 @@ def panel_products_export(request):
     center = Alignment(horizontal='center', vertical='top', wrap_text=True)
     left   = Alignment(horizontal='left',   vertical='top', wrap_text=True)
  
-    # ── Column definitions: (header, width, alignment) ───────────────────
-    # IMPORTANT: import view reads columns in exactly this order (col A=1 … )
+    # -- Column definitions: (header, width, alignment) -------------------
+    # IMPORTANT: import view reads columns in exactly this order (col A=1   )
     columns = [
         # --- Identity ---
         ('SKU *',            15, center),
@@ -1131,7 +1267,7 @@ def panel_products_export(request):
         ('Updated At',       22, center),
     ]
  
-    # ── Header row ───────────────────────────────────────────────────────
+    # -- Header row -------------------------------------------------------
     ws.row_dimensions[1].height = 28
     for col_num, (header, width, align) in enumerate(columns, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
@@ -1144,7 +1280,7 @@ def panel_products_export(request):
  
     ws.freeze_panes = 'A2'
  
-    # ── Data rows ────────────────────────────────────────────────────────
+    # -- Data rows --------------------------------------------------------
     for row_num, p in enumerate(qs, 2):
         row_fill = alt_fill if row_num % 2 == 0 else None
  
@@ -1171,7 +1307,7 @@ def panel_products_export(request):
         w(11, 'Yes' if p.tax_included else 'No',                       center)
         w(12, float(p.tax_percent),                                    center)
         # Stock & Logistics
-        w(13, 0,  center)   # Initial Stock — always 0 for existing products
+        w(13, 0,  center)   # Initial Stock   always 0 for existing products
         w(14, str(p.delivery_time)     if p.delivery_time  else '')
         w(15, p.linked_package.name    if p.linked_package else '')
         # Content
@@ -1197,7 +1333,7 @@ def panel_products_export(request):
         cell = ws.cell(row=1, column=col)
         cell.fill = PatternFill(start_color='7F7F7F', end_color='7F7F7F', fill_type='solid')
  
-    # ── Add a legend sheet ───────────────────────────────────────────────
+    # -- Add a legend sheet -----------------------------------------------
     ls = wb.create_sheet('How To Use')
     notes = [
         ('Column', 'Notes'),
@@ -1210,7 +1346,7 @@ def panel_products_export(request):
         ('Initial Stock',    'Only applied on NEW products. Ignored when updating existing SKUs.'),
         ('Delivery Time',    'Must match an existing Delivery Time name exactly.'),
         ('Linked Package',   'Must match an existing Package name exactly.'),
-        ('Grey columns',     'Read-only reference — ignored during import.'),
+        ('Grey columns',     'Read-only reference   ignored during import.'),
     ]
     ls.column_dimensions['A'].width = 22
     ls.column_dimensions['B'].width = 70
@@ -1226,9 +1362,9 @@ def panel_products_export(request):
     return response
  
  
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 #  IMPORT
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 @login_required(login_url='panel_login')
 @permission_required('products', 'create')
 def panel_products_import(request):
@@ -1257,24 +1393,24 @@ def panel_products_import(request):
                 def yn(n):
                     return cell(n).lower() in ('yes', 'true', '1', 'y')
  
-                # ── Required fields ──────────────────────────────────────
+                # -- Required fields --------------------------------------
                 sku  = cell(1)
                 name = cell(3)
                 mrp_raw = cell(8)
  
                 if not sku:
-                    errors.append(f"Row {row_idx}: SKU is required — row skipped.")
+                    errors.append(f"Row {row_idx}: SKU is required   row skipped.")
                     continue
                 if not name:
-                    errors.append(f"Row {row_idx}: Name is required (SKU: {sku}) — row skipped.")
+                    errors.append(f"Row {row_idx}: Name is required (SKU: {sku})   row skipped.")
                     continue
                 try:
                     mrp = float(mrp_raw)
                 except (ValueError, TypeError):
-                    errors.append(f"Row {row_idx}: MRP must be a number (SKU: {sku}) — row skipped.")
+                    errors.append(f"Row {row_idx}: MRP must be a number (SKU: {sku})   row skipped.")
                     continue
  
-                # ── Optional numeric fields ──────────────────────────────
+                # -- Optional numeric fields ------------------------------
                 def to_float_or_none(n):
                     v = cell(n)
                     if not v:
@@ -1293,14 +1429,14 @@ def panel_products_import(request):
                 except ValueError:
                     initial_stock = 0
  
-                # ── FK lookups ───────────────────────────────────────────
+                # -- FK lookups -------------------------------------------
                 category = sub_category = origin = delivery_time = linked_package = None
  
                 cat_name = cell(5)
                 if cat_name:
                     category = Category.objects.filter(name__iexact=cat_name, is_active=True).first()
                     if not category:
-                        errors.append(f"Row {row_idx}: Category '{cat_name}' not found (SKU: {sku}) — skipped.")
+                        errors.append(f"Row {row_idx}: Category '{cat_name}' not found (SKU: {sku})   skipped.")
                         continue
  
                 sub_name = cell(6)
@@ -1310,14 +1446,14 @@ def panel_products_import(request):
                         qs_sub = qs_sub.filter(category=category)
                     sub_category = qs_sub.first()
                     if not sub_category:
-                        errors.append(f"Row {row_idx}: Sub-category '{sub_name}' not found (SKU: {sku}) — skipped.")
+                        errors.append(f"Row {row_idx}: Sub-category '{sub_name}' not found (SKU: {sku})   skipped.")
                         continue
  
                 origin_name = cell(7)
                 if origin_name:
                     origin = Country.objects.filter(name__iexact=origin_name).first()
                     if not origin:
-                        errors.append(f"Row {row_idx}: Country '{origin_name}' not found (SKU: {sku}) — skipped.")
+                        errors.append(f"Row {row_idx}: Country '{origin_name}' not found (SKU: {sku})   skipped.")
                         continue
  
                 dt_name = cell(14)
@@ -1332,7 +1468,7 @@ def panel_products_import(request):
                         name__iexact=pkg_name, is_active=True
                     ).first()
  
-                # ── Create or Update ─────────────────────────────────────
+                # -- Create or Update -------------------------------------
                 existing = Product.objects.filter(sku=sku).first()
  
                 fields = dict(
@@ -1372,17 +1508,17 @@ def panel_products_import(request):
                         )
                     created_count += 1
  
-            # ── Flash messages ───────────────────────────────────────────
+            # -- Flash messages -------------------------------------------
             if created_count:
-                messages.success(request, f'✅ {created_count} product(s) created.')
+                messages.success(request, f'? {created_count} product(s) created.')
             if updated_count:
-                messages.info(request, f'✏️ {updated_count} product(s) updated.')
+                messages.info(request, f'?? {updated_count} product(s) updated.')
             if not created_count and not updated_count and not errors:
                 messages.warning(request, 'No data rows found in the file.')
             for err in errors[:15]:
                 messages.warning(request, err)
             if len(errors) > 15:
-                messages.warning(request, f'… and {len(errors) - 15} more errors. Fix and re-import.')
+                messages.warning(request, f'  and {len(errors) - 15} more errors. Fix and re-import.')
  
         except Exception as e:
             messages.error(request, f'Import failed: {str(e)}')
@@ -1435,7 +1571,7 @@ def panel_stock(request, pk):
     })
 
 
-# â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Services  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -1507,7 +1643,7 @@ def panel_service_delete(request, pk):
     return redirect('panel_services')
 
 
-# â”€â”€ Why Choose Us â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Why Choose Us  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'create')
@@ -1545,7 +1681,7 @@ def panel_why_delete(request, pk):
     return redirect('panel_services')
 
 
-# â”€â”€ About Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   About Page  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -1778,7 +1914,7 @@ def panel_team_delete(request, pk):
     return redirect('panel_about')
 
 
-# â”€â”€ Contact Inquiries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Contact Inquiries  
 
 @login_required(login_url='panel_login')
 @permission_required('content', 'view')
@@ -1807,7 +1943,7 @@ def panel_inquiry_delete(request, pk):
     return redirect('panel_inquiries')
 
 
-# â”€â”€ Quote Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Quote Requests  
 
 from .models import QuoteRequest as QuoteRequestModel, QuotationRequest, QuotationRequestItem
 
@@ -1880,12 +2016,12 @@ def panel_quote_delete(request, pk):
     return redirect('panel_quotes')
 
 
-# â”€â”€ Orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   Orders  
 
 @login_required(login_url='panel_login')
 @permission_required('orders', 'view')
 def panel_orders(request):
-    """Renders the Orders Management page shell (no data — loaded via AJAX)."""
+    """Renders the Orders Management page shell (no data   loaded via AJAX)."""
     can_edit   = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
     
@@ -1906,18 +2042,18 @@ def panel_orders(request):
 @require_GET
 def panel_orders_data(request):
     """
-    AJAX endpoint — returns paginated, filtered order rows as JSON.
+    AJAX endpoint   returns paginated, filtered order rows as JSON.
  
     Query params
-    ────────────
-    search          – searches order_number, full_name, phone, email
-    status          – order status slug  ('' = all)
-    payment_status  – unpaid | partial | paid  ('' = all)
-    payment_method  – cod | online | pickup    ('' = all)
-    date_from       – YYYY-MM-DD
-    date_to         – YYYY-MM-DD
-    page            – int (default 1)
-    per_page        – int (default 20, max 100)
+    ------------
+    search            searches order_number, full_name, phone, email
+    status            order status slug  ('' = all)
+    payment_status    unpaid | partial | paid  ('' = all)
+    payment_method    cod | online | pickup    ('' = all)
+    date_from         YYYY-MM-DD
+    date_to           YYYY-MM-DD
+    page              int (default 1)
+    per_page          int (default 20, max 100)
     """
     from django.core.paginator import Paginator
     from django.db.models import Q
@@ -1930,7 +2066,7 @@ def panel_orders_data(request):
         .order_by('-created_at')
     )
  
-    # ── filters ───────────────────────────────────────────────────────────────
+    # -- filters ---------------------------------------------------------------
     search = request.GET.get('search', '').strip()
     if search:
         qs = qs.filter(
@@ -1966,7 +2102,7 @@ def panel_orders_data(request):
         except ValueError:
             pass
  
-    # ── pagination ────────────────────────────────────────────────────────────
+    # -- pagination ------------------------------------------------------------
     try:
         per_page = min(int(request.GET.get('per_page', 20)), 100)
     except ValueError:
@@ -1978,7 +2114,7 @@ def panel_orders_data(request):
  
     can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
  
-    # ── serialise rows ────────────────────────────────────────────────────────
+    # -- serialise rows --------------------------------------------------------
     rows = []
     for order in page_obj:
         agent = order.referred_agent
@@ -1986,8 +2122,8 @@ def panel_orders_data(request):
             'pk':             order.pk,
             'order_number':   order.order_number,
             'full_name':      order.full_name,
-            'email':          order.email or '—',
-            'phone':          order.phone or '—',
+            'email':          order.email or ' ',
+            'phone':          order.phone or ' ',
             'items_count':    order.items.count(),
             'total':          str(order.total),
             'status':         order.status,
@@ -2049,18 +2185,19 @@ def panel_order_detail(request, pk):
     
     # Recalculate and update payment status based on actual total paid
     order_total = float(order.total)
-    if total_paid_amount >= order_total:
-        if order.payment_status != 'paid':
-            order.payment_status = 'paid'
-            order.save()
-    elif total_paid_amount > 0:
-        if order.payment_status != 'partial':
-            order.payment_status = 'partial'
-            order.save()
-    else:
-        if order.payment_status != 'unpaid':
-            order.payment_status = 'unpaid'
-            order.save()
+    if order.payment_status != 'refunded':
+        if total_paid_amount >= order_total:
+            if order.payment_status != 'paid':
+                order.payment_status = 'paid'
+                order.save()
+        elif total_paid_amount > 0:
+            if order.payment_status != 'partial':
+                order.payment_status = 'partial'
+                order.save()
+        else:
+            if order.payment_status != 'unpaid':
+                order.payment_status = 'unpaid'
+                order.save()
     
     if request.method == 'POST':
         old_status = order.status
@@ -2096,6 +2233,37 @@ def panel_order_detail(request, pk):
             review = ProductReview.objects.filter(product=item.product, user=order.user, order=order).first()
         items_with_reviews.append({'item': item, 'review': review})
     
+    # Calculate tax breakdown
+    tax_breakdown = {
+        'has_tax': False,
+        'total_tax': 0,
+        'taxable_amount': 0,
+        'avg_tax_rate': 0
+    }
+    
+    total_tax = 0
+    taxable_amount = 0
+    tax_items_count = 0
+    total_tax_rate = 0
+    
+    for item in order.items.all():
+        if item.product and item.product.tax_included:
+            item_total = float(item.subtotal)           
+            tax_rate = 13.0  # Hardcoded 13% VAT
+            item_tax = item_total * (tax_rate / (100 + tax_rate))
+            item_taxable = item_total - item_tax
+            
+            total_tax += item_tax
+            taxable_amount += item_taxable
+            total_tax_rate += tax_rate
+            tax_items_count += 1
+    
+    if tax_items_count > 0:
+        tax_breakdown['has_tax'] = True
+        tax_breakdown['total_tax'] = total_tax
+        tax_breakdown['taxable_amount'] = taxable_amount
+        tax_breakdown['avg_tax_rate'] = total_tax_rate / tax_items_count
+    
     can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
     
@@ -2113,6 +2281,9 @@ def panel_order_detail(request, pk):
                 .filter(from_status=order.status)
                 .values_list('to_status', flat=True)
             )
+            # Always include current status in the list
+            if order.status not in allowed_statuses:
+                allowed_statuses.append(order.status)
     
     return render(request, 'panel/order_detail.html', {
         'order': order,
@@ -2125,6 +2296,7 @@ def panel_order_detail(request, pk):
         'remaining_amount': max(0, order_total - total_paid_amount),
         'related_bills': related_bills,
         'order_payments': order_payments,
+        'tax_breakdown': tax_breakdown,
     })
 
 
@@ -2136,12 +2308,38 @@ def panel_order_receipt(request, pk):
         pk=pk
     )
     settings = SiteSettings.get()
-    return render(request, 'panel/order_receipt.html', {
-        'order': order,
-        'settings': settings,
-    })
-
-
+    
+    tax_breakdown = {'has_tax': False, 'total_tax': 0, 'taxable_amount': 0, 'avg_tax_rate': 0}
+    total_tax = taxable_amount = tax_items_count = total_tax_rate = 0
+    items_with_tax = []
+    
+    for item in order.items.all():
+        item_data = {'item': item, 'unit_price_excl': 0, 'taxable_amount': 0, 'vat_amount': 0, 'total_amount': float(item.subtotal)}
+        
+        if item.product and item.product.tax_included:
+            item_total = float(item.subtotal)
+            tax_rate = 13.0
+            item_tax = item_total * (tax_rate / (100 + tax_rate))
+            item_taxable = item_total - item_tax
+            
+            item_data['unit_price_excl'] = float(item.unit_price) * (100 / 113)
+            item_data['taxable_amount'] = item_taxable
+            item_data['vat_amount'] = item_tax
+            
+            total_tax += item_tax
+            taxable_amount += item_taxable
+            total_tax_rate += tax_rate
+            tax_items_count += 1
+        else:
+            item_data['unit_price_excl'] = float(item.unit_price)
+            item_data['taxable_amount'] = float(item.subtotal)
+        
+        items_with_tax.append(item_data)
+    
+    if tax_items_count > 0:
+        tax_breakdown.update({'has_tax': True, 'total_tax': total_tax, 'taxable_amount': taxable_amount, 'avg_tax_rate': total_tax_rate / tax_items_count})
+    
+    return render(request, 'panel/order_receipt.html', {'order': order, 'settings': settings, 'tax_breakdown': tax_breakdown, 'items_with_tax': items_with_tax})
 @login_required(login_url='panel_login')
 @permission_required('orders', 'delete')
 def panel_order_delete(request, pk):
@@ -2156,14 +2354,6 @@ def panel_order_delete(request, pk):
 @permission_required('orders', 'edit')
 def toggle_order_availability(request, pk):
     """Toggle order availability status."""
-    # Check if user role is allowed to mark availability
-    restricted_roles = ['customer', 'admin_logistics', 'admin_purchase']
-    
-    if request.user.role and request.user.role.name in restricted_roles:
-        messages.error(request, 'You do not have permission to mark order availability.')
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'Permission denied'})
-        return redirect('panel_orders')
     
     order = get_object_or_404(Order, pk=pk)
     order.is_avilable = not order.is_avilable
@@ -2180,13 +2370,82 @@ def toggle_order_availability(request, pk):
 
 @login_required(login_url='panel_login')
 @permission_required('orders', 'edit')
-def record_order_payment(request, pk):
-    import json as _json
+def mark_order_as_paid(request, pk):
     from .models import OrderPayment
     
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST required'}, status=405)
+    if not (request.user.is_superuser or (request.user.role and request.user.role.name in ['admin_finance', 'admin_sales'])):
+        messages.error(request, 'You do not have permission to mark orders as paid.')
+        return redirect('panel_order_detail', pk=pk)
     
+    order = get_object_or_404(Order, pk=pk)
+    
+    # Calculate remaining amount
+    from django.db.models import Sum
+    total_paid = order.payments.aggregate(total=Sum('amount'))['total'] or 0
+    remaining = float(order.total) - float(total_paid)
+    
+    if remaining > 0:
+        # Create payment record for remaining amount
+        OrderPayment.objects.create(
+            order=order,
+            amount=remaining,
+            payment_method='cash',
+            note='Marked as paid by admin',
+            recorded_by=request.user
+        )
+        messages.success(request, f'Order #{order.order_number} marked as paid with payment of Rs. {remaining:.2f} recorded.')
+    else:
+        messages.info(request, f'Order #{order.order_number} is already fully paid.')
+    
+    return redirect('panel_order_detail', pk=pk)
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def record_order_payment(request, pk):
+    import json as _json
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def mark_order_as_refund(request, pk):
+    from .models import OrderPayment
+    
+    if not (request.user.is_superuser or (request.user.role and request.user.role.name in ['admin_finance', 'admin_sales'])):
+        messages.error(request, 'You do not have permission to mark orders as refund.')
+        return redirect('panel_order_detail', pk=pk)
+    
+    order = get_object_or_404(Order, pk=pk)
+    deleted_count = order.payments.count()
+    order.payments.all().delete()
+    Order.objects.filter(pk=pk).update(payment_status='refunded')   
+    messages.success(request, f'Order #{order.order_number} marked as refunded. {deleted_count} payment record(s) removed.')
+    return redirect('panel_order_detail', pk=pk)
+
+def toggle_order_item_availability(request, pk):
+    from .models import OrderItem
+    
+    item = get_object_or_404(OrderItem, pk=pk)
+    item.is_available = not item.is_available
+    item.save()
+    
+    # Auto-mark order as available if all items are available
+    order = item.order
+    all_items_available = order.items.filter(is_available=False).count() == 0
+    if all_items_available:
+        order.is_avilable = True
+        order.save()
+    
+    return redirect('panel_order_detail', pk=order.pk)
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def record_order_payment(request, pk):
+    import json as _json
     order = get_object_or_404(Order, pk=pk)
     
     try:
@@ -2242,7 +2501,7 @@ def record_order_payment(request, pk):
     })
 
 
-# â”€â”€ User Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#   User Management  
 
 @login_required(login_url='panel_login')
 @permission_required('users', 'view')
@@ -2484,7 +2743,7 @@ def panel_role_edit(request, pk):
 from django.http import JsonResponse
 
 
-# ── POS Billing ───────────────────────────────────────────────────────────────
+# -- POS Billing ---------------------------------------------------------------
 
 from .models import Billing, BillingItem
 
@@ -2520,7 +2779,7 @@ def panel_billing(request):
                 } for item in order.items.all()]
             }
 
-    # ── POST: create a bill ──────────────────────────────────────────────────
+    # -- POST: create a bill --------------------------------------------------
     if request.method == 'POST':
         try:
             data = _json.loads(request.body)
@@ -2647,7 +2906,7 @@ def panel_billing(request):
 
         return JsonResponse({'ok': True, 'bill_number': bill.bill_number, 'bill_id': bill.pk})
 
-    # ── GET: render POS page ─────────────────────────────────────────────────
+    # -- GET: render POS page -------------------------------------------------
     # Products JSON for POS grid
     products_qs = Product.objects.filter(is_active=True).select_related('category').prefetch_related('images', 'tier_prices__tier')
     products_data = []
@@ -2678,7 +2937,7 @@ def panel_billing(request):
 
     categories = list(Category.objects.filter(is_active=True).values('id', 'name').order_by('name'))
 
-    # ── Bills table (paginated, filtered) ────────────────────────────────────
+    # -- Bills table (paginated, filtered) ------------------------------------
     bills_qs = Billing.objects.select_related('customer', 'agent', 'billed_by').order_by('-created_at')
 
     f_search      = request.GET.get('search', '').strip()
@@ -2710,7 +2969,7 @@ def panel_billing(request):
     paginator   = Paginator(bills_qs, limit)
     bills_page  = paginator.get_page(page)
 
-    # ── Stats (unfiltered totals) ─────────────────────────────────────────────
+    # -- Stats (unfiltered totals) ---------------------------------------------
     from decimal import Decimal
     stats = Billing.objects.aggregate(
         total_bills=Count('id'),
@@ -2719,7 +2978,6 @@ def panel_billing(request):
     )
     
     # Calculate actual pending amount considering OrderPayments
-    from .models import OrderPayment
     total_order_payments = OrderPayment.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0')
     
     # Pending amount = Total Revenue - (Billing Payments + Order Payments)
@@ -2727,6 +2985,11 @@ def panel_billing(request):
     total_revenue = stats['total_revenue'] or Decimal('0')
     actual_pending = total_revenue - total_billed_paid - total_order_payments
 
+    # Check if user can create sales
+    can_create_sale = request.user.is_superuser or (
+        request.user.role and request.user.role.name in ['admin_finance', 'admin_sales']
+    )
+    
     return render(request, 'panel/billing.html', {
         'products_json':  _json.dumps(products_data),
         'customers_json': _json.dumps(customers_data),
@@ -2744,6 +3007,7 @@ def panel_billing(request):
         'f_date_to':      f_date_to,
         'limit':          limit,
         'order_data':     _json.dumps(order_data) if order_data else None,
+        'can_create_sale': can_create_sale,
     })
 
 
@@ -2798,7 +3062,7 @@ def panel_billing_detail(request, pk):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'view')
 def api_billing_products(request):
-    """Search products for POS — returns JSON."""
+    """Search products for POS   returns JSON."""
     q = request.GET.get('q', '').strip()
     customer_id = request.GET.get('customer_id')
     tier_id = None
@@ -3126,7 +3390,7 @@ def api_billing_create(request):
 
 
 
-# ── Package Management ────────────────────────────────────────────────────────
+# -- Package Management --------------------------------------------------------
 
 @login_required(login_url='panel_login')
 @permission_required('packages', 'view')
@@ -3136,7 +3400,6 @@ def panel_packages(request):
 
 
 def _handle_package_images(request, package):
-    """Handle image uploads, deletions, and primary image setting."""
     
     # 1. Delete marked images
     delete_ids = request.POST.getlist('delete_images')
@@ -3202,7 +3465,7 @@ def panel_package_add(request):
                     item_discount=float(disc or 0)
                 )
 
-        # ✅ Handle images
+        # ? Handle images
         _handle_package_images(request, package)
 
         messages.success(request, f'Package "{name}" created successfully!')
@@ -3241,7 +3504,7 @@ def panel_package_edit(request, pk):
                     item_discount=float(disc or 0)
                 )
 
-        # ✅ Handle images
+        # ? Handle images
         _handle_package_images(request, package)
 
         messages.success(request, f'Package "{package.name}" updated successfully!')
@@ -3258,3 +3521,13 @@ def panel_package_delete(request, pk):
     package.delete()
     messages.success(request, 'Package deleted successfully!')
     return redirect('panel_packages')
+
+
+
+
+
+
+
+
+
+

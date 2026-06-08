@@ -51,17 +51,17 @@
                                 {% if item.product.brand %}<p class="text-xs text-gray-400">{{ item.product.brand }}</p>{% endif %}
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-gray-700" data-price="{{ item.product.mrp }}">Rs. {{ item.product.mrp }}</td>
+                        <td class="px-4 py-3 text-gray-700" data-price="{{ item.user_price }}">Rs. {{ item.user_price }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-1">
                                 <button onclick="changeQty({{ item.pk }}, -1)" class="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors text-base leading-none">−</button>
                                 <input type="number" id="qty-{{ item.pk }}" value="{{ item.quantity }}" min="1" max="99"
-                                    onchange="updateQty({{ item.pk }}, {{ item.product.mrp }})"
+                                    onchange="updateQty({{ item.pk }}, {{ item.user_price }})"
                                     class="w-12 border border-gray-200 rounded px-1 py-1 text-sm text-center focus:outline-none focus:border-emerald-500">
                                 <button onclick="changeQty({{ item.pk }}, 1)" class="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors text-base leading-none">+</button>
                             </div>
                         </td>
-                        <td class="px-4 py-3 font-semibold text-gray-800" id="sub-{{ item.pk }}">Rs. {{ item.subtotal }}</td>
+                        <td class="px-4 py-3 font-semibold text-gray-800" id="sub-{{ item.pk }}">Rs. {{ item.user_subtotal }}</td>
                         <td class="px-4 py-3">
                             <form method="post" action="{% url 'cart_remove' item.pk %}">
                                 {% csrf_token %}

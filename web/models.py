@@ -175,9 +175,23 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
 
+    def get_price_for_user(self, user):
+        """Get appropriate price based on user type."""
+        if not user or not user.is_authenticated:
+            return self.product.display_retail_price
+        
+        subtype = getattr(user, 'customer_subtype', None)
+        if subtype == 'dealer':
+            return self.product.display_dealer_price
+        return self.product.display_retail_price
+
     @property
     def subtotal(self):
         return self.product.mrp * self.quantity
+    
+    def get_subtotal_for_user(self, user):
+        """Get subtotal based on user type."""
+        return self.get_price_for_user(user) * self.quantity
 
 
 # ── Favourites ────────────────────────────────────────────────────────────────
@@ -234,6 +248,7 @@ class Order(models.Model):
         ('unpaid',  'Unpaid'),
         ('partial', 'Partially Paid'),
         ('paid',    'Paid'),
+        ('refunded', 'Refunded'),
     ]
     user            = models.ForeignKey(CustomerUser, on_delete=models.SET_NULL, null=True, related_name='orders')
     order_number    = models.CharField(max_length=20, unique=True)
@@ -255,6 +270,7 @@ class Order(models.Model):
     billing_contact = models.CharField(max_length=30, null=True, blank=True)
     billing_org_name = models.CharField(max_length=200, blank=True)
     billing_person_name = models.CharField(max_length=200, blank=True)
+    pan_number      = models.CharField(max_length=9, blank=True, help_text='PAN Number (optional)')
     note            = models.TextField(blank=True)
     payment_method  = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='cod')
     payment_status  = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
@@ -286,6 +302,7 @@ class OrderItem(models.Model):
     product_sku  = models.CharField(max_length=100, blank=True)
     unit_price   = models.DecimalField(max_digits=12, decimal_places=2)
     quantity     = models.PositiveIntegerField(default=1)
+    is_available = models.BooleanField(default=False, help_text='Is this item available?')
 
     def __str__(self):
         return f"{self.quantity}x {self.product_name}"
@@ -675,7 +692,7 @@ class Product(models.Model):
     )
     
     tax_included = models.BooleanField(default=True, help_text='Is VAT/tax included in MRP?')
-    tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Tax % if not included')
+    tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=13, help_text='Tax % if not included')
 
     # Delivery
     delivery_time = models.ForeignKey(DeliveryTimeTier, null=True, blank=True, on_delete=models.SET_NULL, related_name='products')

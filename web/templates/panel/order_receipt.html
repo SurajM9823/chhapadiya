@@ -104,37 +104,73 @@
 
         <div class="info-section">
             <div class="info-box">
-                <h3>Billing Information:</h3>
-                <p><strong>Company:</strong> {{ settings.business_name|upper }}</p>
+                <h3>Customer Information:</h3>
                 <p><strong>Name:</strong> {{ order.full_name }}</p>
                 <p><strong>Phone:</strong> {{ order.phone }}</p>
-                <p><strong>Email:</strong> {{ order.email|default:"-" }}</p>
-                {% if order.address or order.city %}
-                <p><strong>Address:</strong> {{ order.address }}{% if order.city %}, {{ order.city }}{% endif %}</p>
-                {% endif %}
-                {% if order.billing_address or order.billing_city %}
-                    {% if order.billing_address == order.address and order.billing_city == order.city %}
-                    {% else %}
-                    <p><strong>Billing Address:</strong> {{ order.billing_address }}{% if order.billing_city %}, {{ order.billing_city }}{% endif %}</p>
-                    {% endif %}
-                {% endif %}
-                <p>Nepal</p>
-                <div class="method-box">
-                    <strong>Payment method:</strong> {{ order.get_payment_method_display }}
-                </div>
+                {% if order.email %}<p><strong>Email:</strong> {{ order.email }}</p>{% endif %}
             </div>
 
             <div class="info-box">
-                <h3>Shipping Information:</h3>
-                <p><strong>Company:</strong> {{ settings.business_name|upper }}</p>
-                <p><strong>Name:</strong> {% if order.referred_agent %}{{ order.referred_agent.get_full_name|default:order.referred_agent.username }}{% else %}Admin{% endif %}</p>
-                <p><strong>Phone:</strong> {{ settings.phone }}</p>
-                <p><strong>Address:</strong> {{ settings.shipping_address|default:settings.address }}</p>
-                <p>Nepal</p>
+                <h3>Payment Information:</h3>
                 <div class="method-box">
-                    <strong>Shipping method:</strong>
+                    <strong>Method:</strong> {{ order.get_payment_method_display }}
+                </div>
+                <div class="method-box" style="{% if order.payment_status == 'paid' %}background-color: #d4edda; border-color: #c3e6cb;{% elif order.payment_status == 'partial' %}background-color: #fff3cd; border-color: #ffeaa7;{% elif order.payment_status == 'refunded' %}background-color: #e9d5ff; border-color: #d8b4fe;{% else %}background-color: #f8d7da; border-color: #f5c6cb;{% endif %}">
+                    <strong>Status:</strong> 
+                    {% if order.payment_status == 'paid' %}
+                        <span style="color: #155724; font-weight: bold;">✓ Paid</span>
+                    {% elif order.payment_status == 'partial' %}
+                        <span style="color: #856404; font-weight: bold;">⚠ Partially Paid</span>
+                    {% elif order.payment_status == 'refunded' %}
+                        <span style="color: #7c3aed; font-weight: bold;">↩ Refunded</span>
+                    {% else %}
+                        <span style="color: #721c24; font-weight: bold;">✗ Unpaid</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-box">
+                <h3>Delivery Method:</h3>
+                <div class="method-box">
+                    <strong>Type:</strong>
                     {% if order.delivery_type == 'delivery' %}Home Delivery{% elif order.delivery_type == 'pickup' %}Store Pickup{% else %}{{ order.delivery_type }}{% endif %}
                 </div>
+                {% if order.referred_agent %}
+                <p style="margin-top: 8px;"><strong>Agent:</strong> {{ order.referred_agent.get_full_name|default:order.referred_agent.username }}</p>
+                <p><strong>Code:</strong> {{ order.agent_referral_code }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-box">
+                <h3>Shipping Address:</h3>
+                {% if order.delivery_type == 'delivery' %}
+                    <p><strong>Address:</strong> {{ order.address }}</p>
+                    <p><strong>City:</strong> {{ order.city }}</p>
+                {% else %}
+                    <p><em>Store Pickup - No shipping address</em></p>
+                {% endif %}
+            </div>
+
+            <div class="info-box">
+                <h3>Billing Address:</h3>
+                {% if order.billing_address or order.billing_city %}
+                    {% if order.billing_address == order.address and order.billing_city == order.city %}
+                        <p><em>Same as shipping address</em></p>
+                    {% else %}
+                        {% if order.billing_org_name %}<p><strong>Organization:</strong> {{ order.billing_org_name }}</p>{% endif %}
+                        {% if order.billing_person_name %}<p><strong>Person:</strong> {{ order.billing_person_name }}</p>{% endif %}
+                        <p><strong>Address:</strong> {{ order.billing_address }}</p>
+                        <p><strong>City:</strong> {{ order.billing_city }}</p>
+                        {% if order.billing_contact %}<p><strong>Contact:</strong> {{ order.billing_contact }}</p>{% endif %}
+                        {% if order.pan_number %}<p><strong>PAN:</strong> {{ order.pan_number }}</p>{% endif %}
+                    {% endif %}
+                {% else %}
+                    <p><em>Same as shipping address</em></p>
+                {% endif %}
             </div>
         </div>
 
@@ -144,49 +180,66 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">S.N.</th>
-                    <th style="width: 30%;">Name</th>
-                    <th style="width: 15%;">SKU</th>
-                    <th style="width: 10%;" class="text-center">Qty</th>
-                    <th style="width: 15%;" class="text-right">Unit Price</th>
-                    <th style="width: 15%;" class="text-right">Amount</th>
-                    <th style="width: 10%;">Remarks</th>
+                    <th style="width: 35%;">Name</th>
+                    <th style="width: 10%;">SKU</th>
+                    <th style="width: 6%;" class="text-center">Qty</th>
+                    <th style="width: 11%;" class="text-right">Unit Price<br><small>(Excl. VAT)</small></th>
+                    <th style="width: 11%;" class="text-right">Taxable<br>Amount</th>
+                    <th style="width: 11%;" class="text-right">VAT<br>(13%)</th>
+                    <th style="width: 11%;" class="text-right">Total<br>Amount</th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in order.items.all %}
+                {% for item_data in items_with_tax %}
                 <tr>
                     <td class="text-center">{{ forloop.counter }}</td>
-                    <td>{{ item.product_name }}</td>
-                    <td>{{ item.product_sku|default:"-" }}</td>
-                    <td class="text-center">{{ item.quantity }}</td>
-                    <td class="text-right">Rs. {{ item.unit_price }}</td>
-                    <td class="text-right">Rs. {{ item.subtotal }}</td>
-                    <td>{% if order.payment_status == 'paid' %}Paid{% else %}Unpaid{% endif %}</td>
+                    <td>{{ item_data.item.product_name }}</td>
+                    <td>{{ item_data.item.product_sku|default:"-" }}</td>
+                    <td class="text-center">{{ item_data.item.quantity }}</td>
+                    <td class="text-right">Rs. {{ item_data.unit_price_excl|floatformat:2 }}</td>
+                    <td class="text-right">Rs. {{ item_data.taxable_amount|floatformat:2 }}</td>
+                    <td class="text-right">Rs. {{ item_data.vat_amount|floatformat:2 }}</td>
+                    <td class="text-right">Rs. {{ item_data.total_amount|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
 
                 <tr class="grand-total-row">
-                    <td colspan="2" class="text-right">Grand Total</td>
-                    <td></td>
-                    <td class="text-center">{{ order.items.all|length }}</td>
-                    <td colspan="2" class="text-right">Rs. {{ order.total }}</td>
-                    <td></td>
+                    <td colspan="4" class="text-right" style="font-weight: bold;">Grand Total</td>
+                    <td class="text-right" style="font-weight: bold;">-</td>
+                    <td class="text-right" style="font-weight: bold;">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</td>
+                    <td class="text-right" style="font-weight: bold;">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</td>
+                    <td class="text-right" style="font-weight: bold;">Rs. {{ order.total }}</td>
                 </tr>
             </tbody>
         </table>
 
         <div class="summary-section">
             <table class="summary-table">
+                {% if tax_breakdown.has_tax %}
                 <tr>
-                    <td>Sub-Total(Exclusive):</td>
+                    <td>Taxable Amount:</td>
+                    <td class="text-right">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>VAT ({{ tax_breakdown.avg_tax_rate|floatformat:1 }}%):</td>
+                    <td class="text-right">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Sub-Total:</td>
                     <td class="text-right">Rs. {{ order.subtotal }}</td>
                 </tr>
+                {% else %}
+                <tr>
+                    <td>Sub-Total:</td>
+                    <td class="text-right">Rs. {{ order.subtotal }}</td>
+                </tr>
+                {% endif %}
                 <tr>
                     <td>Shipping:</td>
                     <td class="text-right">Rs. {{ order.delivery_charge|default:"0" }}</td>
                 </tr>
                 <tr class="total-line">
-                    <td>Order total:</td>
+                    <td>Order Total:</td>
                     <td class="text-right">Rs. {{ order.total }}</td>
                 </tr>
             </table>

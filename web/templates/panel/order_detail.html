@@ -69,6 +69,7 @@
                     <div><span class="text-gray-500">Billing Address:</span> <span class="font-medium">{{ order.billing_address }}</span></div>
                     <div><span class="text-gray-500">Billing City:</span> <span class="font-medium">{{ order.billing_city }}</span></div>
                     {% if order.billing_contact %}<div><span class="text-gray-500">Billing Contact:</span> <span class="font-medium">{{ order.billing_contact }}</span></div>{% endif %}
+                    {% if order.pan_number %}<div><span class="text-gray-500">PAN Number:</span> <span class="font-mono font-semibold">{{ order.pan_number }}</span></div>{% endif %}
                 </div>
                 {% endif %}
                 {% endif %}
@@ -89,6 +90,12 @@
             <div class="space-y-2 text-sm">
                 <div><span class="text-gray-500">Method:</span> <span class="font-medium">{{ order.get_payment_method_display }}</span></div>
                 <div><span class="text-gray-500">Subtotal:</span> <span class="font-medium">Rs. {{ order.subtotal }}</span></div>
+                {% if tax_breakdown.has_tax %}
+                <div class="pl-4 text-xs space-y-1 bg-gray-50 py-2 rounded">
+                    <div><span class="text-gray-500">Taxable Amount:</span> <span class="font-medium text-gray-700">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</span></div>
+                    <div><span class="text-gray-500">VAT ({{ tax_breakdown.avg_tax_rate|floatformat:1 }}%):</span> <span class="font-medium text-gray-700">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</span></div>
+                </div>
+                {% endif %}
                 <div><span class="text-gray-500">Total:</span> <span class="font-bold text-lg">Rs. {{ order.total }}</span></div>
                 <div class="pt-2 border-t border-gray-100">
                     <span class="text-gray-500">Payment Status:</span> 
@@ -96,6 +103,8 @@
                     <span class="font-medium text-green-600">✓ Paid</span>
                     {% elif order.payment_status == 'partial' %}
                     <span class="font-medium text-yellow-600">⚠ Partially Paid</span>
+                    {% elif order.payment_status == 'refunded' %}
+                    <span class="font-medium text-purple-600">↩ Refunded</span>
                     {% else %}
                     <span class="font-medium text-red-600">✗ Unpaid</span>
                     {% endif %}
@@ -128,7 +137,15 @@
                 {% endif %}
             </div>
             {% if order.payment_status != 'paid' %}
-            <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                {% if request.user.is_superuser or request.user.role.name == 'admin_finance' or request.user.role.name == 'admin_sales' %}
+                <form method="post" action="{% url 'mark_order_as_paid' order.pk %}" onsubmit="return confirm('Mark this order as paid?');">
+                    {% csrf_token %}
+                    <button type="submit" class="block w-full text-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
+                        ✓ Mark as Paid
+                    </button>
+                </form>
+                {% endif %}
                 {% if related_bills %}
                     <!-- If billing already exists, show Make Payment button -->
                     <button onclick="openPaymentModal()" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
@@ -141,6 +158,18 @@
                         Create Sale / Invoice
                     </a>
                     <p class="text-xs text-gray-400 text-center mt-2">Generate POS billing for this order</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                {% if request.user.is_superuser or request.user.role.name == 'admin_finance' or request.user.role.name == 'admin_sales' %}
+                <form method="post" action="{% url 'mark_order_as_refund' order.pk %}" onsubmit="return confirm('Mark this order as refund? This will change payment status to unpaid.');">
+                    {% csrf_token %}
+                    <button type="submit" class="block w-full text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
+                        ↩ Mark as Refund
+                    </button>
+                </form>
+                <p class="text-xs text-gray-400 text-center mt-2">Reset payment status to process refund</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -215,6 +244,7 @@
                     {% if not order.is_package_order %}
                     <th class="px-6 py-3 text-right text-sm font-semibold text-gray-700">Subtotal</th>
                     {% endif %}
+                    <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Availability</th>
                 </tr>
             </thead>
             <tbody class="divide-y">
@@ -224,12 +254,34 @@
                     <td class="px-6 py-4 text-sm text-gray-900">{{ item.product_name }}</td>
                     <td class="px-6 py-4 text-sm text-gray-600">{{ item.product_sku }}</td>
                     {% if not order.is_package_order %}
-                    <td class="px-6 py-4 text-sm text-right text-gray-900">Rs. {{ item.unit_price }}</td>
+                    <td class="px-6 py-4 text-sm text-right text-gray-900">
+                        Rs. {{ item.unit_price }}
+                        {% if item.product and item.product.tax_included %}
+                        <br><span class="text-xs text-gray-500">(Incl. 13% VAT)</span>
+                        {% endif %}
+                    </td>
                     {% endif %}
                     <td class="px-6 py-4 text-sm text-right text-gray-900">{{ item.quantity }}</td>
                     {% if not order.is_package_order %}
                     <td class="px-6 py-4 text-sm text-right font-semibold text-gray-900">Rs. {{ item.subtotal }}</td>
                     {% endif %}
+                    <td class="px-6 py-4 text-center">
+                        <form method="post" action="{% url 'toggle_order_item_availability' item.pk %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="px-3 py-1 rounded-full text-xs font-semibold transition-colors
+                                {% if item.is_available %}
+                                    bg-green-100 text-green-700 hover:bg-green-200
+                                {% else %}
+                                    bg-red-100 text-red-700 hover:bg-red-200
+                                {% endif %}">
+                                {% if item.is_available %}
+                                    Mark as Unavailable
+                                {% else %}
+                                    Mark as Available
+                                {% endif %}
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 {% endwith %}
                 {% endfor %}

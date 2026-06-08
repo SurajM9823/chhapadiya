@@ -13,6 +13,9 @@ urlpatterns = [
     # Panel auth
     path('panel/login/', panel_views.panel_login, name='panel_login'),
     path('panel/logout/', panel_views.panel_logout, name='panel_logout'),
+    path('panel/forgot-password/', panel_views.panel_forgot_password, name='panel_forgot_password'),
+    path('panel/verify-otp/', panel_views.panel_verify_otp, name='panel_verify_otp'),
+    path('panel/reset-password/', panel_views.panel_reset_password, name='panel_reset_password'),
 
     # Carousel
     path('panel/', panel_views.panel_dashboard, name='panel_dashboard'),
@@ -117,6 +120,9 @@ urlpatterns = [
     path('auth/register/', views.customer_register, name='customer_register'),
     path('auth/login/', views.customer_login, name='customer_login'),
     path('auth/logout/', views.customer_logout, name='customer_logout'),
+    path('auth/forgot-password/', views.customer_forgot_password, name='customer_forgot_password'),
+    path('auth/verify-otp/', views.customer_verify_otp, name='customer_verify_otp'),
+    path('auth/reset-password/', views.customer_reset_password, name='customer_reset_password'),
     # Cart
     path('cart/', views.cart_view, name='cart'),
     path('cart/add/', views.cart_add, name='cart_add'),
@@ -140,6 +146,7 @@ urlpatterns = [
     path('orders/', views.my_orders, name='my_orders'),
     path('orders/<str:order_number>/', views.order_detail, name='order_detail'),
     path('orders/<str:order_number>/update-location/', views.update_order_location, name='update_order_location'),
+    path('orders/<str:order_number>/cancel/', views.cancel_order, name='cancel_order'),
     path('orders/<str:order_number>/success/', views.order_success, name='order_success'),
     # Quote Requests
     path('quote/request/', views.quote_request, name='quote_request'),
@@ -164,6 +171,9 @@ urlpatterns = [
     path('panel/orders/<int:pk>/', panel_views.panel_order_detail, name='panel_order_detail'),
     path('panel/orders/<int:pk>/delete/', panel_views.panel_order_delete, name='panel_order_delete'),
     path('panel/orders/<int:pk>/toggle-availability/', panel_views.toggle_order_availability, name='toggle_order_availability'),
+    path('panel/orders/<int:pk>/mark-as-paid/', panel_views.mark_order_as_paid, name='mark_order_as_paid'),
+    path('panel/orders/<int:pk>/mark-as-refund/', panel_views.mark_order_as_refund, name='mark_order_as_refund'),
+    path('panel/orders/items/<int:pk>/toggle-availability/', panel_views.toggle_order_item_availability, name='toggle_order_item_availability'),
     path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),
     path('panel/orders/<int:pk>/receipt/', panel_views.panel_order_receipt, name='panel_order_receipt'),
 

@@ -943,7 +943,15 @@
                 <!-- Login Form -->
                 <form id="loginForm" class="space-y-3" onsubmit="submitAuth(event,'login')" autocomplete="on">
                     <input name="email" type="email" placeholder="Email address" required autocomplete="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-                    <input name="password" type="password" placeholder="Password" required autocomplete="current-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <div class="relative">
+                        <input id="loginPassword" name="password" type="password" placeholder="Password" required autocomplete="current-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-emerald-500">
+                        <button type="button" onclick="togglePasswordVisibility('loginPassword', 'loginPasswordIcon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <span id="loginPasswordIcon" class="material-symbols-outlined text-xl">visibility</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <a href="{% url 'customer_forgot_password' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Forgot Password?</a>
+                    </div>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Sign In</button>
                 </form>
                 <!-- Register Form -->
@@ -951,8 +959,18 @@
                     <input name="email" type="email" placeholder="Email address" required autocomplete="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
                     <input name="phone" type="tel" placeholder="Phone number (optional)" autocomplete="tel" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
                     <input name="customer_type" type="hidden" value="retailer">
-                    <input name="password" type="password" placeholder="Password (min 8 chars)" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
-                    <input name="password2" type="password" placeholder="Confirm password" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                    <div class="relative">
+                        <input id="registerPassword" name="password" type="password" placeholder="Password (min 8 chars)" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-emerald-500">
+                        <button type="button" onclick="togglePasswordVisibility('registerPassword', 'registerPasswordIcon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <span id="registerPasswordIcon" class="material-symbols-outlined text-xl">visibility</span>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input id="registerPassword2" name="password2" type="password" placeholder="Confirm password" required autocomplete="new-password" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-emerald-500">
+                        <button type="button" onclick="togglePasswordVisibility('registerPassword2', 'registerPassword2Icon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <span id="registerPassword2Icon" class="material-symbols-outlined text-xl">visibility</span>
+                        </button>
+                    </div>
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">Create Account</button>
                 </form>
             </div>
@@ -968,6 +986,17 @@
     function closeAuthModal() {
         document.getElementById('authModal').style.display = 'none';
         document.body.style.overflow = '';
+    }
+    function togglePasswordVisibility(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.textContent = 'visibility_off';
+        } else {
+            input.type = 'password';
+            icon.textContent = 'visibility';
+        }
     }
     function switchTab(tab) {
         document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');

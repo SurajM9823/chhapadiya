@@ -146,11 +146,19 @@
                                         placeholder="Street, area, landmark">
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Billing Contact</label>
-                                <input name="billing_contact" id="billingContactInput" type="tel"
-                                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-                                    placeholder="Phone number">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">Billing Contact</label>
+                                    <input name="billing_contact" id="billingContactInput" type="tel"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="Phone number">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">PAN Number <span class="text-gray-300">(optional)</span></label>
+                                    <input name="pan_number" id="panNumberInput" type="text" maxlength="9"
+                                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                                        placeholder="9-digit PAN">
+                                </div>
                             </div>
                         </div>
                         <div id="billingSameNote" class="hidden text-xs text-gray-400 italic">Same as shipping address</div>
