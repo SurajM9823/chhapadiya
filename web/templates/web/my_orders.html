@@ -34,6 +34,9 @@
                         <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-semibold">Shipped</span>
                         {% elif order.status == 'delivered' %}
                         <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold">Delivered</span>
+                        {% if order.payment_status == 'paid' %}
+                        <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold">✓ Completed</span>
+                        {% endif %}
                         {% elif order.status == 'cancelled' %}
                         <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold">Cancelled</span>
                         {% endif %}

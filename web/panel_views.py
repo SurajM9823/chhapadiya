@@ -2065,6 +2065,10 @@ def panel_orders_data(request):
         .prefetch_related('items')
         .order_by('-created_at')
     )
+
+    # Restrict admin_purchase to only processing orders
+    if request.user.role and request.user.role.name == 'admin_purchase':
+        qs = qs.filter(status='processing')
  
     # -- filters ---------------------------------------------------------------
     search = request.GET.get('search', '').strip()
@@ -2267,8 +2271,20 @@ def panel_order_detail(request, pk):
     can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
     
-    # Check if order status can be updated (only if available or not pending)
-    can_update_status = can_edit and (order.is_avilable or order.status != 'pending')
+    # Check if user can mark availability (only superadmin, admin_purchase, admin_sales)
+    can_mark_available = request.user.is_superuser or (
+        request.user.role and request.user.role.name in ['admin_purchase', 'admin_sales']
+    )
+    
+    # Hide availability button if order status is confirmed or later
+    show_availability_toggle = can_mark_available and order.status == 'pending'
+    
+    # Check if order status can be updated
+    # Superadmin and admin_sales can bypass availability check for pending orders
+    can_bypass_availability = request.user.is_superuser or (
+        request.user.role and request.user.role.name == 'admin_sales'
+    )
+    can_update_status = can_edit and (order.is_avilable or order.status != 'pending' or can_bypass_availability)
     
     # Get allowed status transitions for current user
     allowed_statuses = []
@@ -2297,6 +2313,8 @@ def panel_order_detail(request, pk):
         'related_bills': related_bills,
         'order_payments': order_payments,
         'tax_breakdown': tax_breakdown,
+        'can_mark_available': can_mark_available,
+        'show_availability_toggle': show_availability_toggle,
     })
 
 
@@ -2353,9 +2371,22 @@ def panel_order_delete(request, pk):
 @login_required(login_url='panel_login')
 @permission_required('orders', 'edit')
 def toggle_order_availability(request, pk):
-    """Toggle order availability status."""
+    """Toggle order availability status - only for superadmin, admin_purchase, admin_sales."""
+    
+    # Check if user has permission to mark availability
+    if not (request.user.is_superuser or (
+        request.user.role and request.user.role.name in ['admin_purchase', 'admin_sales']
+    )):
+        messages.error(request, 'You do not have permission to mark order availability.')
+        return redirect('panel_order_detail', pk=pk)
     
     order = get_object_or_404(Order, pk=pk)
+    
+    # Only allow toggling for pending orders
+    if order.status != 'pending':
+        messages.error(request, 'Availability can only be toggled for pending orders.')
+        return redirect('panel_order_detail', pk=pk)
+    
     order.is_avilable = not order.is_avilable
     order.save()
     
@@ -2365,7 +2396,7 @@ def toggle_order_availability(request, pk):
     # Return JSON for AJAX or redirect for regular request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'success': True, 'is_available': order.is_avilable})
-    return redirect('panel_orders')
+    return redirect('panel_order_detail', pk=pk)
 
 
 @login_required(login_url='panel_login')
@@ -2425,15 +2456,30 @@ def mark_order_as_refund(request, pk):
     messages.success(request, f'Order #{order.order_number} marked as refunded. {deleted_count} payment record(s) removed.')
     return redirect('panel_order_detail', pk=pk)
 
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
 def toggle_order_item_availability(request, pk):
     from .models import OrderItem
     
+    # Check if user has permission to mark availability
+    if not (request.user.is_superuser or (
+        request.user.role and request.user.role.name in ['admin_purchase', 'admin_sales']
+    )):
+        messages.error(request, 'You do not have permission to mark item availability.')
+        return redirect('panel_orders')
+    
     item = get_object_or_404(OrderItem, pk=pk)
+    order = item.order
+    
+    # Only allow toggling for pending orders
+    if order.status != 'pending':
+        messages.error(request, 'Item availability can only be toggled for pending orders.')
+        return redirect('panel_order_detail', pk=order.pk)
+    
     item.is_available = not item.is_available
     item.save()
     
     # Auto-mark order as available if all items are available
-    order = item.order
     all_items_available = order.items.filter(is_available=False).count() == 0
     if all_items_available:
         order.is_avilable = True

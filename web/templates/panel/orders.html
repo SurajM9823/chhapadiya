@@ -219,18 +219,16 @@
             <th>Order #</th>
             <th>Customer</th>
             <th>Phone</th>
-            <th>Items</th>
             <th>Total (Rs.)</th>
             <th>Order Status</th>
             <th>Payment Status</th>
-            <th>Payment Mode</th>
             <th>Delivery</th>
             <th>Date</th>
             {% if can_edit %}<th>Actions</th>{% endif %}
           </tr>
         </thead>
         <tbody id="orders-tbody">
-          <tr class="state-row"><td colspan="11"><div class="spinner"></div></td></tr>
+          <tr class="state-row"><td colspan="9"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -296,14 +294,16 @@
   function renderTable(data) {
     const tbody = document.getElementById('orders-tbody');
     if (!data.rows.length) {
-      tbody.innerHTML = `<tr class="state-row"><td colspan="11">No orders found matching your filters.</td></tr>`;
+      tbody.innerHTML = `<tr class="state-row"><td colspan="9">No orders found matching your filters.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = data.rows.map(o => {
-      const statusBadge = `<span class="badge badge-${o.status}">${statusLabel(o.status)}</span>`;
+      const isCompleted = o.status === 'delivered' && o.payment_status === 'paid';
+      const statusBadge = isCompleted 
+        ? `<span class="badge badge-delivered">${statusLabel(o.status)}</span> <span class="badge" style="background:#dcfce7;color:#166534;">✓ Completed</span>`
+        : `<span class="badge badge-${o.status}">${statusLabel(o.status)}</span>`;
       const payStatBadge = `<span class="badge badge-${o.payment_status}">${payStatLabel(o.payment_status)}</span>`;
-      const payMethBadge = `<span class="badge badge-${o.payment_method}">${payMethLabel(o.payment_method)}</span>`;
       const delivBadge   = o.delivery_type === 'pickup'
         ? `<span class="badge badge-storepickup">🏪 Pickup</span>`
         : `<span class="badge badge-delivery">🚚 Delivery</span>`;
@@ -338,11 +338,9 @@
           <div class="cust-sub">${esc(o.email)}</div>
         </td>
         <td><div class="cust-phone">📞 ${esc(o.phone)}</div></td>
-        <td style="text-align:center;font-weight:700;">${o.items_count}</td>
         <td style="font-weight:800;color:var(--c-text);">Rs. ${esc(o.total)}</td>
         <td>${statusBadge}</td>
         <td>${payStatBadge}</td>
-        <td>${payMethBadge}</td>
         <td>${delivBadge}</td>
         <td style="white-space:nowrap;color:var(--c-muted);font-size:.78rem;">${esc(o.created_at)}</td>
         ${actionCol}
