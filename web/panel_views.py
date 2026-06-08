@@ -2276,8 +2276,12 @@ def panel_order_detail(request, pk):
         request.user.role and request.user.role.name in ['admin_purchase', 'admin_sales']
     )
     
-    # Hide availability button if order status is confirmed or later
-    show_availability_toggle = can_mark_available and order.status == 'pending'
+    # Show availability toggle button based on role and status
+    # admin_purchase can toggle in processing, others in pending
+    show_availability_toggle = can_mark_available and (
+        order.status == 'pending' or 
+        (order.status == 'processing' and request.user.role and request.user.role.name == 'admin_purchase')
+    )
     
     # Check if order status can be updated
     # Superadmin and admin_sales can bypass availability check for pending orders
@@ -2471,9 +2475,15 @@ def toggle_order_item_availability(request, pk):
     item = get_object_or_404(OrderItem, pk=pk)
     order = item.order
     
-    # Only allow toggling for pending orders
-    if order.status != 'pending':
-        messages.error(request, 'Item availability can only be toggled for pending orders.')
+    # Allow toggling for pending and processing orders
+    # admin_purchase can toggle in processing status
+    if order.status not in ['pending', 'processing']:
+        messages.error(request, 'Item availability can only be toggled for pending or processing orders.')
+        return redirect('panel_order_detail', pk=order.pk)
+    
+    # Additional check: admin_purchase can only toggle in processing status
+    if request.user.role and request.user.role.name == 'admin_purchase' and order.status != 'processing':
+        messages.error(request, 'You can only toggle item availability for processing orders.')
         return redirect('panel_order_detail', pk=order.pk)
     
     item.is_available = not item.is_available
