@@ -90,7 +90,8 @@
   .cust-phone { font-size:.78rem; color:#4f46e5; font-weight:600; margin-top:1px; }
 
   /* ── Order number ─────────────────────────────────────────── */
-  .ord-num  { font-weight:800; font-size:.88rem; color:var(--c-accent); }
+  .ord-num  { font-weight:800; font-size:.88rem; color:var(--c-accent); transition:color .15s; }
+  .ord-num:hover { color:#4338ca; text-decoration:underline; }
   .ord-meta { font-size:.72rem; color:var(--c-muted); margin-top:2px; }
   .ord-pkg  { font-size:.72rem; color:#059669; font-weight:700; margin-top:2px; }
   .ord-agent{ font-size:.72rem; color:#2563eb; margin-top:2px; }
@@ -330,7 +331,9 @@
 
       return `<tr>
         <td>
-          <div class="ord-num">${esc(o.order_number)}</div>
+          <a href="/panel/orders/${o.pk}/" style="text-decoration:none;">
+            <div class="ord-num" style="cursor:pointer;">${esc(o.order_number)}</div>
+          </a>
           ${pkgTag}${agentTag}
         </td>
         <td>
