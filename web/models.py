@@ -290,8 +290,17 @@ class Order(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.order_number:
-            import random, string
-            self.order_number = 'ORD' + ''.join(random.choices(string.digits, k=7))
+            from django.utils import timezone
+            year = timezone.now().year
+            last = Order.objects.filter(order_number__startswith=f'{year}-').order_by('-order_number').first()
+            if last:
+                try:
+                    seq = int(last.order_number.split('-')[1]) + 1
+                except (IndexError, ValueError):
+                    seq = 1
+            else:
+                seq = 1
+            self.order_number = f'{year}-{seq:04d}'
         super().save(*args, **kwargs)
 
 
