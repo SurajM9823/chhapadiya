@@ -3323,6 +3323,20 @@ def api_billing_create(request):
     overall_discount = float(data.get('overall_discount', 0))
     split_payments = data.get('split_payments')
     order_id = data.get('order_id')
+
+    # Order creation fields
+    order_full_name = data.get('order_full_name', '').strip() or walk_in_name
+    order_phone = data.get('order_phone', '').strip() or walk_in_phone
+    order_email = data.get('order_email', '').strip()
+    order_delivery_type = data.get('order_delivery_type', 'pickup')
+    order_address = data.get('order_address', '').strip()
+    order_city = data.get('order_city', '').strip()
+    billing_org_name = data.get('billing_org_name', '').strip()
+    billing_person_name = data.get('billing_person_name', '').strip()
+    billing_contact = data.get('billing_contact', '').strip()
+    billing_address = data.get('billing_address', '').strip()
+    billing_city = data.get('billing_city', '').strip()
+    pan_number = data.get('pan_number', '').strip()
     
     subtotal = 0
     item_discount_total = 0
@@ -3411,37 +3425,108 @@ def api_billing_create(request):
             unit_price=item['price'],
             note=f'Bill #{bill.bill_number}',
         )
-    
-    # Update order payment status if linked
+
+    # Determine payment_method for Order
+    order_payment_method = 'cod'
+    if payment_method in ('card', 'upi', 'online'):
+        order_payment_method = 'online'
+    elif order_delivery_type == 'pickup':
+        order_payment_method = 'pickup'
+
+    # Determine order payment_status
+    if total_paid >= total:
+        order_pay_status = 'paid'
+    elif total_paid > 0:
+        order_pay_status = 'partial'
+    else:
+        order_pay_status = 'unpaid'
+
+    # Resolve agent for order
+    referred_agent = None
+    if agent_id:
+        referred_agent = CustomerUser.objects.filter(pk=agent_id, user_type='agent').first()
+
+    # Resolve user for order (from customer record if available)
+    order_user = None
+    if customer_id:
+        from .models import Customer as CustomerModel
+        cust = CustomerModel.objects.filter(pk=customer_id).select_related('user').first()
+        if cust and cust.user:
+            order_user = cust.user
+
+    # If linked to existing order, update its payment status instead of creating new
+    created_order = None
     if order_id:
-        order = Order.objects.filter(pk=order_id).first()
-        if order:
-            # Calculate total paid from billings
+        existing_order = Order.objects.filter(pk=order_id).first()
+        if existing_order:
+            from django.db.models import Sum
             total_paid_from_billings = 0
-            for billing in Billing.objects.filter(created_at__gte=order.created_at).order_by('created_at'):
+            for billing in Billing.objects.filter(created_at__gte=existing_order.created_at):
                 billing_product_ids = set(billing.items.values_list('product_id', flat=True))
-                order_product_ids = set(order.items.values_list('product_id', flat=True))
+                order_product_ids = set(existing_order.items.values_list('product_id', flat=True))
                 if billing_product_ids & order_product_ids:
                     total_paid_from_billings += float(billing.amount_paid)
-            
-            # Calculate total paid from OrderPayment records
-            from django.db.models import Sum
-            from .models import OrderPayment
-            total_paid_from_payments = order.payments.aggregate(total=Sum('amount'))['total'] or 0
-            
+            total_paid_from_payments = existing_order.payments.aggregate(total=Sum('amount'))['total'] or 0
             total_paid_combined = float(total_paid_from_billings) + float(total_paid_from_payments)
-            order_total = float(order.total)
-            
-            # Update payment status based on total paid vs order total
+            order_total = float(existing_order.total)
             if total_paid_combined >= order_total:
-                order.payment_status = 'paid'
+                existing_order.payment_status = 'paid'
             elif total_paid_combined > 0:
-                order.payment_status = 'partial'
+                existing_order.payment_status = 'partial'
             else:
-                order.payment_status = 'unpaid'
-            order.save()
+                existing_order.payment_status = 'unpaid'
+            existing_order.save()
+            created_order = existing_order
+    else:
+        # Create a new Order with status=pending
+        new_order = Order.objects.create(
+            user=order_user,
+            status='pending',
+            delivery_type=order_delivery_type,
+            full_name=order_full_name,
+            phone=order_phone,
+            email=order_email,
+            address=order_address,
+            city=order_city,
+            billing_address=billing_address,
+            billing_city=billing_city,
+            billing_contact=billing_contact,
+            billing_org_name=billing_org_name,
+            billing_person_name=billing_person_name,
+            pan_number=pan_number,
+            payment_method=order_payment_method,
+            payment_status=order_pay_status,
+            referred_agent=referred_agent,
+            subtotal=subtotal,
+            delivery_charge=0,
+            total=total,
+        )
+        for item in bill_items:
+            OrderItem.objects.create(
+                order=new_order,
+                product=item['product'],
+                product_name=item['product'].name,
+                product_sku=item['product'].sku,
+                unit_price=item['price'],
+                quantity=item['qty'],
+            )
+        # Record payment if any amount was paid
+        if total_paid > 0:
+            OrderPayment.objects.create(
+                order=new_order,
+                amount=total_paid,
+                payment_method='cash' if payment_method == 'cash' else ('card' if payment_method == 'card' else 'upi'),
+                note=f'POS Bill #{bill.bill_number}',
+                recorded_by=request.user,
+            )
+        created_order = new_order
     
-    return JsonResponse({'bill_number': bill.bill_number, 'bill_id': bill.pk})
+    return JsonResponse({
+        'bill_number': bill.bill_number,
+        'bill_id': bill.pk,
+        'order_id': created_order.pk if created_order else None,
+        'order_number': created_order.order_number if created_order else None,
+    })
 
 
 

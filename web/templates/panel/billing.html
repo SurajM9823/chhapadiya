@@ -33,8 +33,9 @@
         <!-- Right: Billing Cart -->
         <div class="col-md-8">
             <div class="card mb-3">
-                <div class="card-header bg-success text-white">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Billing Cart</h5>
+                    <span id="cartBadge" class="badge badge-light text-success" style="font-size:1rem;">0 items</span>
                 </div>
                 <div class="card-body">
                     <!-- Customer Selection -->
@@ -67,6 +68,74 @@
                             <button type="button" class="btn btn-sm btn-info btn-block" onclick="saveWalkInCustomer()">
                                 <i class="fa fa-save"></i> Save as Customer
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Order / Shipping Details -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light py-2">
+                            <strong>Order / Shipping Details</strong> <small class="text-muted">(required to create order)</small>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label>Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" id="orderFullName" class="form-control form-control-sm" placeholder="Recipient full name">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Phone <span class="text-danger">*</span></label>
+                                    <input type="text" id="orderPhone" class="form-control form-control-sm" placeholder="Contact phone">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Email</label>
+                                    <input type="email" id="orderEmail" class="form-control form-control-sm" placeholder="Email (optional)">
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <label>Delivery Type</label>
+                                    <select id="orderDeliveryType" class="form-control form-control-sm">
+                                        <option value="pickup">Store Pickup</option>
+                                        <option value="delivery">Home Delivery</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Address</label>
+                                    <input type="text" id="orderAddress" class="form-control form-control-sm" placeholder="Delivery address">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>City</label>
+                                    <input type="text" id="orderCity" class="form-control form-control-sm" placeholder="City">
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <label>Billing Org Name</label>
+                                    <input type="text" id="billingOrgName" class="form-control form-control-sm" placeholder="Organization name">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Billing Person Name</label>
+                                    <input type="text" id="billingPersonName" class="form-control form-control-sm" placeholder="Person name">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Billing Contact</label>
+                                    <input type="text" id="billingContact" class="form-control form-control-sm" placeholder="Billing contact">
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <label>Billing Address</label>
+                                    <input type="text" id="billingAddress" class="form-control form-control-sm" placeholder="Billing address">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Billing City</label>
+                                    <input type="text" id="billingCity" class="form-control form-control-sm" placeholder="Billing city">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>PAN Number</label>
+                                    <input type="text" id="orderPan" class="form-control form-control-sm" placeholder="PAN (optional)" maxlength="9">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -364,12 +433,20 @@ $(document).ready(function() {
     
     // Show/hide walk-in customer fields
     $('#customerSelect').on('change', function() {
-        if ($(this).val() === '' || $(this).val() === null) {
+        const val = $(this).val();
+        if (!val) {
             $('#walkInDetails').show();
         } else {
             $('#walkInDetails').hide();
             $('#walkInName').val('');
             $('#walkInPhone').val('');
+            // Auto-fill order fields from selected customer
+            const selected = customers.find(c => c.id == val);
+            if (selected) {
+                if (!$('#orderFullName').val()) $('#orderFullName').val(selected.name);
+                if (!$('#orderPhone').val()) $('#orderPhone').val(selected.phone || '');
+                if (!$('#orderEmail').val()) $('#orderEmail').val(selected.email || '');
+            }
         }
     });
     
@@ -488,28 +565,35 @@ function renderProducts() {
         return;
     }
     
-    const html = products.map(p => `
-        <div class="product-item border-bottom p-2" data-name="${p.name}" data-sku="${p.sku}" style="cursor: pointer;" onclick="addToCart(${p.id})">
+    const html = products.map(p => {
+        const inCart = cart.find(item => item.product_id === p.id);
+        const inCartQty = inCart ? inCart.quantity : 0;
+        return `
+        <div class="product-item border-bottom p-2${inCart ? ' in-cart' : ''}" data-name="${p.name}" data-sku="${p.sku}" style="cursor: pointer;" onclick="addToCart(${p.id})">
             <div class="d-flex align-items-center">
-                <div class="mr-2" style="width: 50px; height: 50px; flex-shrink: 0;">
+                <div class="mr-2" style="width: 50px; height: 50px; flex-shrink: 0; position:relative;">
                     ${p.image ? 
                         `<img src="${p.image}" alt="${p.name}" class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">` : 
                         `<div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                             <i class="fa fa-image text-white"></i>
                         </div>`
                     }
+                    ${inCart ? `<span class="cart-qty-badge">${inCartQty}</span>` : ''}
                 </div>
                 <div class="flex-grow-1">
-                    <strong style="font-size: 0.9rem;">${p.name}</strong><br>
+                    <strong style="font-size: 0.9rem;">${p.name}</strong>
+                    ${inCart ? ' <span class="badge badge-success badge-sm">In Cart</span>' : ''}<br>
                     <small class="text-muted">SKU: ${p.sku}</small>
-                    <span class="badge badge-${p.stock < 10 ? 'warning' : 'success'} badge-sm ml-2">Stock: ${p.stock}</span>
+                    <span class="badge badge-${p.stock < 10 ? 'warning' : 'secondary'} badge-sm ml-2">Stock: ${p.stock}</span>
                 </div>
                 <div class="text-right ml-2">
-                    <strong class="text-success">₹${parseFloat(p.mrp).toFixed(2)}</strong>
+                    <strong class="text-success">₹${parseFloat(p.mrp).toFixed(2)}</strong><br>
+                    <small class="text-${inCart ? 'success font-weight-bold' : 'muted'}">${inCart ? '+ add more' : 'click to add'}</small>
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     $('#productList').html(html);
 }
 
@@ -629,6 +713,10 @@ function addToCart(productId) {
 }
 
 function renderCart() {
+    const totalQty = cart.reduce((s, i) => s + i.quantity, 0);
+    $('#cartBadge').text(totalQty + ' item' + (totalQty !== 1 ? 's' : ''));
+    // Re-render product list to update in-cart highlights
+    renderProducts();
     if (cart.length === 0) {
         $('#cartItems').html('<tr><td colspan="6" class="text-center text-muted">No items in cart</td></tr>');
         updateTotals();
@@ -750,6 +838,14 @@ function completeBilling() {
         }
     }
 
+    const orderFullName = $('#orderFullName').val().trim() || walkInName;
+    const orderPhone = $('#orderPhone').val().trim() || walkInPhone;
+
+    if (!orderFullName || !orderPhone) {
+        alert('Please enter Full Name and Phone in Order / Shipping Details!');
+        return;
+    }
+
     const data = {
         customer_id: customerId,
         walk_in_name: walkInName,
@@ -762,7 +858,20 @@ function completeBilling() {
         overall_discount: overallDiscount,
         items: cart,
         split_payments: splitPayments,
-        order_id: orderData ? orderData.order_id : null
+        order_id: orderData ? orderData.order_id : null,
+        // Order creation fields
+        order_full_name: orderFullName,
+        order_phone: orderPhone,
+        order_email: $('#orderEmail').val().trim(),
+        order_delivery_type: $('#orderDeliveryType').val(),
+        order_address: $('#orderAddress').val().trim(),
+        order_city: $('#orderCity').val().trim(),
+        billing_org_name: $('#billingOrgName').val().trim(),
+        billing_person_name: $('#billingPersonName').val().trim(),
+        billing_contact: $('#billingContact').val().trim(),
+        billing_address: $('#billingAddress').val().trim(),
+        billing_city: $('#billingCity').val().trim(),
+        pan_number: $('#orderPan').val().trim(),
     };
 
     $.ajax({
@@ -774,7 +883,9 @@ function completeBilling() {
             'X-CSRFToken': '{{ csrf_token }}'
         },
         success: function(response) {
-            alert('Billing completed successfully! Bill #' + response.bill_number);
+            let msg = 'Billing completed! Bill #' + response.bill_number;
+            if (response.order_number) msg += '\nOrder #' + response.order_number + ' created (status: Pending)';
+            alert(msg);
             cart = [];
             renderCart();
             $('#customerSelect').val('').trigger('change');
@@ -785,11 +896,19 @@ function completeBilling() {
             $('#overallDiscount').val(0);
             $('#amountPaid').val('');
             $('#walkInDetails').hide();
+            // Clear order fields
+            $('#orderFullName, #orderPhone, #orderEmail, #orderAddress, #orderCity').val('');
+            $('#billingOrgName, #billingPersonName, #billingContact, #billingAddress, #billingCity, #orderPan').val('');
+            $('#orderDeliveryType').val('pickup');
             loadBillingHistory();
             loadProducts(); // Refresh stock
             
-            // Redirect to order detail if came from order
-            if (orderData && orderData.order_id) {
+            // Redirect to new order if created
+            if (response.order_id) {
+                setTimeout(function() {
+                    window.location.href = '/panel/orders/' + response.order_id + '/';
+                }, 1500);
+            } else if (orderData && orderData.order_id) {
                 setTimeout(function() {
                     window.location.href = '/panel/orders/' + orderData.order_id + '/';
                 }, 1500);
@@ -908,6 +1027,10 @@ function autoPopulateFromOrder(orderData) {
     $('#walkInName').val(orderData.customer_name || '');
     $('#walkInPhone').val(orderData.customer_phone || '');
     $('#walkInDetails').show();
+    // Pre-fill order fields from order data
+    $('#orderFullName').val(orderData.customer_name || '');
+    $('#orderPhone').val(orderData.customer_phone || '');
+    $('#orderEmail').val(orderData.customer_email || '');
     
     // Add items to cart
     cart = [];
@@ -976,6 +1099,29 @@ function autoPopulateFromOrder(orderData) {
 }
 .product-item:hover {
     border-left-color: #28a745;
+}
+.product-item.in-cart {
+    background-color: #f0fff4;
+    border-left-color: #28a745;
+}
+.product-item.in-cart:hover {
+    background-color: #d4edda;
+}
+.cart-qty-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #28a745;
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 .product-item img {
     border: 1px solid #dee2e6;
