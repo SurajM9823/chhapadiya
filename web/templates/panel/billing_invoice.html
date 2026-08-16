@@ -158,7 +158,7 @@
                     <td>{{ item.product_name }}</td>
                     <td>{{ item.sku|default:"-" }}</td>
                     <td class="text-center">{{ item.quantity }}</td>
-                    <td class="text-center">{{ item.unit|default:"pcs." }}</td>
+                    <td class="text-center">{{ item.product.unit.name|default:"Pcs" }}</td>
                     <td class="text-right">{{ item.unit_price }}</td>
                     <td class="text-right">{{ item.subtotal }}</td>
                     <td class="text-right">{{ item.vat_amount|default:"0" }}</td>

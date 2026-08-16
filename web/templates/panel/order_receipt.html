@@ -180,13 +180,14 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">S.N.</th>
-                    <th style="width: 35%;">Name</th>
+                    <th style="width: 33%;">Name</th>
                     <th style="width: 10%;">SKU</th>
                     <th style="width: 6%;" class="text-center">Qty</th>
-                    <th style="width: 11%;" class="text-right">Unit Price<br><small>(Excl. VAT)</small></th>
-                    <th style="width: 11%;" class="text-right">Taxable<br>Amount</th>
-                    <th style="width: 11%;" class="text-right">VAT<br>(13%)</th>
-                    <th style="width: 11%;" class="text-right">Total<br>Amount</th>
+                    <th style="width: 7%;" class="text-center">Unit</th>
+                    <th style="width: 10%;" class="text-right">Unit Price<br><small>(Excl. VAT)</small></th>
+                    <th style="width: 10%;" class="text-right">Taxable<br>Amount</th>
+                    <th style="width: 9%;" class="text-right">VAT<br>(13%)</th>
+                    <th style="width: 10%;" class="text-right">Total<br>Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -196,6 +197,7 @@
                     <td>{{ item_data.item.product_name }}</td>
                     <td>{{ item_data.item.product_sku|default:"-" }}</td>
                     <td class="text-center">{{ item_data.item.quantity }}</td>
+                    <td class="text-center">{{ item_data.unit }}</td>
                     <td class="text-right">Rs. {{ item_data.unit_price_excl|floatformat:2 }}</td>
                     <td class="text-right">Rs. {{ item_data.taxable_amount|floatformat:2 }}</td>
                     <td class="text-right">Rs. {{ item_data.vat_amount|floatformat:2 }}</td>
@@ -204,7 +206,7 @@
                 {% endfor %}
 
                 <tr class="grand-total-row">
-                    <td colspan="4" class="text-right" style="font-weight: bold;">Grand Total</td>
+                    <td colspan="5" class="text-right" style="font-weight: bold;">Grand Total</td>
                     <td class="text-right" style="font-weight: bold;">-</td>
                     <td class="text-right" style="font-weight: bold;">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</td>
                     <td class="text-right" style="font-weight: bold;">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</td>

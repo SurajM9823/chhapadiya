@@ -166,6 +166,7 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th>Product</th>
+                                    <th width="60">Unit</th>
                                     <th width="100">Price</th>
                                     <th width="80">Qty</th>
                                     <th width="80">Disc%</th>
@@ -707,6 +708,7 @@ function addToCart(productId) {
             product_id: productId,
             name: product.name,
             sku: product.sku,
+            unit: product.unit || 'Pcs',
             price: price,
             quantity: 1,
             discount: 0,
@@ -722,7 +724,7 @@ function renderCart() {
     // Re-render product list preserving current search query
     renderProducts($('#productSearch').val().trim().toLowerCase());
     if (cart.length === 0) {
-        $('#cartItems').html('<tr><td colspan="6" class="text-center text-muted">No items in cart</td></tr>');
+        $('#cartItems').html('<tr><td colspan="7" class="text-center text-muted">No items in cart</td></tr>');
         updateTotals();
         return;
     }
@@ -730,6 +732,7 @@ function renderCart() {
     const html = cart.map((item, index) => `
         <tr>
             <td>${item.name}<br><small class="text-muted">${item.sku}</small></td>
+            <td><small class="text-muted">${item.unit || 'Pcs'}</small></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.price}" step="0.01" min="0" onchange="updateItemPrice(${index}, this.value)"></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.quantity}" min="1" max="${item.max_stock}" onchange="updateItemQty(${index}, this.value)"></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.discount}" min="0" max="100" step="0.1" onchange="updateItemDiscount(${index}, this.value)"></td>
@@ -1059,6 +1062,7 @@ function autoPopulateFromOrder(orderData) {
                 product_id: item.product_id,
                 name: item.product_name,
                 sku: item.product_sku,
+                unit: product ? (product.unit || 'Pcs') : 'Pcs',
                 price: proportionalPrice.toFixed(2),
                 quantity: item.quantity,
                 discount: 0,
@@ -1078,6 +1082,7 @@ function autoPopulateFromOrder(orderData) {
                 product_id: item.product_id,
                 name: item.product_name,
                 sku: item.product_sku,
+                unit: product ? (product.unit || 'Pcs') : 'Pcs',
                 price: item.unit_price,
                 quantity: item.quantity,
                 discount: 0,

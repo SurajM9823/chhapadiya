@@ -2358,7 +2358,7 @@ def panel_order_receipt(request, pk):
     items_with_tax = []
     
     for item in order.items.all():
-        item_data = {'item': item, 'unit_price_excl': 0, 'taxable_amount': 0, 'vat_amount': 0, 'total_amount': float(item.subtotal)}
+        item_data = {'item': item, 'unit_price_excl': 0, 'taxable_amount': 0, 'vat_amount': 0, 'total_amount': float(item.subtotal), 'unit': item.product.unit.name if item.product and item.product.unit else 'Pcs'}
         
         if item.product and item.product.tax_included:
             item_total = float(item.subtotal)
@@ -2999,6 +2999,7 @@ def panel_billing(request):
             'category_id': p.category_id or 0,
             'image': img.image.url if img else '',
             'tier_prices': tier_prices,
+            'unit': p.unit.name if p.unit else 'Pcs',
         })
 
     customers_qs = Customer.objects.filter(is_active=True).select_related('tier')
