@@ -664,6 +664,16 @@ class Customer(models.Model):
 
 # ── Products ──────────────────────────────────────────────────────────────────
 
+class ProductUnit(models.Model):
+    name = models.CharField(max_length=50, unique=True)  # e.g. Piece, Box, Kg, Litre
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     # Identity
     name = models.CharField(max_length=300)
@@ -675,6 +685,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
     sub_category = models.ForeignKey('SubCategory', null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
     linked_package = models.ForeignKey('Package', null=True, blank=True, on_delete=models.SET_NULL, related_name='linked_products', help_text='Link this product to a package offer')
+    unit = models.ForeignKey('ProductUnit', null=True, blank=True, on_delete=models.SET_NULL, related_name='products', help_text='Unit of measurement e.g. Piece, Box, Kg')
 
     # Descriptions
     short_description = models.TextField(blank=True)

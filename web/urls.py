@@ -161,6 +161,7 @@ urlpatterns = [
     path('panel/billing/<int:pk>/detail/', panel_views.panel_billing_detail, name='panel_billing_detail'),
     path('panel/billing/<int:pk>/view/', panel_views.panel_billing_view, name='panel_billing_view'),
     path('panel/api/products/', panel_views.api_billing_products, name='api_products'),
+    path('panel/api/product-units/', panel_views.api_product_units, name='api_product_units'),
     path('panel/api/customers/', panel_views.api_customers, name='api_customers'),
     path('panel/api/customers/create/', panel_views.api_customer_create, name='api_customer_create'),
     path('panel/api/agents/', panel_views.api_agents, name='api_agents'),

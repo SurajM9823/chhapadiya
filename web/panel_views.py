@@ -2,7 +2,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent,ProductAlliance, OrderPayment
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent, ProductAlliance, OrderPayment, ProductUnit
 from .email_utils import send_order_status_update_email
 from .permissions import permission_required, check_permission
 import json
@@ -980,6 +980,25 @@ def panel_products(request):
 
 
 @login_required(login_url='panel_login')
+@permission_required('products', 'view')
+def api_product_units(request):
+    """GET: list units. POST: get-or-create a unit by name."""
+    if request.method == 'POST':
+        import json as _json
+        data = _json.loads(request.body)
+        name = data.get('name', '').strip()
+        if not name:
+            return JsonResponse({'error': 'Name required'}, status=400)
+        unit, _ = ProductUnit.objects.get_or_create(name__iexact=name, defaults={'name': name})
+        return JsonResponse({'id': unit.pk, 'name': unit.name})
+    q = request.GET.get('q', '').strip()
+    qs = ProductUnit.objects.all()
+    if q:
+        qs = qs.filter(name__icontains=q)
+    return JsonResponse([{'id': u.pk, 'name': u.name} for u in qs], safe=False)
+
+
+@login_required(login_url='panel_login')
 @permission_required('products', 'create')
 def panel_product_add(request):
     categories = Category.objects.prefetch_related('subcategories').filter(is_active=True)
@@ -989,6 +1008,7 @@ def panel_product_add(request):
     delivery_times = DeliveryTimeTier.objects.filter(is_active=True)
     packages = Package.objects.filter(is_active=True)
     if request.method == 'POST':
+        unit_id = request.POST.get('unit') or None
         product = Product.objects.create(
             name=request.POST['name'], sku=request.POST['sku'],
             product_code=request.POST.get('product_code', ''),
@@ -1005,6 +1025,7 @@ def panel_product_add(request):
             tax_percent=request.POST.get('tax_percent') or 0,
             delivery_time_id=request.POST.get('delivery_time') or None,
             linked_package_id=request.POST.get('linked_package') or None,
+            unit_id=unit_id,
             is_active=request.POST.get('is_active') == 'on',
             is_featured=request.POST.get('is_featured') == 'on',
         )
@@ -1058,6 +1079,7 @@ def panel_product_edit(request, pk):
         product.tax_percent = request.POST.get('tax_percent') or 0
         product.delivery_time_id = request.POST.get('delivery_time') or None
         product.linked_package_id = request.POST.get('linked_package') or None
+        product.unit_id = request.POST.get('unit') or None
         product.is_active = request.POST.get('is_active') == 'on'
         product.is_featured = request.POST.get('is_featured') == 'on'
         product.save()
