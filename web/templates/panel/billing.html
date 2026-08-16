@@ -22,7 +22,11 @@
                     <h5 class="mb-0">Products</h5>
                 </div>
                 <div class="card-body">
-                    <input type="text" id="productSearch" class="form-control mb-3" placeholder="Search products...">
+                    <input type="text" id="productSearch" class="form-control mb-2" placeholder="Search products...">
+                    <div id="productSearchSpinner" style="display:none;" class="text-center py-2">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <small class="text-muted ml-1">Searching...</small>
+                    </div>
                     <div id="productList" style="max-height: 500px; overflow-y: auto;">
                         <!-- Products loaded via JS -->
                     </div>
@@ -514,16 +518,7 @@ $(document).ready(function() {
 
     // Product search
     $('#productSearch').on('input', function() {
-        const query = $(this).val().toLowerCase();
-        $('.product-item').each(function() {
-            const name = $(this).data('name').toLowerCase();
-            const sku = $(this).data('sku').toLowerCase();
-            if (name.includes(query) || sku.includes(query)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
+        renderProducts($(this).val().trim().toLowerCase());
     });
 
     // Pagination
@@ -552,31 +547,40 @@ $('#resetFilters').on('click', function() {
 });
 
 function loadProducts() {
+    $('#productList').html('<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Loading products...</div>');
     $.get('/panel/api/products/', function(data) {
-        // Filter out products with zero stock
         products = (data.results || data).filter(p => p.stock > 0);
         renderProducts();
+    }).fail(function() {
+        $('#productList').html('<div class="text-center text-danger p-3">Failed to load products. <a href="#" onclick="loadProducts()">Retry</a></div>');
     });
 }
 
-function renderProducts() {
-    if (products.length === 0) {
-        $('#productList').html('<div class="text-center text-muted p-3">No products in stock</div>');
+function renderProducts(query) {
+    query = (query || '').toLowerCase();
+    let filtered = products;
+    if (query) {
+        $('#productSearchSpinner').show();
+        filtered = products.filter(p =>
+            p.name.toLowerCase().includes(query) ||
+            p.sku.toLowerCase().includes(query)
+        );
+        $('#productSearchSpinner').hide();
+    }
+    if (filtered.length === 0) {
+        $('#productList').html('<div class="text-center text-muted p-3">' + (query ? 'No products match "' + query + '"' : 'No products in stock') + '</div>');
         return;
     }
-    
-    const html = products.map(p => {
+    const html = filtered.map(p => {
         const inCart = cart.find(item => item.product_id === p.id);
         const inCartQty = inCart ? inCart.quantity : 0;
         return `
         <div class="product-item border-bottom p-2${inCart ? ' in-cart' : ''}" data-name="${p.name}" data-sku="${p.sku}" style="cursor: pointer;" onclick="addToCart(${p.id})">
             <div class="d-flex align-items-center">
                 <div class="mr-2" style="width: 50px; height: 50px; flex-shrink: 0; position:relative;">
-                    ${p.image ? 
-                        `<img src="${p.image}" alt="${p.name}" class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">` : 
-                        `<div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="fa fa-image text-white"></i>
-                        </div>`
+                    ${p.image ?
+                        `<img src="${p.image}" alt="${p.name}" class="img-fluid rounded" style="width: 50px; height: 50px; object-fit: cover;">` :
+                        `<div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;"><i class="fa fa-image text-white"></i></div>`
                     }
                     ${inCart ? `<span class="cart-qty-badge">${inCartQty}</span>` : ''}
                 </div>
@@ -715,8 +719,8 @@ function addToCart(productId) {
 function renderCart() {
     const totalQty = cart.reduce((s, i) => s + i.quantity, 0);
     $('#cartBadge').text(totalQty + ' item' + (totalQty !== 1 ? 's' : ''));
-    // Re-render product list to update in-cart highlights
-    renderProducts();
+    // Re-render product list preserving current search query
+    renderProducts($('#productSearch').val().trim().toLowerCase());
     if (cart.length === 0) {
         $('#cartItems').html('<tr><td colspan="6" class="text-center text-muted">No items in cart</td></tr>');
         updateTotals();
