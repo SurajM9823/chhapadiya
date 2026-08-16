@@ -547,13 +547,13 @@ $('#resetFilters').on('click', function() {
 });
 
 function loadProducts() {
-    $('#productList').html('<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Loading products...</div>');
-    $.get('/panel/api/products/', function(data) {
-        products = (data.results || data).filter(p => p.stock > 0);
+    try {
+        const allProducts = {{ products_json|safe }};
+        products = allProducts.filter(p => p.stock > 0);
         renderProducts();
-    }).fail(function() {
-        $('#productList').html('<div class="text-center text-danger p-3">Failed to load products. <a href="#" onclick="loadProducts()">Retry</a></div>');
-    });
+    } catch(e) {
+        $('#productList').html('<div class="text-center text-danger p-3">Failed to load products. <a href="#" onclick="location.reload()">Retry</a></div>');
+    }
 }
 
 function renderProducts(query) {
@@ -905,7 +905,7 @@ function completeBilling() {
             $('#billingOrgName, #billingPersonName, #billingContact, #billingAddress, #billingCity, #orderPan').val('');
             $('#orderDeliveryType').val('pickup');
             loadBillingHistory();
-            loadProducts(); // Refresh stock
+            // Stock refreshed on page reload after redirect
             
             // Redirect to new order if created
             if (response.order_id) {
