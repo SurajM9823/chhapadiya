@@ -90,10 +90,15 @@ e , l{% extends "panel/base.html" %}
             <div class="space-y-2 text-sm">
                 <div><span class="text-gray-500">Method:</span> <span class="font-medium">{{ order.get_payment_method_display }}</span></div>
                 <div><span class="text-gray-500">Subtotal:</span> <span class="font-medium">Rs. {{ order.subtotal }}</span></div>
-                {% if tax_breakdown.has_tax %}
+                {% if tax_breakdown.has_tax or tax_breakdown.has_non_tax %}
                 <div class="pl-4 text-xs space-y-1 bg-gray-50 py-2 rounded">
+                    {% if tax_breakdown.has_tax %}
                     <div><span class="text-gray-500">Taxable Amount:</span> <span class="font-medium text-gray-700">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</span></div>
                     <div><span class="text-gray-500">VAT ({{ tax_breakdown.avg_tax_rate|floatformat:1 }}%):</span> <span class="font-medium text-gray-700">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</span></div>
+                    {% endif %}
+                    {% if tax_breakdown.has_non_tax %}
+                    <div><span class="text-gray-500">Non-Taxable Amount:</span> <span class="font-medium text-gray-700">Rs. {{ tax_breakdown.non_taxable_amount|floatformat:2 }}</span></div>
+                    {% endif %}
                 </div>
                 {% endif %}
                 <div><span class="text-gray-500">Total:</span> <span class="font-bold text-lg">Rs. {{ order.total }}</span></div>
@@ -259,8 +264,16 @@ e , l{% extends "panel/base.html" %}
                     {% if not order.is_package_order %}
                     <td class="px-6 py-4 text-sm text-right text-gray-900">
                         Rs. {{ item.unit_price }}
-                        {% if item.product and item.product.tax_included %}
-                        <br><span class="text-xs text-gray-500">(Incl. 13% VAT)</span>
+                        {% if item.product %}
+                            {% if item.product.tax_percent > 0 %}
+                                {% if item.product.tax_included %}
+                                <br><span class="text-xs text-green-700 font-medium">(Incl. {{ item.product.tax_percent|floatformat:0 }}% VAT)</span>
+                                {% else %}
+                                <br><span class="text-xs text-green-700 font-medium">(+{{ item.product.tax_percent|floatformat:0 }}% VAT)</span>
+                                {% endif %}
+                            {% else %}
+                                <br><span class="text-xs text-gray-500 font-medium">(Non-VAT)</span>
+                            {% endif %}
                         {% endif %}
                     </td>
                     {% endif %}

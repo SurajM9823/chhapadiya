@@ -192,20 +192,21 @@
                             <div class="border p-3 bg-light rounded">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Subtotal:</span>
-                                    <strong id="subtotal">₹0.00</strong>
+                                    <strong id="subtotal">Rs. 0.00</strong>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Discount:</span>
-                                    <strong id="discountAmount" class="text-danger">₹0.00</strong>
+                                    <strong id="discountAmount" class="text-danger">Rs. 0.00</strong>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
-                                    <span>Tax:</span>
-                                    <strong id="taxAmount">₹0.00</strong>
+                                    <span>Tax / VAT:</span>
+                                    <strong id="taxAmount" class="text-primary">Rs. 0.00</strong>
                                 </div>
+                                <div id="taxDetails" class="mb-2" style="display: none;"></div>
                                 <hr class="my-2">
                                 <div class="d-flex justify-content-between">
                                     <span><strong>Total to Pay:</strong></span>
-                                    <strong id="totalToPay" class="text-success" style="font-size: 1.2rem;">₹0.00</strong>
+                                    <strong id="totalToPay" class="text-success" style="font-size: 1.2rem;">Rs. 0.00</strong>
                                 </div>
                             </div>
                         </div>
@@ -575,6 +576,10 @@ function renderProducts(query) {
     const html = filtered.map(p => {
         const inCart = cart.find(item => item.product_id === p.id);
         const inCartQty = inCart ? inCart.quantity : 0;
+        const isTaxable = parseFloat(p.tax_percent) > 0;
+        const taxBadge = isTaxable ? 
+            `<span class="badge badge-success badge-sm ml-1" style="font-size: 10px;">${p.tax_included ? 'Incl. ' + p.tax_percent + '% VAT' : '+' + p.tax_percent + '% VAT'}</span>` : 
+            `<span class="badge badge-secondary badge-sm ml-1" style="font-size: 10px;">Non-VAT</span>`;
         return `
         <div class="product-item border-bottom p-2${inCart ? ' in-cart' : ''}" data-name="${p.name}" data-sku="${p.sku}" style="cursor: pointer;" onclick="addToCart(${p.id})">
             <div class="d-flex align-items-center">
@@ -590,9 +595,10 @@ function renderProducts(query) {
                     ${inCart ? ' <span class="badge badge-success badge-sm">In Cart</span>' : ''}<br>
                     <small class="text-muted">SKU: ${p.sku}</small>
                     <span class="badge badge-${p.stock < 10 ? 'warning' : 'secondary'} badge-sm ml-2">Stock: ${p.stock}</span>
+                    ${taxBadge}
                 </div>
                 <div class="text-right ml-2">
-                    <strong class="text-success">₹${parseFloat(p.mrp).toFixed(2)}</strong><br>
+                    <strong class="text-success">Rs. ${parseFloat(p.mrp).toFixed(2)}</strong><br>
                     <small class="text-${inCart ? 'success font-weight-bold' : 'muted'}">${inCart ? '+ add more' : 'click to add'}</small>
                 </div>
             </div>
@@ -712,6 +718,8 @@ function addToCart(productId) {
             price: price,
             quantity: 1,
             discount: 0,
+            tax_included: product.tax_included !== undefined ? product.tax_included : true,
+            tax_percent: parseFloat(product.tax_percent) || 0,
             max_stock: product.stock
         });
     }
@@ -729,17 +737,26 @@ function renderCart() {
         return;
     }
 
-    const html = cart.map((item, index) => `
+    const html = cart.map((item, index) => {
+        const isTaxable = parseFloat(item.tax_percent) > 0;
+        const taxBadge = isTaxable ? 
+            `<span class="badge badge-success badge-sm" style="font-size:10px;">${item.tax_included ? 'Incl. ' + item.tax_percent + '% VAT' : '+' + item.tax_percent + '% VAT'}</span>` : 
+            `<span class="badge badge-secondary badge-sm" style="font-size:10px;">Non-VAT</span>`;
+        return `
         <tr>
-            <td>${item.name}<br><small class="text-muted">${item.sku}</small></td>
+            <td>
+                ${item.name}<br>
+                <small class="text-muted">${item.sku}</small> ${taxBadge}
+            </td>
             <td><small class="text-muted">${item.unit || 'Pcs'}</small></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.price}" step="0.01" min="0" onchange="updateItemPrice(${index}, this.value)"></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.quantity}" min="1" max="${item.max_stock}" onchange="updateItemQty(${index}, this.value)"></td>
             <td><input type="number" class="form-control form-control-sm" value="${item.discount}" min="0" max="100" step="0.1" onchange="updateItemDiscount(${index}, this.value)"></td>
-            <td>₹${calculateItemTotal(item).toFixed(2)}</td>
+            <td>Rs. ${calculateItemTotal(item).toFixed(2)}</td>
             <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">×</button></td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
     $('#cartItems').html(html);
     updateTotals();
 }
@@ -786,20 +803,57 @@ function removeFromCart(index) {
 
 function updateTotals() {
     let subtotal = 0;
+    let taxableAmount = 0;
+    let nonTaxableAmount = 0;
+    let totalTax = 0;
+    let extraTax = 0;
+
     cart.forEach(item => {
-        subtotal += calculateItemTotal(item);
+        const lineTotal = calculateItemTotal(item);
+        subtotal += lineTotal;
+        const taxRate = parseFloat(item.tax_percent) || 0;
+        const taxIncluded = item.tax_included !== false;
+
+        if (taxRate > 0) {
+            if (taxIncluded) {
+                const itemTax = lineTotal * (taxRate / (100 + taxRate));
+                totalTax += itemTax;
+                taxableAmount += (lineTotal - itemTax);
+            } else {
+                const itemTax = lineTotal * (taxRate / 100);
+                totalTax += itemTax;
+                taxableAmount += lineTotal;
+                extraTax += itemTax;
+            }
+        } else {
+            nonTaxableAmount += lineTotal;
+        }
     });
 
     const overallDiscount = parseFloat($('#overallDiscount').val()) || 0;
     const discountAmount = subtotal * (overallDiscount / 100);
     const afterDiscount = subtotal - discountAmount;
-    const taxAmount = 0; // Add tax logic if needed
-    const total = afterDiscount + taxAmount;
+    const total = afterDiscount + extraTax;
 
-    $('#subtotal').text('₹' + subtotal.toFixed(2));
-    $('#discountAmount').text('₹' + discountAmount.toFixed(2));
-    $('#taxAmount').text('₹' + taxAmount.toFixed(2));
-    $('#totalToPay').text('₹' + total.toFixed(2));
+    $('#subtotal').text('Rs. ' + subtotal.toFixed(2));
+    $('#discountAmount').text('Rs. ' + discountAmount.toFixed(2));
+    $('#taxAmount').text('Rs. ' + totalTax.toFixed(2));
+    
+    if (taxableAmount > 0 || nonTaxableAmount > 0) {
+        let detailsHtml = '<div class="p-2 bg-white rounded border small text-muted">';
+        if (taxableAmount > 0) {
+            detailsHtml += `<div>Taxable: <strong>Rs. ${taxableAmount.toFixed(2)}</strong> (VAT: <strong>Rs. ${totalTax.toFixed(2)}</strong>)</div>`;
+        }
+        if (nonTaxableAmount > 0) {
+            detailsHtml += `<div>Non-VAT: <strong>Rs. ${nonTaxableAmount.toFixed(2)}</strong></div>`;
+        }
+        detailsHtml += '</div>';
+        $('#taxDetails').html(detailsHtml).show();
+    } else {
+        $('#taxDetails').hide();
+    }
+
+    $('#totalToPay').text('Rs. ' + total.toFixed(2));
 
     // Auto-fill paid amount if status is paid
     if ($('#paymentStatus').val() === 'paid') {

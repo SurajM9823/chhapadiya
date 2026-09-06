@@ -140,41 +140,46 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">S.N.</th>
-                    <th style="width: 30%;">Name</th>
-                    <th style="width: 15%;">SKU</th>
-                    <th style="width: 7%;" class="text-center">Qty</th>
-                    <th style="width: 8%;" class="text-center">Unit</th>
+                    <th style="width: 28%;">Name</th>
+                    <th style="width: 12%;">SKU</th>
+                    <th style="width: 6%;" class="text-center">Qty</th>
+                    <th style="width: 7%;" class="text-center">Unit</th>
                     <th style="width: 10%;" class="text-right">Rate</th>
-                    <th style="width: 10%;" class="text-right">Amount</th>
-                    <th style="width: 5%;" class="text-right">VAT</th>
+                    <th style="width: 10%;" class="text-right">Taxable</th>
+                    <th style="width: 10%;" class="text-right">VAT</th>
                     <th style="width: 10%;" class="text-right">Total</th>
-                    <th style="width: 10%;">Remarks</th>
+                    <th style="width: 12%;">Remarks</th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in bill.items.all %}
+                {% for item in items_with_tax %}
                 <tr>
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td>{{ item.product_name }}</td>
-                    <td>{{ item.sku|default:"-" }}</td>
+                    <td>{{ item.product_sku|default:"-" }}</td>
                     <td class="text-center">{{ item.quantity }}</td>
-                    <td class="text-center">{{ item.product.unit.name|default:"Pcs" }}</td>
-                    <td class="text-right">{{ item.unit_price }}</td>
-                    <td class="text-right">{{ item.subtotal }}</td>
-                    <td class="text-right">{{ item.vat_amount|default:"0" }}</td>
-                    <td class="text-right">{{ item.total_with_vat|default:item.subtotal }}</td>
-                    <td>{% if item.vat_amount > 0 %}VAT{% else %}Non-VAT{% endif %}</td>
+                    <td class="text-center">{{ item.unit }}</td>
+                    <td class="text-right">{{ item.unit_price|floatformat:2 }}</td>
+                    <td class="text-right">{% if item.is_taxable %}{{ item.taxable_amount|floatformat:2 }}{% else %}-{% endif %}</td>
+                    <td class="text-right">{% if item.is_taxable %}{{ item.vat_amount|floatformat:2 }}{% else %}0.00{% endif %}</td>
+                    <td class="text-right">{{ item.total_amount|floatformat:2 }}</td>
+                    <td>
+                        {% if item.is_taxable %}
+                            <span style="color: #15803d; font-weight: 500;">VAT ({{ item.tax_percent|floatformat:0 }}%)</span>
+                        {% else %}
+                            <span style="color: #6b7280;">Non-VAT</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
                 
                 <tr class="grand-total-row">
-                    <td colspan="2" class="text-right">Grand Total</td>
-                    <td></td>
-                    <td class="text-center">{{ bill.total_quantity|default:"2" }}</td>
+                    <td colspan="3" class="text-right">Grand Total</td>
+                    <td class="text-center">{{ total_quantity|default:bill.items.count }}</td>
                     <td colspan="2"></td>
-                    <td class="text-right">{{ bill.subtotal }}</td>
-                    <td class="text-right">{{ bill.total_vat|default:"0" }}</td>
-                    <td class="text-right">{{ bill.total }}</td>
+                    <td class="text-right">Rs. {{ tax_breakdown.taxable_amount|floatformat:2 }}</td>
+                    <td class="text-right">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</td>
+                    <td class="text-right">Rs. {{ bill.total }}</td>
                     <td></td>
                 </tr>
             </tbody>
@@ -182,18 +187,38 @@
 
         <div class="summary-section">
             <table class="summary-table">
+                {% if tax_breakdown.has_tax %}
                 <tr>
-                    <td>Sub-Total(Exclusive):</td>
+                    <td>Taxable Amount:</td>
+                    <td class="text-right">NRs {{ tax_breakdown.taxable_amount|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Total VAT ({{ tax_breakdown.avg_tax_rate|floatformat:1 }}%):</td>
+                    <td class="text-right">NRs {{ tax_breakdown.total_tax|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if tax_breakdown.has_non_tax %}
+                <tr>
+                    <td>Non-Taxable Amount:</td>
+                    <td class="text-right">NRs {{ tax_breakdown.non_taxable_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td>Sub-Total:</td>
                     <td class="text-right">NRs {{ bill.subtotal }}</td>
                 </tr>
+                {% if bill.item_discount > 0 %}
                 <tr>
-                    <td>Shipping:</td>
-                    <td class="text-right">NRs {{ bill.shipping_cost|default:"0" }}</td>
+                    <td>Item Discount:</td>
+                    <td class="text-right">- NRs {{ bill.item_discount }}</td>
                 </tr>
+                {% endif %}
+                {% if bill.overall_discount > 0 %}
                 <tr>
-                    <td>Total VAT:</td>
-                    <td class="text-right">NRs {{ bill.total_vat|default:"0" }}</td>
+                    <td>Overall Discount:</td>
+                    <td class="text-right">- NRs {{ bill.overall_discount }}</td>
                 </tr>
+                {% endif %}
                 <tr class="total-line">
                     <td>Order total:</td>
                     <td class="text-right">NRs {{ bill.total }}</td>

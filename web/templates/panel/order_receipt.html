@@ -180,13 +180,13 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">S.N.</th>
-                    <th style="width: 33%;">Name</th>
+                    <th style="width: 31%;">Name</th>
                     <th style="width: 10%;">SKU</th>
                     <th style="width: 6%;" class="text-center">Qty</th>
                     <th style="width: 7%;" class="text-center">Unit</th>
-                    <th style="width: 10%;" class="text-right">Unit Price<br><small>(Excl. VAT)</small></th>
+                    <th style="width: 11%;" class="text-right">Unit Price<br><small>(Excl. VAT)</small></th>
                     <th style="width: 10%;" class="text-right">Taxable<br>Amount</th>
-                    <th style="width: 9%;" class="text-right">VAT<br>(13%)</th>
+                    <th style="width: 10%;" class="text-right">VAT</th>
                     <th style="width: 10%;" class="text-right">Total<br>Amount</th>
                 </tr>
             </thead>
@@ -194,13 +194,31 @@
                 {% for item_data in items_with_tax %}
                 <tr>
                     <td class="text-center">{{ forloop.counter }}</td>
-                    <td>{{ item_data.item.product_name }}</td>
+                    <td>
+                        {{ item_data.item.product_name }}
+                        {% if not item_data.is_taxable %}
+                        <span style="display: inline-block; font-size: 10px; background: #e5e7eb; color: #4b5563; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">Non-VAT</span>
+                        {% endif %}
+                    </td>
                     <td>{{ item_data.item.product_sku|default:"-" }}</td>
                     <td class="text-center">{{ item_data.item.quantity }}</td>
                     <td class="text-center">{{ item_data.unit }}</td>
                     <td class="text-right">Rs. {{ item_data.unit_price_excl|floatformat:2 }}</td>
-                    <td class="text-right">Rs. {{ item_data.taxable_amount|floatformat:2 }}</td>
-                    <td class="text-right">Rs. {{ item_data.vat_amount|floatformat:2 }}</td>
+                    <td class="text-right">
+                        {% if item_data.is_taxable %}
+                            Rs. {{ item_data.taxable_amount|floatformat:2 }}
+                        {% else %}
+                            <span style="color: #999;">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        {% if item_data.is_taxable %}
+                            Rs. {{ item_data.vat_amount|floatformat:2 }}
+                            <small style="display: block; color: #666; font-size: 10px;">({{ item_data.tax_percent|floatformat:0 }}%)</small>
+                        {% else %}
+                            <span style="color: #6b7280; font-size: 11px;">0% (Exempt)</span>
+                        {% endif %}
+                    </td>
                     <td class="text-right">Rs. {{ item_data.total_amount|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
@@ -226,16 +244,17 @@
                     <td>VAT ({{ tax_breakdown.avg_tax_rate|floatformat:1 }}%):</td>
                     <td class="text-right">Rs. {{ tax_breakdown.total_tax|floatformat:2 }}</td>
                 </tr>
+                {% endif %}
+                {% if tax_breakdown.has_non_tax %}
                 <tr>
-                    <td>Sub-Total:</td>
-                    <td class="text-right">Rs. {{ order.subtotal }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td>Sub-Total:</td>
-                    <td class="text-right">Rs. {{ order.subtotal }}</td>
+                    <td>Non-Taxable Amount:</td>
+                    <td class="text-right">Rs. {{ tax_breakdown.non_taxable_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
+                <tr>
+                    <td>Sub-Total:</td>
+                    <td class="text-right">Rs. {{ order.subtotal }}</td>
+                </tr>
                 <tr>
                     <td>Shipping:</td>
                     <td class="text-right">Rs. {{ order.delivery_charge|default:"0" }}</td>
