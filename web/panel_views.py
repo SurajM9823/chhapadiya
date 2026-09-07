@@ -1,4 +1,4 @@
-﻿from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -2177,6 +2177,121 @@ def panel_orders_data(request):
 
 
 
+def compute_items_tax_breakdown(items):
+    """
+    Computes dynamic tax breakdown and per-item tax details for a list of OrderItem or BillingItem objects.
+    Accurately separates VAT (taxable) and Non-VAT (exempt/0% tax) products.
+    """
+    tax_breakdown = {
+        'has_tax': False,
+        'has_non_tax': False,
+        'total_tax': 0.0,
+        'taxable_amount': 0.0,
+        'non_taxable_amount': 0.0,
+        'subtotal_excl': 0.0,
+        'total_amount': 0.0,
+        'avg_tax_rate': 0.0,
+        'tax_items_count': 0,
+    }
+    items_with_tax = []
+    total_tax = 0.0
+    taxable_amount = 0.0
+    non_taxable_amount = 0.0
+    subtotal_excl = 0.0
+    tax_items_count = 0
+    total_tax_rate = 0.0
+    total_amount = 0.0
+
+    for item in items:
+        product = getattr(item, 'product', None)
+        unit_price = float(getattr(item, 'unit_price', 0))
+        quantity = int(getattr(item, 'quantity', 1))
+        discount = float(getattr(item, 'discount', 0))
+        line_subtotal = float(getattr(item, 'subtotal', (unit_price * quantity) - discount))
+        unit_name = 'Pcs'
+        if product and getattr(product, 'unit', None):
+            unit_name = product.unit.name
+
+        tax_percent = 0.0
+        tax_included = True
+        if product:
+            try:
+                tax_percent = float(product.tax_percent or 0)
+            except (ValueError, TypeError):
+                tax_percent = 0.0
+            tax_included = bool(getattr(product, 'tax_included', True))
+
+        if tax_percent > 0:
+            if tax_included:
+                # Tax is included in MRP / selling price
+                item_tax = line_subtotal * (tax_percent / (100.0 + tax_percent))
+                item_taxable = line_subtotal - item_tax
+                unit_price_excl = unit_price * (100.0 / (100.0 + tax_percent))
+                item_total = line_subtotal
+            else:
+                # Tax is extra (exclusive)
+                item_taxable = line_subtotal
+                item_tax = line_subtotal * (tax_percent / 100.0)
+                unit_price_excl = unit_price
+                item_total = line_subtotal + item_tax
+
+            is_taxable = True
+            total_tax += item_tax
+            taxable_amount += item_taxable
+            subtotal_excl += item_taxable
+            total_tax_rate += tax_percent
+            tax_items_count += 1
+            remarks = f"VAT ({tax_percent:g}%)"
+        else:
+            # Non-VAT product (tax exempt / 0%)
+            item_tax = 0.0
+            item_taxable = 0.0
+            unit_price_excl = unit_price
+            item_total = line_subtotal
+            is_taxable = False
+            non_taxable_amount += line_subtotal
+            subtotal_excl += line_subtotal
+            remarks = "Non-VAT"
+
+        total_amount += item_total
+
+        item_data = {
+            'item': item,
+            'product_name': getattr(item, 'product_name', product.name if product else ''),
+            'product_sku': getattr(item, 'product_sku', product.sku if product else ''),
+            'unit': unit_name,
+            'quantity': quantity,
+            'unit_price': unit_price,
+            'unit_price_excl': unit_price_excl,
+            'discount': discount,
+            'line_subtotal': line_subtotal,
+            'taxable_amount': item_taxable,
+            'non_taxable_amount': line_subtotal if not is_taxable else 0.0,
+            'tax_percent': tax_percent,
+            'tax_included': tax_included,
+            'is_taxable': is_taxable,
+            'vat_amount': item_tax,
+            'total_amount': item_total,
+            'remarks': remarks,
+        }
+        items_with_tax.append(item_data)
+
+    if tax_items_count > 0:
+        tax_breakdown['has_tax'] = True
+        tax_breakdown['avg_tax_rate'] = (total_tax / taxable_amount * 100.0) if taxable_amount > 0 else (total_tax_rate / tax_items_count)
+    if non_taxable_amount > 0:
+        tax_breakdown['has_non_tax'] = True
+
+    tax_breakdown['total_tax'] = total_tax
+    tax_breakdown['taxable_amount'] = taxable_amount
+    tax_breakdown['non_taxable_amount'] = non_taxable_amount
+    tax_breakdown['subtotal_excl'] = subtotal_excl
+    tax_breakdown['total_amount'] = total_amount
+    tax_breakdown['tax_items_count'] = tax_items_count
+
+    return items_with_tax, tax_breakdown
+
+
 @login_required(login_url='panel_login')
 @permission_required('orders', 'edit')
 def panel_order_detail(request, pk):
@@ -2260,35 +2375,7 @@ def panel_order_detail(request, pk):
         items_with_reviews.append({'item': item, 'review': review})
     
     # Calculate tax breakdown
-    tax_breakdown = {
-        'has_tax': False,
-        'total_tax': 0,
-        'taxable_amount': 0,
-        'avg_tax_rate': 0
-    }
-    
-    total_tax = 0
-    taxable_amount = 0
-    tax_items_count = 0
-    total_tax_rate = 0
-    
-    for item in order.items.all():
-        if item.product and item.product.tax_included:
-            item_total = float(item.subtotal)           
-            tax_rate = 13.0  # Hardcoded 13% VAT
-            item_tax = item_total * (tax_rate / (100 + tax_rate))
-            item_taxable = item_total - item_tax
-            
-            total_tax += item_tax
-            taxable_amount += item_taxable
-            total_tax_rate += tax_rate
-            tax_items_count += 1
-    
-    if tax_items_count > 0:
-        tax_breakdown['has_tax'] = True
-        tax_breakdown['total_tax'] = total_tax
-        tax_breakdown['taxable_amount'] = taxable_amount
-        tax_breakdown['avg_tax_rate'] = total_tax_rate / tax_items_count
+    items_with_tax, tax_breakdown = compute_items_tax_breakdown(order.items.select_related('product__unit').all())
     
     can_edit = request.user.is_superuser or check_permission(request.user, 'orders', 'edit')
     can_delete = request.user.is_superuser or check_permission(request.user, 'orders', 'delete')
@@ -2330,6 +2417,7 @@ def panel_order_detail(request, pk):
     return render(request, 'panel/order_detail.html', {
         'order': order,
         'items_with_reviews': items_with_reviews,
+        'items_with_tax': items_with_tax,
         'can_edit': can_edit,
         'can_delete': can_delete,
         'can_update_status': can_update_status,
@@ -2348,42 +2436,18 @@ def panel_order_detail(request, pk):
 @permission_required('orders', 'view')
 def panel_order_receipt(request, pk):
     order = get_object_or_404(
-        Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product').order_by('-created_at'),
+        Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product__unit').order_by('-created_at'),
         pk=pk
     )
     settings = SiteSettings.get()
+    items_with_tax, tax_breakdown = compute_items_tax_breakdown(order.items.all())
     
-    tax_breakdown = {'has_tax': False, 'total_tax': 0, 'taxable_amount': 0, 'avg_tax_rate': 0}
-    total_tax = taxable_amount = tax_items_count = total_tax_rate = 0
-    items_with_tax = []
-    
-    for item in order.items.all():
-        item_data = {'item': item, 'unit_price_excl': 0, 'taxable_amount': 0, 'vat_amount': 0, 'total_amount': float(item.subtotal), 'unit': item.product.unit.name if item.product and item.product.unit else 'Pcs'}
-        
-        if item.product and item.product.tax_included:
-            item_total = float(item.subtotal)
-            tax_rate = 13.0
-            item_tax = item_total * (tax_rate / (100 + tax_rate))
-            item_taxable = item_total - item_tax
-            
-            item_data['unit_price_excl'] = float(item.unit_price) * (100 / 113)
-            item_data['taxable_amount'] = item_taxable
-            item_data['vat_amount'] = item_tax
-            
-            total_tax += item_tax
-            taxable_amount += item_taxable
-            total_tax_rate += tax_rate
-            tax_items_count += 1
-        else:
-            item_data['unit_price_excl'] = float(item.unit_price)
-            item_data['taxable_amount'] = float(item.subtotal)
-        
-        items_with_tax.append(item_data)
-    
-    if tax_items_count > 0:
-        tax_breakdown.update({'has_tax': True, 'total_tax': total_tax, 'taxable_amount': taxable_amount, 'avg_tax_rate': total_tax_rate / tax_items_count})
-    
-    return render(request, 'panel/order_receipt.html', {'order': order, 'settings': settings, 'tax_breakdown': tax_breakdown, 'items_with_tax': items_with_tax})
+    return render(request, 'panel/order_receipt.html', {
+        'order': order,
+        'settings': settings,
+        'tax_breakdown': tax_breakdown,
+        'items_with_tax': items_with_tax
+    })
 @login_required(login_url='panel_login')
 @permission_required('orders', 'delete')
 def panel_order_delete(request, pk):
@@ -2986,7 +3050,7 @@ def panel_billing(request):
 
     # -- GET: render POS page -------------------------------------------------
     # Products JSON for POS grid
-    products_qs = Product.objects.filter(is_active=True).select_related('category').prefetch_related('images', 'tier_prices__tier')
+    products_qs = Product.objects.filter(is_active=True).select_related('category', 'unit').prefetch_related('images', 'tier_prices__tier')
     products_data = []
     for p in products_qs:
         img = p.primary_image
@@ -2994,12 +3058,16 @@ def panel_billing(request):
         products_data.append({
             'id': p.pk, 'name': p.name, 'sku': p.sku,
             'mrp': float(p.mrp),
+            'retail_price': float(p.retail_price) if p.retail_price else float(p.mrp),
+            'dealer_price': float(p.dealer_price) if p.dealer_price else float(p.mrp),
             'stock': p.stock_quantity,
             'category': p.category.name if p.category else '',
             'category_id': p.category_id or 0,
             'image': img.image.url if img else '',
             'tier_prices': tier_prices,
             'unit': p.unit.name if p.unit else 'Pcs',
+            'tax_included': p.tax_included,
+            'tax_percent': float(p.tax_percent or 0),
         })
 
     customers_qs = Customer.objects.filter(is_active=True).select_related('tier')
@@ -3094,13 +3162,18 @@ def panel_billing(request):
 @permission_required('orders', 'view')
 def panel_billing_view(request, pk):
     bill = get_object_or_404(
-        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product'),
+        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product__unit'),
         pk=pk
     )
     settings = SiteSettings.get()
+    items_with_tax, tax_breakdown = compute_items_tax_breakdown(bill.items.all())
+    total_quantity = sum(item['quantity'] for item in items_with_tax)
     return render(request, 'panel/billing_invoice.html', {
         'bill': bill,
         'settings': settings,
+        'items_with_tax': items_with_tax,
+        'tax_breakdown': tax_breakdown,
+        'total_quantity': total_quantity,
     })
 
 
@@ -3108,9 +3181,10 @@ def panel_billing_view(request, pk):
 @permission_required('orders', 'view')
 def panel_billing_detail(request, pk):
     bill = get_object_or_404(
-        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product'),
+        Billing.objects.select_related('customer', 'agent', 'billed_by').prefetch_related('items__product__unit'),
         pk=pk
     )
+    items_with_tax, tax_breakdown = compute_items_tax_breakdown(bill.items.all())
     return JsonResponse({
         'bill_number': bill.bill_number,
         'sale_type': bill.get_sale_type_display(),
@@ -3122,6 +3196,7 @@ def panel_billing_detail(request, pk):
         'item_discount': float(bill.item_discount),
         'overall_discount': float(bill.overall_discount),
         'total': float(bill.total),
+        'tax_breakdown': tax_breakdown,
         'cash_amount': float(bill.cash_amount),
         'card_amount': float(bill.card_amount),
         'online_amount': float(bill.online_amount),
@@ -3131,10 +3206,22 @@ def panel_billing_detail(request, pk):
         'note': bill.note,
         'created_at': bill.created_at.strftime('%d %b %Y, %H:%M'),
         'items': [{
-            'name': i.product_name, 'sku': i.product_sku,
-            'qty': i.quantity, 'unit_price': float(i.unit_price),
-            'discount': float(i.discount), 'subtotal': float(i.subtotal),
-        } for i in bill.items.all()],
+            'name': i['product_name'],
+            'sku': i['product_sku'],
+            'qty': i['quantity'],
+            'unit': i['unit'],
+            'unit_price': i['unit_price'],
+            'unit_price_excl': i['unit_price_excl'],
+            'discount': i['discount'],
+            'subtotal': i['line_subtotal'],
+            'taxable_amount': i['taxable_amount'],
+            'vat_amount': i['vat_amount'],
+            'tax_percent': i['tax_percent'],
+            'tax_included': i['tax_included'],
+            'is_taxable': i['is_taxable'],
+            'remarks': i['remarks'],
+            'total_amount': i['total_amount'],
+        } for i in items_with_tax],
     })
 
 
@@ -3150,7 +3237,7 @@ def api_billing_products(request):
         if c and c.tier_id:
             tier_id = c.tier_id
 
-    qs = Product.objects.filter(is_active=True).prefetch_related('images', 'tier_prices__tier')
+    qs = Product.objects.filter(is_active=True).select_related('unit').prefetch_related('images', 'tier_prices__tier')
     if q:
         from django.db.models import Q as DQ
         qs = qs.filter(DQ(name__icontains=q) | DQ(sku__icontains=q))
@@ -3165,7 +3252,12 @@ def api_billing_products(request):
         results.append({
             'id': p.pk, 'name': p.name, 'sku': p.sku,
             'price': price, 'mrp': float(p.mrp),
+            'retail_price': float(p.retail_price) if p.retail_price else float(p.mrp),
+            'dealer_price': float(p.dealer_price) if p.dealer_price else float(p.mrp),
             'stock': p.stock_quantity,
+            'unit': p.unit.name if p.unit else 'Pcs',
+            'tax_included': p.tax_included,
+            'tax_percent': float(p.tax_percent or 0),
             'image': img.image.url if img else '',
         })
     return JsonResponse({'results': results})
