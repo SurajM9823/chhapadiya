@@ -157,6 +157,7 @@ urlpatterns = [
     path('panel/quotes/<int:pk>/update/', panel_views.panel_quote_update, name='panel_quote_update'),
     path('panel/quotes/<int:pk>/delete/', panel_views.panel_quote_delete, name='panel_quote_delete'),
     path('panel/quotes/<int:pk>/create-customer/', panel_views.panel_quote_create_customer, name='panel_quote_create_customer'),
+
     path('panel/billing/', panel_views.panel_billing, name='panel_billing'),
     path('panel/billing/<int:pk>/detail/', panel_views.panel_billing_detail, name='panel_billing_detail'),
     path('panel/billing/<int:pk>/view/', panel_views.panel_billing_view, name='panel_billing_view'),
@@ -176,12 +177,11 @@ urlpatterns = [
     path('panel/orders/<int:pk>/mark-as-refund/', panel_views.mark_order_as_refund, name='mark_order_as_refund'),
     path('panel/orders/items/<int:pk>/toggle-availability/', panel_views.toggle_order_item_availability, name='toggle_order_item_availability'),
     path('panel/orders/<int:pk>/record-payment/', panel_views.record_order_payment, name='record_order_payment'),
+    path('panel/orders/<int:pk>/add-note/', panel_views.panel_order_add_note, name='panel_order_add_note'),
     path('panel/orders/<int:pk>/receipt/', panel_views.panel_order_receipt, name='panel_order_receipt'),
 
     path('my-quotes/', views.my_quotes, name='my_quotes'),
     path('my-quotes/<int:pk>/pdf/', views.quotation_pdf, name='quotation_pdf'),
-
-    # User Management
     path('panel/users/', panel_views.panel_users, name='panel_users'),
     path('panel/users/add/', panel_views.panel_user_add, name='panel_user_add'),
     path('panel/users/<int:pk>/edit/', panel_views.panel_user_edit, name='panel_user_edit'),

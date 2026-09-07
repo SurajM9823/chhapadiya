@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (SiteSettings, CarouselSlide, Reel, Category, SubCategory,
     Country, CustomerTier, Customer, Product, ProductImage, ProductTierPrice,
     Stat, TrustedClient, Testimonial, TeamMember, Service, WhyChooseUs, StockEntry,
-    CustomerUser, Role, Permission, Package, PackageItem, OrderStatusPermission)
+    CustomerUser, Role, Permission, Package, PackageItem, OrderStatusPermission, OrderNote)
 
 
 # ── Customize Admin Site ──────────────────────────────────────────────────────
@@ -357,3 +357,12 @@ class PackageAdmin(admin.ModelAdmin):
             return html
         return "Save package to see calculation"
     get_final_calculation.short_description = 'Price Breakdown'
+
+
+@admin.register(OrderNote)
+class OrderNoteAdmin(admin.ModelAdmin):
+    list_display = ['order', 'user', 'created_at', 'note']
+    list_filter = ['created_at']
+    search_fields = ['order__order_number', 'user__username', 'user__email', 'note']
+    readonly_fields = ['created_at']
+

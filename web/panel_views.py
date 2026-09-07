@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent, ProductAlliance, OrderPayment, ProductUnit
+from .models import SiteSettings, CarouselSlide, Reel, Category, SubCategory, Country, CustomerTier, DeliveryTimeTier, Customer, Product, ProductImage, ProductTierPrice, Stat, TrustedClient, Testimonial, TeamMember, Founder, Service, WhyChooseUs, StockEntry, ContactInquiry, Order, OrderItem, CustomerUser, Role, Permission, Billing, BillingItem, Package, PackageItem, PackageImage, AboutContent, ProductAlliance, OrderPayment, ProductUnit, OrderNote
 from .email_utils import send_order_status_update_email
 from .permissions import permission_required, check_permission
 import json
@@ -2296,7 +2296,7 @@ def compute_items_tax_breakdown(items):
 @permission_required('orders', 'edit')
 def panel_order_detail(request, pk):
     from .models import ProductReview, OrderPayment
-    order = get_object_or_404(Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product', 'payments').order_by('-created_at'), pk=pk)
+    order = get_object_or_404(Order.objects.select_related('user', 'referred_agent').prefetch_related('items__product', 'payments', 'notes__user').order_by('-created_at'), pk=pk)
     
     # Get billing records for this order
     from django.db.models import Sum
@@ -2430,6 +2430,44 @@ def panel_order_detail(request, pk):
         'can_mark_available': can_mark_available,
         'show_availability_toggle': show_availability_toggle,
     })
+
+
+@login_required(login_url='panel_login')
+@permission_required('orders', 'edit')
+def panel_order_add_note(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    if request.method == 'POST':
+        note_text = request.POST.get('note', '').strip()
+        if not note_text:
+            try:
+                import json as _json
+                data = _json.loads(request.body)
+                note_text = data.get('note', '').strip()
+            except Exception:
+                pass
+
+        if note_text:
+            note_obj = OrderNote.objects.create(
+                order=order,
+                user=request.user if request.user.is_authenticated else None,
+                note=note_text
+            )
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                author_name = (note_obj.user.get_full_name() or note_obj.user.username) if note_obj.user else 'Staff'
+                return JsonResponse({
+                    'ok': True,
+                    'id': note_obj.id,
+                    'note': note_obj.note,
+                    'author': author_name,
+                    'created_at': note_obj.created_at.strftime('%d %b %Y, %I:%M %p')
+                })
+            messages.success(request, 'Order note added successfully.')
+        else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                return JsonResponse({'ok': False, 'error': 'Note cannot be empty.'}, status=400)
+            messages.error(request, 'Note cannot be empty.')
+
+    return redirect('panel_order_detail', pk=pk)
 
 
 @login_required(login_url='panel_login')

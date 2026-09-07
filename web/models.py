@@ -343,6 +343,20 @@ class OrderPayment(models.Model):
         return f"Payment Rs.{self.amount} for Order #{self.order.order_number}"
 
 
+class OrderNote(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='notes')
+    user = models.ForeignKey(CustomerUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_notes')
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        author = (self.user.get_full_name() or self.user.username) if self.user else 'System'
+        return f"Note by {author} on Order #{self.order.order_number}"
+
+
 class ProductReview(models.Model):
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(CustomerUser, on_delete=models.CASCADE, related_name='reviews')
