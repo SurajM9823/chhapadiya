@@ -14,55 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* ── Collapsible sidebar ── */
-        #sidebar {
-            width: 3.5rem; /* 56px collapsed */
-            transition: width 200ms ease;
-            overflow: hidden;
-            overflow-y: auto;
-        }
-        #sidebar:hover {
-            width: 14rem; /* 224px expanded */
-        }
-        /* Main content shifts with sidebar */
-        .sidebar-main {
-            margin-left: 3.5rem;
-            transition: margin-left 200ms ease;
-        }
-        #sidebar:hover ~ * .sidebar-main,
-        body:has(#sidebar:hover) .sidebar-main {
-            margin-left: 14rem;
-        }
-        /* Hide text labels & arrows when collapsed */
-        .nav-label, .nav-arrow, .nav-sub {
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 150ms ease;
-            white-space: nowrap;
-        }
-        #sidebar:hover .nav-label,
-        #sidebar:hover .nav-arrow {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        #sidebar:hover .nav-sub {
-            pointer-events: auto;
-        }
-        /* Sub-menus: hidden when collapsed regardless of JS toggle */
-        .nav-sub {
-            overflow: hidden;
-            max-height: 0;
-            transition: max-height 200ms ease, opacity 150ms ease;
-        }
-        #sidebar:hover .nav-sub:not(.sub-hidden) {
-            max-height: 500px;
-            opacity: 1;
-        }
-        /* Nav icons always centered when collapsed */
-        .nav-item-inner {
-            min-width: 1.25rem; /* icon width */
-            flex-shrink: 0;
-        }
+
         /* Select2 custom styling */
         .select2-container--default .select2-selection--single {
             height: 34px !important;
